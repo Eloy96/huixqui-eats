@@ -1,27 +1,33 @@
 # PuebloPedidos
 
-Demo estatica de marketplace local de comida por WhatsApp.
+Prototipo funcional de marketplace local de comida por WhatsApp.
 
 ## Que incluye esta version
 
-- Registro/inicio como cliente.
-- Registro/inicio como tienda.
-- Home publico tipo marketplace, visible antes del registro.
-- Menu con acceso a registro de cliente o tienda.
+- Inicio de sesion compacto para cliente o tienda.
+- Links de recuperar contrasena y registrarse ahora.
+- Registro oculto hasta que el usuario lo solicita.
+- Home publico visible antes del registro.
+- Carrusel general de tiendas y carruseles por categoria.
+- Link propio por tienda con formato `#tienda/id-de-la-tienda`.
+- Perfil publico de tienda separado del home.
+- Productos de tienda en filas compactas con imagen pequena.
+- Detalle de producto antes de agregar al carrito.
+- Caja de comentarios por producto, por ejemplo: sin cebolla.
+- Carrito de compras en modal con contador.
 - Perfil de cliente en modal con nombre, WhatsApp, direccion y referencia.
 - Historial de pedidos del cliente.
-- Marketplace horizontal con busqueda, categorias y productos destacados.
-- Carrito por tienda.
-- Modal antes de WhatsApp con dos productos sugeridos de la misma tienda.
-- Mensaje de WhatsApp con productos, cantidades, total, direccion y referencia del cliente.
+- Selector de entrega o recoger que cambia productos disponibles.
+- Mensaje de WhatsApp con productos, cantidades, notas, total, direccion y referencia.
 - Panel de tienda con metricas, ventas, contactos y creditos restantes.
+- Panel de tienda con edicion de datos del negocio.
 - Alta de productos con titulo, descripcion, precio e imagen.
+- Disponibilidad por producto: entrega, recoger o ambos.
 - Soporte para subir imagen o tomar fotografia desde celular.
-- Descuentos por porcentaje o por pesos, mostrando el campo de cantidad solo cuando aplica.
+- Descuentos por porcentaje o por pesos.
 - Precio anterior tachado y precio nuevo visible.
-- Destacados pagados de 3 dias o 7 dias.
+- Espacios promocionados pagados de 3 dias o 7 dias.
 - Edicion de productos ya publicados.
-- Destacar productos ya publicados sin volver a darlos de alta.
 - Descarga de reporte CSV por tienda.
 
 ## Como subirlo a GitHub Pages
@@ -42,20 +48,19 @@ Demo estatica de marketplace local de comida por WhatsApp.
    - Folder: `/root`
 6. Guarda y espera a que GitHub genere la URL.
 
-## Como editar datos demo
+## Como editar datos iniciales
 
 Abre `app.js`.
 
-- `defaultClient`: perfil demo del cliente.
-- `defaultStores`: tiendas demo.
-- `defaultProducts`: productos demo.
+- `defaultStores`: tiendas iniciales del marketplace.
+- `defaultProducts`: productos iniciales del marketplace.
 
 ## Importante
 
-Esta es una demo estatica pensada para GitHub Pages. Los registros, productos,
+Esta version estatica esta pensada para GitHub Pages. Los registros, productos,
 imagenes subidas, pedidos, contactos y creditos se guardan en el navegador con
 `localStorage`.
 
 Para venderlo como producto real, el siguiente paso es agregar backend, base de
-datos, inicio de sesion real, panel administrativo central, pasarela de pagos y
+datos, contrasenas cifradas, panel administrativo central, pasarela de pagos y
 almacenamiento real de imagenes.

@@ -1,16 +1,8 @@
-const STORAGE_KEY = "pueblopedidos-v5";
+const STORAGE_KEY = "pueblopedidos-v8";
 
 function futureDate(days) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
-
-const defaultClient = {
-  id: "client-demo",
-  name: "Erika Rosales",
-  phone: "5551234567",
-  address: "Calle Hidalgo 25, Colonia Centro",
-  reference: "Casa azul frente a la primaria",
-};
 
 const defaultStores = [
   {
@@ -18,8 +10,11 @@ const defaultStores = [
     name: "Burger Plaza",
     owner: "Ana Lopez",
     phone: "5215550100202",
+    email: "burger@pueblopedidos.mx",
+    password: "Burger123",
     category: "Hamburguesas",
     address: "Plaza principal, local 4",
+    serviceModes: "both",
     image: "./assets/hamburguesas.png",
     rating: "4.7",
     time: "20-30 min",
@@ -31,8 +26,11 @@ const defaultStores = [
     name: "Tacos Don Luis",
     owner: "Luis Martinez",
     phone: "5215550100101",
+    email: "tacos@pueblopedidos.mx",
+    password: "Tacos1234",
     category: "Tacos",
     address: "Calle Morelos 12, Centro",
+    serviceModes: "both",
     image: "./assets/tacos.png",
     rating: "4.8",
     time: "15-25 min",
@@ -44,8 +42,11 @@ const defaultStores = [
     name: "Pizza La Esquina",
     owner: "Rosa Nunez",
     phone: "5215550100303",
+    email: "pizza@pueblopedidos.mx",
+    password: "Pizza1234",
     category: "Pizza",
     address: "Esquina Zaragoza y Juarez",
+    serviceModes: "delivery",
     image: "./assets/pizza.png",
     rating: "4.6",
     time: "25-40 min",
@@ -57,8 +58,11 @@ const defaultStores = [
     name: "Postres Mia",
     owner: "Mia Garcia",
     phone: "5215550100505",
+    email: "postres@pueblopedidos.mx",
+    password: "Postres123",
     category: "Postres",
     address: "Mercado municipal, pasillo 2",
+    serviceModes: "pickup",
     image: "./assets/postres.png",
     rating: "4.9",
     time: "10-20 min",
@@ -77,6 +81,7 @@ const defaultProducts = [
     image: "./assets/hamburguesas.png",
     discountType: "percent",
     discountValue: 10,
+    availability: "both",
     featuredUntil: futureDate(7),
   },
   {
@@ -88,6 +93,7 @@ const defaultProducts = [
     image: "./assets/hamburguesas.png",
     discountType: "none",
     discountValue: 0,
+    availability: "delivery",
     featuredUntil: "",
   },
   {
@@ -99,6 +105,7 @@ const defaultProducts = [
     image: "./assets/tacos.png",
     discountType: "amount",
     discountValue: 8,
+    availability: "both",
     featuredUntil: futureDate(3),
   },
   {
@@ -110,6 +117,7 @@ const defaultProducts = [
     image: "./assets/pizza.png",
     discountType: "none",
     discountValue: 0,
+    availability: "delivery",
     featuredUntil: "",
   },
   {
@@ -121,6 +129,7 @@ const defaultProducts = [
     image: "./assets/postres.png",
     discountType: "percent",
     discountValue: 15,
+    availability: "pickup",
     featuredUntil: futureDate(3),
   },
   {
@@ -132,19 +141,20 @@ const defaultProducts = [
     image: "./assets/pizza.png",
     discountType: "amount",
     discountValue: 20,
+    availability: "pickup",
     featuredUntil: "",
   },
 ];
 
 function initialDb() {
   return {
-    clients: [defaultClient],
+    clients: [],
     stores: defaultStores,
     products: defaultProducts,
     leads: [],
     orders: [],
     session: null,
-    lastClientId: defaultClient.id,
+    lastClientId: "",
     lastStoreId: "burger-plaza",
     leadPrice: 1,
   };
@@ -170,24 +180,42 @@ const state = {
   cart: [],
   pendingImage: "",
   editingProductId: "",
+  selectedStoreId: "",
+  selectedProductId: "",
 };
 
 const els = {
   authView: document.getElementById("authView"),
+  authEyebrow: document.getElementById("authEyebrow"),
+  authTitle: document.getElementById("authTitle"),
   closeAuthModal: document.getElementById("closeAuthModal"),
   clientView: document.getElementById("clientView"),
   storeView: document.getElementById("storeView"),
   roleNav: document.getElementById("roleNav"),
   roleButtons: document.querySelectorAll("[data-role-switch]"),
+  openCartBtn: document.getElementById("openCartBtn"),
+  cartCount: document.getElementById("cartCount"),
   openProfileBtn: document.getElementById("openProfileBtn"),
   logoutBtn: document.getElementById("logoutBtn"),
   sessionLabel: document.getElementById("sessionLabel"),
+  clientLoginForm: document.getElementById("clientLoginForm"),
+  clientLoginPhone: document.getElementById("clientLoginPhone"),
+  clientLoginPassword: document.getElementById("clientLoginPassword"),
   clientForm: document.getElementById("clientForm"),
+  clientEmail: document.getElementById("clientEmail"),
+  clientPassword: document.getElementById("clientPassword"),
+  storeLoginForm: document.getElementById("storeLoginForm"),
+  storeLoginPhone: document.getElementById("storeLoginPhone"),
+  storeLoginPassword: document.getElementById("storeLoginPassword"),
   storeForm: document.getElementById("storeForm"),
+  storeEmail: document.getElementById("storeEmail"),
+  storePassword: document.getElementById("storePassword"),
+  storeServiceModes: document.getElementById("storeServiceModes"),
   clientAddressLabel: document.getElementById("clientAddressLabel"),
   clientReferenceLabel: document.getElementById("clientReferenceLabel"),
   editClientProfileBtn: document.getElementById("editClientProfileBtn"),
   openOrdersBtn: document.getElementById("openOrdersBtn"),
+  marketArea: document.querySelector(".market-area"),
   profileModal: document.getElementById("profileModal"),
   closeProfileModal: document.getElementById("closeProfileModal"),
   clientProfileForm: document.getElementById("clientProfileForm"),
@@ -200,15 +228,32 @@ const els = {
   ordersModalCount: document.getElementById("ordersModalCount"),
   featuredCarousel: document.getElementById("featuredCarousel"),
   storeStrip: document.getElementById("storeStrip"),
+  storeSections: document.getElementById("storeSections"),
+  storeProfileSection: document.getElementById("storeProfileSection"),
+  publicStoreBanner: document.getElementById("publicStoreBanner"),
+  publicStoreProducts: document.getElementById("publicStoreProducts"),
+  backToStoresBtn: document.getElementById("backToStoresBtn"),
   searchInput: document.getElementById("searchInput"),
   categoryList: document.getElementById("categoryList"),
   productGrid: document.getElementById("productGrid"),
+  cartModal: document.getElementById("cartModal"),
+  closeCartModal: document.getElementById("closeCartModal"),
   orderPanel: document.getElementById("orderPanel"),
+  productModal: document.getElementById("productModal"),
+  closeProductModal: document.getElementById("closeProductModal"),
+  productModalStore: document.getElementById("productModalStore"),
+  productModalTitle: document.getElementById("productModalTitle"),
+  productModalImage: document.getElementById("productModalImage"),
+  productModalDescription: document.getElementById("productModalDescription"),
+  productModalPrice: document.getElementById("productModalPrice"),
+  productComment: document.getElementById("productComment"),
+  confirmAddProduct: document.getElementById("confirmAddProduct"),
   storeTitle: document.getElementById("storeTitle"),
   storeMetrics: document.getElementById("storeMetrics"),
   productForm: document.getElementById("productForm"),
   productImage: document.getElementById("productImage"),
   imagePreview: document.getElementById("imagePreview"),
+  productAvailability: document.getElementById("productAvailability"),
   discountType: document.getElementById("discountType"),
   discountValue: document.getElementById("discountValue"),
   discountValueWrap: document.getElementById("discountValueWrap"),
@@ -223,6 +268,13 @@ const els = {
   creditStatus: document.getElementById("creditStatus"),
   exportStoreCsv: document.getElementById("exportStoreCsv"),
   addCreditsBtn: document.getElementById("addCreditsBtn"),
+  storeCampaigns: document.getElementById("storeCampaigns"),
+  storeProfileForm: document.getElementById("storeProfileForm"),
+  profileStoreName: document.getElementById("profileStoreName"),
+  profileStoreCategory: document.getElementById("profileStoreCategory"),
+  profileStorePhone: document.getElementById("profileStorePhone"),
+  profileStoreServiceModes: document.getElementById("profileStoreServiceModes"),
+  profileStoreAddress: document.getElementById("profileStoreAddress"),
   upsellModal: document.getElementById("upsellModal"),
   upsellItems: document.getElementById("upsellItems"),
   closeUpsell: document.getElementById("closeUpsell"),
@@ -249,11 +301,62 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 2600);
 }
 
+function cleanStaticText() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const fixes = [
+    [/\u00c3\u00b1/g, "n"],
+    [/\u00c3\u00a1/g, "a"],
+    [/\u00c3\u00a9/g, "e"],
+    [/\u00c3\u00ad/g, "i"],
+    [/\u00c3\u00b3/g, "o"],
+    [/\u00c3\u00ba/g, "u"],
+  ];
+  let node = walker.nextNode();
+  while (node) {
+    let value = node.nodeValue;
+    fixes.forEach(([pattern, replacement]) => {
+      value = value.replace(pattern, replacement);
+    });
+    node.nodeValue = value;
+    node = walker.nextNode();
+  }
+}
+
 function normalizeWhatsApp(phone) {
   const digits = String(phone || "").replace(/\D/g, "");
   if (digits.length === 10) return `521${digits}`;
   if (digits.startsWith("52")) return digits;
   return digits;
+}
+
+function samePhone(left, right) {
+  return normalizeWhatsApp(left) === normalizeWhatsApp(right);
+}
+
+function sameIdentifier(identifier, profile) {
+  const value = String(identifier || "").trim().toLowerCase();
+  if (!value) return false;
+  return value === String(profile.email || "").trim().toLowerCase() || samePhone(value, profile.phone);
+}
+
+function passwordMatches(profile, password) {
+  return String(profile.password || "") === String(password || "");
+}
+
+function availabilityLabel(value) {
+  const labels = {
+    both: "Entrega y recoger",
+    delivery: "Solo entrega",
+    pickup: "Solo recoger",
+  };
+  return labels[value] || labels.both;
+}
+
+function productAvailableForMode(product) {
+  const value = product.availability || "both";
+  if (value === "both") return true;
+  if (state.orderMode === "Entrega") return value === "delivery";
+  return value === "pickup";
 }
 
 function currentClient() {
@@ -272,6 +375,22 @@ function getStore(storeId) {
 
 function getProduct(productId) {
   return db.products.find((product) => product.id === productId);
+}
+
+function storeHash(storeId) {
+  return `#tienda/${encodeURIComponent(storeId)}`;
+}
+
+function syncRouteFromHash() {
+  const match = window.location.hash.match(/^#tienda\/(.+)$/);
+  state.selectedStoreId = match ? decodeURIComponent(match[1]) : "";
+}
+
+function updateStoreRoute(storeId) {
+  const nextHash = storeId ? storeHash(storeId) : "#inicio";
+  if (window.location.hash !== nextHash) {
+    window.history.pushState(null, "", nextHash);
+  }
 }
 
 function finalPrice(product) {
@@ -329,12 +448,24 @@ function setVisibleView(viewName) {
   els.storeView.classList.toggle("active", viewName === "store");
 }
 
-function openAuthModal(role = "client") {
-  els.authView.hidden = false;
+function setAuthMode(role, mode = "login") {
+  els.authEyebrow.textContent = role === "store" ? "Tienda" : "Cliente";
+  els.authTitle.textContent = mode === "register" ? "Crear cuenta" : "Iniciar sesion";
   document.querySelectorAll("[data-auth-card]").forEach((card) => {
-    card.classList.toggle("active-auth-card", card.dataset.authCard === role);
+    const active = card.dataset.authCard === role;
+    card.classList.toggle("active-auth-card", active);
+    card.hidden = !active;
   });
-  const firstInput = role === "store" ? document.getElementById("storeName") : document.getElementById("clientName");
+  const activeCard = document.querySelector(`[data-auth-card="${role}"]`);
+  activeCard?.querySelector(".auth-login-form")?.toggleAttribute("hidden", mode === "register");
+  activeCard?.querySelector(".auth-links")?.toggleAttribute("hidden", mode === "register");
+  activeCard?.querySelector(".register-form")?.toggleAttribute("hidden", mode !== "register");
+}
+
+function openAuthModal(role = "client") {
+  setAuthMode(role, "login");
+  els.authView.hidden = false;
+  const firstInput = role === "store" ? els.storeLoginPhone : els.clientLoginPhone;
   window.setTimeout(() => firstInput?.focus(), 50);
 }
 
@@ -342,10 +473,30 @@ function closeAuthModal() {
   els.authView.hidden = true;
 }
 
+function openCartModal() {
+  els.cartModal.hidden = false;
+}
+
+function closeCartModal() {
+  els.cartModal.hidden = true;
+}
+
+function cartItemsCount() {
+  return state.cart.reduce((sum, item) => sum + item.qty, 0);
+}
+
+function renderCartBadge() {
+  const count = cartItemsCount();
+  els.cartCount.textContent = count;
+  els.openCartBtn.classList.toggle("has-items", count > 0);
+}
+
 function renderHeader() {
   const role = db.session?.role;
   els.logoutBtn.hidden = !role;
   els.openProfileBtn.hidden = role !== "client";
+  els.openCartBtn.hidden = role === "store";
+  renderCartBadge();
   els.roleButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.roleSwitch === role);
   });
@@ -397,7 +548,7 @@ function productsForCatalog() {
       if (!store) return false;
       const categoryMatch = state.selectedCategory === "Todos" || store.category === state.selectedCategory;
       const haystack = `${product.title} ${product.description} ${store.name} ${store.category}`.toLowerCase();
-      return categoryMatch && (!query || haystack.includes(query));
+      return categoryMatch && productAvailableForMode(product) && (!query || haystack.includes(query));
     })
     .sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
 }
@@ -406,7 +557,7 @@ function renderClient() {
   const client = currentClient();
   els.clientAddressLabel.textContent = client?.address || "Centro del pueblo";
   els.clientReferenceLabel.textContent = client?.reference || "Registrate para guardar direccion y pedir mas rapido";
-  els.editClientProfileBtn.textContent = client ? "Editar perfil" : "Registrarme para pedir";
+  els.editClientProfileBtn.textContent = client ? "Editar perfil" : "Agregar direccion";
   els.openOrdersBtn.hidden = !client;
   if (client) {
     els.profileName.value = client.name;
@@ -471,7 +622,7 @@ function syncDiscountField() {
 }
 
 function renderFeatured() {
-  const featured = db.products.filter(isFeatured).slice(0, 8);
+  const featured = db.products.filter((product) => isFeatured(product) && productAvailableForMode(product)).slice(0, 8);
   els.featuredCarousel.innerHTML = featured.length
     ? featured
         .map((product) => {
@@ -480,38 +631,64 @@ function renderFeatured() {
             <article class="featured-card">
               <img src="${product.image}" alt="${product.title}" />
               <div class="featured-body">
-                <span class="badge">Destacado</span>
+                <span class="badge">Promocionado</span>
                 <h3>${product.title}</h3>
                 <div class="product-meta">
                   <span>${store?.name || "Tienda"}</span>
                   <span>${store?.time || ""}</span>
                 </div>
                 <div class="price-row">${priceMarkup(product)}</div>
-                <button class="primary-button compact" data-add-product="${product.id}" type="button">Agregar</button>
+                <button class="primary-button compact" data-view-product="${product.id}" type="button">Ver producto</button>
               </div>
             </article>
           `;
         })
         .join("")
-    : `<div class="cart-empty"><strong>No hay destacados activos</strong><span>Las tiendas pueden comprar espacios desde su panel.</span></div>`;
+    : `<div class="cart-empty"><strong>No hay promociones activas</strong><span>Las tiendas pueden comprar espacios desde su panel.</span></div>`;
+}
+
+function productsForStore(storeId) {
+  return db.products.filter((product) => product.storeId === storeId && productAvailableForMode(product));
+}
+
+function storeCardMarkup(store) {
+  const count = productsForStore(store.id).length;
+  if (!count) return "";
+  return `
+    <a class="store-card-public" href="${storeHash(store.id)}" data-open-store="${store.id}">
+      <img src="${store.image}" alt="${store.name}" />
+      <span>
+        <strong>${store.name}</strong>
+        <small>${store.category} - ${store.rating} - ${store.time}</small>
+        <em>${count} producto${count === 1 ? "" : "s"} - ${availabilityLabel(store.serviceModes)}</em>
+      </span>
+    </a>
+  `;
 }
 
 function renderStores() {
-  els.storeStrip.innerHTML = db.stores
-    .map((store) => {
-      const count = db.products.filter((product) => product.storeId === store.id).length;
+  const availableStores = db.stores.filter((store) => productsForStore(store.id).length);
+  els.storeStrip.innerHTML = availableStores.map(storeCardMarkup).join("");
+  const categorySections = categories()
+    .filter((category) => category !== "Todos")
+    .map((category) => {
+      const stores = availableStores.filter((store) => store.category === category);
+      if (!stores.length) return "";
       return `
-        <article class="store-card-public">
-          <img src="${store.image}" alt="${store.name}" />
-          <div>
-            <strong>${store.name}</strong>
-            <small>${store.category} - ${store.rating} - ${store.time}</small>
-            <span>${count} producto${count === 1 ? "" : "s"}</span>
+        <section class="store-category-row">
+          <div class="section-title compact-title">
+            <div>
+              <span class="eyebrow">${category}</span>
+              <h2>${category} disponibles</h2>
+            </div>
           </div>
-        </article>
+          <div class="store-strip">${stores.map(storeCardMarkup).join("")}</div>
+        </section>
       `;
     })
     .join("");
+  els.storeSections.innerHTML = categorySections;
+  renderSelectedStore();
 }
 
 function renderCategories() {
@@ -519,8 +696,8 @@ function renderCategories() {
     .map((category) => {
       const count =
         category === "Todos"
-          ? db.products.length
-          : db.products.filter((product) => getStore(product.storeId)?.category === category).length;
+          ? db.products.filter(productAvailableForMode).length
+          : db.products.filter((product) => productAvailableForMode(product) && getStore(product.storeId)?.category === category).length;
       return `
         <button class="category-button ${state.selectedCategory === category ? "active" : ""}" data-category="${category}" type="button">
           <span>${category}</span>
@@ -552,14 +729,86 @@ function renderProducts() {
                   <span>${store?.name || "Tienda"}</span>
                   <span>${store?.rating || "4.7"} - ${store?.time || ""}</span>
                 </div>
+                <span class="availability-pill">${availabilityLabel(product.availability)}</span>
                 <div class="price-row">${priceMarkup(product)}</div>
-                <button class="add-button" data-add-product="${product.id}" type="button">Agregar al pedido</button>
+                <button class="add-button" data-view-product="${product.id}" type="button">Ver detalle</button>
               </div>
             </article>
           `;
         })
         .join("")
     : `<div class="cart-empty"><strong>No encontramos productos</strong><span>Prueba otra busqueda o categoria.</span></div>`;
+}
+
+function productCardMarkup(product) {
+  return `
+    <article class="product-card">
+      <div class="product-image">
+        <img src="${product.image}" alt="${product.title}" />
+        ${isFeatured(product) ? `<span class="badge">Promocionado</span>` : ""}
+      </div>
+      <div class="product-body">
+        <div>
+          <h3>${product.title}</h3>
+          <p>${product.description}</p>
+        </div>
+        <span class="availability-pill">${availabilityLabel(product.availability)}</span>
+        <div class="price-row">${priceMarkup(product)}</div>
+        <button class="add-button" data-view-product="${product.id}" type="button">Ver detalle</button>
+      </div>
+    </article>
+  `;
+}
+
+function menuItemMarkup(product) {
+  return `
+    <article class="menu-item" data-view-product="${product.id}" role="button" tabindex="0" aria-label="Ver detalle de ${product.title}">
+      <div class="menu-item-body">
+        <div class="menu-item-title-row">
+          <h3>${product.title}</h3>
+          ${isFeatured(product) ? `<span class="badge compact-badge">Promocionado</span>` : ""}
+        </div>
+        <p>${product.description}</p>
+        <div class="menu-item-meta">
+          <span class="availability-pill">${availabilityLabel(product.availability)}</span>
+          <div class="price-row">${priceMarkup(product)}</div>
+        </div>
+      </div>
+      <img src="${product.image}" alt="${product.title}" />
+    </article>
+  `;
+}
+
+function renderSelectedStore() {
+  els.marketArea.classList.toggle("store-mode", Boolean(state.selectedStoreId));
+  if (!state.selectedStoreId) {
+    els.storeProfileSection.hidden = true;
+    return;
+  }
+  const store = getStore(state.selectedStoreId);
+  if (!store) {
+    state.selectedStoreId = "";
+    els.marketArea.classList.remove("store-mode");
+    els.storeProfileSection.hidden = true;
+    return;
+  }
+  const products = productsForStore(store.id);
+  els.storeProfileSection.hidden = false;
+  els.publicStoreBanner.innerHTML = `
+    <img src="${store.image}" alt="${store.name}" />
+    <div>
+      <span class="eyebrow">${store.category}</span>
+      <h2>${store.name}</h2>
+      <p>${store.address}</p>
+      <div class="product-meta">
+        <span>${store.rating} - ${store.time}</span>
+        <span>${availabilityLabel(store.serviceModes)}</span>
+      </div>
+    </div>
+  `;
+  els.publicStoreProducts.innerHTML = products.length
+    ? products.map(menuItemMarkup).join("")
+    : `<div class="cart-empty"><strong>Sin productos para ${state.orderMode.toLowerCase()}</strong><span>Prueba cambiar el modo de pedido.</span></div>`;
 }
 
 function cartStore() {
@@ -576,6 +825,7 @@ function cartTotal() {
 }
 
 function renderOrderPanel() {
+  renderCartBadge();
   const client = currentClient();
   const store = cartStore();
   if (!state.cart.length) {
@@ -605,8 +855,9 @@ function renderOrderPanel() {
               <div>
                 <strong>${item.qty} x ${product.title}</strong>
                 <small>${money(finalPrice(product) * item.qty)}</small>
+                ${item.note ? `<small>Nota: ${item.note}</small>` : ""}
               </div>
-              <button class="remove-button" data-remove-product="${product.id}" type="button">Quitar</button>
+              <button class="remove-button" data-remove-line="${item.lineId}" type="button">Quitar</button>
             </div>
           `;
         })
@@ -616,12 +867,33 @@ function renderOrderPanel() {
       <span>Total estimado</span>
       <span>${money(cartTotal())}</span>
     </div>
-    <button class="primary-button" id="openUpsell" type="button">${client ? "Continuar por WhatsApp" : "Registrarme para pedir"}</button>
+    <button class="primary-button" id="openUpsell" type="button">${client ? "Continuar por WhatsApp" : "Iniciar sesion para enviar"}</button>
     <p class="muted">Antes de enviar se mostraran dos sugeridos de la tienda.</p>
   `;
 }
 
-function addToCart(productId, silent = false) {
+function openProductModal(productId) {
+  const product = getProduct(productId);
+  const store = product ? getStore(product.storeId) : null;
+  if (!product || !store) return;
+  state.selectedProductId = productId;
+  els.productModalStore.textContent = store.name;
+  els.productModalTitle.textContent = product.title;
+  els.productModalImage.src = product.image;
+  els.productModalImage.alt = product.title;
+  els.productModalDescription.textContent = product.description;
+  els.productModalPrice.innerHTML = priceMarkup(product);
+  els.productComment.value = "";
+  els.productModal.hidden = false;
+  window.setTimeout(() => els.productComment.focus(), 50);
+}
+
+function closeProductModal() {
+  els.productModal.hidden = true;
+  state.selectedProductId = "";
+}
+
+function addToCart(productId, silent = false, note = "") {
   const product = getProduct(productId);
   if (!product) return;
   const currentStore = cartStore();
@@ -630,25 +902,30 @@ function addToCart(productId, silent = false) {
     if (!silent) showToast("El pedido solo puede ser de una tienda. Reiniciamos el carrito.");
   }
 
-  const existing = state.cart.find((item) => item.productId === productId);
+  const cleanNote = note.trim();
+  const existing = state.cart.find((item) => item.productId === productId && (item.note || "") === cleanNote);
   if (existing) {
     existing.qty += 1;
   } else {
-    state.cart.push({ productId, qty: 1 });
+    state.cart.push({ lineId: `line-${Date.now()}-${Math.random().toString(16).slice(2)}`, productId, qty: 1, note: cleanNote });
   }
   renderClient();
+  if (!silent) {
+    openCartModal();
+  }
 }
 
-function removeFromCart(productId) {
-  state.cart = state.cart.filter((item) => item.productId !== productId);
+function removeFromCart(lineId) {
+  state.cart = state.cart.filter((item) => item.lineId !== lineId);
   renderClient();
 }
 
 function openUpsellModal() {
   const client = currentClient();
   if (!client) {
+    closeCartModal();
     openAuthModal("client");
-    showToast("Crea tu perfil para enviar el pedido por WhatsApp.");
+    showToast("Inicia sesion o crea cuenta para enviar el pedido.");
     return;
   }
   if (!client.address || !client.phone) {
@@ -704,6 +981,7 @@ function sendOrder() {
         title: product.title,
         qty: item.qty,
         price: finalPrice(product),
+        note: item.note || "",
       };
     })
     .filter(Boolean);
@@ -738,7 +1016,9 @@ function sendOrder() {
   db.leads.push(lead);
   saveDb();
 
-  const orderLines = items.map((item) => `${item.qty} x ${item.title} (${money(item.qty * item.price)})`).join("\n");
+  const orderLines = items
+    .map((item) => `${item.qty} x ${item.title} (${money(item.qty * item.price)})${item.note ? ` - Nota: ${item.note}` : ""}`)
+    .join("\n");
   const message = [
     `Hola, vi su menu en PuebloPedidos.`,
     ``,
@@ -759,6 +1039,7 @@ function sendOrder() {
 
   state.cart = [];
   closeUpsellModal();
+  closeCartModal();
   renderClient();
   window.open(`https://wa.me/${normalizeWhatsApp(store.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   showToast(billable ? "Pedido enviado y contacto descontado." : "Pedido enviado. La tienda ya no tenia creditos.");
@@ -768,9 +1049,53 @@ function renderStore() {
   const store = currentStore();
   els.storeTitle.textContent = store.name;
   renderStoreMetrics();
+  renderStoreProfile();
+  renderStoreCampaigns();
   renderStoreProducts();
   renderStoreContacts();
   renderStoreOrders();
+}
+
+function renderStoreProfile() {
+  const store = currentStore();
+  els.profileStoreName.value = store.name;
+  els.profileStoreCategory.value = store.category;
+  els.profileStorePhone.value = store.phone;
+  els.profileStoreServiceModes.value = store.serviceModes || "both";
+  els.profileStoreAddress.value = store.address;
+}
+
+function renderStoreCampaigns() {
+  const promoted = storeProducts().filter(isFeatured);
+  els.storeCampaigns.innerHTML = `
+    <div class="campaign-plans">
+      <div>
+        <strong>3 dias arriba del home</strong>
+        <small>$89 por producto promocionado</small>
+      </div>
+      <div>
+        <strong>7 dias arriba del home</strong>
+        <small>$169 por producto promocionado</small>
+      </div>
+    </div>
+    ${
+      promoted.length
+        ? promoted
+            .map(
+              (product) => `
+              <div class="campaign-row">
+                <div>
+                  <strong>${product.title}</strong>
+                  <small>Visible hasta ${new Date(product.featuredUntil).toLocaleDateString("es-MX")} - ${availabilityLabel(product.availability)}</small>
+                </div>
+                <span>${money(finalPrice(product))}</span>
+              </div>
+            `,
+            )
+            .join("")
+        : `<p class="muted">Aun no tienes productos promocionados. Usa los botones de 3 o 7 dias en Mis productos.</p>`
+    }
+  `;
 }
 
 function storeProducts() {
@@ -828,13 +1153,13 @@ function renderStoreProducts() {
             <img src="${product.image}" alt="${product.title}" />
             <div>
               <strong>${product.title}</strong>
-              <small>${isFeatured(product) ? "Destacado activo" : "Sin destacar"} - ${product.description}</small>
+              <small>${isFeatured(product) ? "Promocionado activo" : "Sin promocion"} - ${availabilityLabel(product.availability)} - ${product.description}</small>
               <div class="price-row">${priceMarkup(product)}</div>
             </div>
             <div class="row-actions">
               <button class="ghost-button compact" data-edit-product="${product.id}" type="button">Editar</button>
-              <button class="ghost-button compact" data-feature-product="${product.id}" data-days="3" type="button">3 dias</button>
-              <button class="ghost-button compact" data-feature-product="${product.id}" data-days="7" type="button">7 dias</button>
+              <button class="ghost-button compact" data-feature-product="${product.id}" data-days="3" type="button">Promocionar 3 dias</button>
+              <button class="ghost-button compact" data-feature-product="${product.id}" data-days="7" type="button">Promocionar 7 dias</button>
               <button class="danger-button compact" data-delete-product="${product.id}" type="button">Eliminar</button>
             </div>
           </div>
@@ -851,6 +1176,7 @@ function resetProductForm() {
   els.productForm.reset();
   els.productSubmitBtn.textContent = "Publicar producto";
   els.cancelEditProduct.hidden = true;
+  els.productAvailability.value = "both";
   syncDiscountField();
 }
 
@@ -862,6 +1188,7 @@ function editProduct(productId) {
   document.getElementById("productTitle").value = product.title;
   document.getElementById("productDescription").value = product.description;
   document.getElementById("productPrice").value = product.price;
+  els.productAvailability.value = product.availability || "both";
   els.discountType.value = product.discountType || "none";
   els.discountValue.value = product.discountValue || "";
   els.featuredPlan.value = "none";
@@ -931,6 +1258,7 @@ function publishProduct(event) {
   const title = document.getElementById("productTitle").value.trim();
   const description = document.getElementById("productDescription").value.trim();
   const price = Number(document.getElementById("productPrice").value);
+  const availability = els.productAvailability.value;
   const discountType = document.getElementById("discountType").value;
   const discountValue = Number(document.getElementById("discountValue").value || 0);
   const featuredPlan = document.getElementById("featuredPlan").value;
@@ -955,6 +1283,7 @@ function publishProduct(event) {
     description,
     price,
     image: state.pendingImage || editingProduct?.image || store.image || defaultImageForCategory(store.category),
+    availability,
     discountType,
     discountValue: discountType === "none" ? 0 : discountValue,
     featuredUntil,
@@ -1012,22 +1341,57 @@ function exportStoreReport() {
   URL.revokeObjectURL(url);
 }
 
-function loginDemo(role) {
-  if (role === "client") {
-    closeAuthModal();
-    setSession("client", db.lastClientId || defaultClient.id);
+function findClientByIdentifier(identifier) {
+  return db.clients.find((client) => sameIdentifier(identifier, client));
+}
+
+function findStoreByIdentifier(identifier) {
+  return db.stores.find((store) => sameIdentifier(identifier, store));
+}
+
+els.clientLoginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const client = findClientByIdentifier(els.clientLoginPhone.value);
+  if (!client || !passwordMatches(client, els.clientLoginPassword.value)) {
+    showToast("Usuario o contrasena incorrectos.");
     return;
   }
   closeAuthModal();
-  setSession("store", db.lastStoreId || db.stores[0].id);
-}
+  setSession("client", client.id);
+});
+
+els.storeLoginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const store = findStoreByIdentifier(els.storeLoginPhone.value);
+  if (!store || !passwordMatches(store, els.storeLoginPassword.value)) {
+    showToast("Usuario o contrasena incorrectos.");
+    return;
+  }
+  closeAuthModal();
+  setSession("store", store.id);
+});
 
 els.clientForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  const phone = document.getElementById("clientPhone").value.trim();
+  const email = els.clientEmail.value.trim();
+  const password = els.clientPassword.value;
+  const existingClient = findClientByIdentifier(phone) || findClientByIdentifier(email);
+  if (existingClient) {
+    showToast("Ese cliente ya esta registrado. Inicia sesion.");
+    els.clientLoginPhone.value = phone;
+    return;
+  }
+  if (password.length < 8) {
+    showToast("La contrasena debe tener al menos 8 caracteres.");
+    return;
+  }
   const client = {
     id: `client-${Date.now()}`,
     name: document.getElementById("clientName").value.trim(),
-    phone: document.getElementById("clientPhone").value.trim(),
+    email,
+    phone,
+    password,
     address: document.getElementById("clientAddress").value.trim(),
     reference: document.getElementById("clientReference").value.trim(),
   };
@@ -1039,13 +1403,29 @@ els.clientForm.addEventListener("submit", (event) => {
 els.storeForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const category = document.getElementById("storeCategory").value;
+  const phone = normalizeWhatsApp(document.getElementById("storePhone").value);
+  const email = els.storeEmail.value.trim();
+  const password = els.storePassword.value;
+  const existingStore = findStoreByIdentifier(phone) || findStoreByIdentifier(email);
+  if (existingStore) {
+    showToast("Esa tienda ya esta registrada. Inicia sesion.");
+    els.storeLoginPhone.value = document.getElementById("storePhone").value;
+    return;
+  }
+  if (password.length < 8) {
+    showToast("La contrasena debe tener al menos 8 caracteres.");
+    return;
+  }
   const store = {
     id: `store-${Date.now()}`,
     name: document.getElementById("storeName").value.trim(),
     owner: document.getElementById("storeOwner").value.trim(),
-    phone: normalizeWhatsApp(document.getElementById("storePhone").value),
+    email,
+    password,
+    phone,
     category,
     address: document.getElementById("storeAddress").value.trim(),
+    serviceModes: els.storeServiceModes.value,
     image: defaultImageForCategory(category),
     rating: "Nuevo",
     time: "15-35 min",
@@ -1071,6 +1451,20 @@ els.clientProfileForm.addEventListener("submit", (event) => {
   showToast("Perfil actualizado.");
 });
 
+els.storeProfileForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const store = currentStore();
+  store.name = els.profileStoreName.value.trim();
+  store.category = els.profileStoreCategory.value;
+  store.phone = normalizeWhatsApp(els.profileStorePhone.value);
+  store.serviceModes = els.profileStoreServiceModes.value;
+  store.address = els.profileStoreAddress.value.trim();
+  saveDb();
+  renderStore();
+  renderHeader();
+  showToast("Datos de tienda actualizados.");
+});
+
 els.productForm.addEventListener("submit", publishProduct);
 
 els.discountType.addEventListener("change", syncDiscountField);
@@ -1089,6 +1483,7 @@ els.productImage.addEventListener("change", (event) => {
 });
 
 els.openProfileBtn.addEventListener("click", openProfileModal);
+els.openCartBtn.addEventListener("click", openCartModal);
 els.editClientProfileBtn.addEventListener("click", () => {
   if (currentClient()) {
     openProfileModal();
@@ -1099,6 +1494,18 @@ els.editClientProfileBtn.addEventListener("click", () => {
 els.openOrdersBtn.addEventListener("click", openProfileModal);
 els.closeProfileModal.addEventListener("click", closeProfileModal);
 els.closeAuthModal.addEventListener("click", closeAuthModal);
+els.closeCartModal.addEventListener("click", closeCartModal);
+els.closeProductModal.addEventListener("click", closeProductModal);
+els.backToStoresBtn.addEventListener("click", () => {
+  state.selectedStoreId = "";
+  renderSelectedStore();
+  updateStoreRoute("");
+});
+els.confirmAddProduct.addEventListener("click", () => {
+  if (!state.selectedProductId) return;
+  addToCart(state.selectedProductId, false, els.productComment.value);
+  closeProductModal();
+});
 
 els.searchInput.addEventListener("input", (event) => {
   state.query = event.target.value;
@@ -1109,6 +1516,10 @@ els.logoutBtn.addEventListener("click", () => {
   db.session = null;
   saveDb();
   state.cart = [];
+  closeProfileModal();
+  closeCartModal();
+  closeUpsellModal();
+  closeAuthModal();
   render();
 });
 
@@ -1119,20 +1530,19 @@ els.addCreditsBtn.addEventListener("click", () => {
   store.credits += 50;
   saveDb();
   renderStore();
-  showToast("Recarga simulada: +50 contactos.");
+  showToast("Recarga agregada: +50 contactos.");
 });
 
 els.closeUpsell.addEventListener("click", closeUpsellModal);
 els.skipUpsell.addEventListener("click", sendOrder);
 els.sendFinalOrder.addEventListener("click", sendOrder);
 
-document.addEventListener("click", (event) => {
-  const demoButton = event.target.closest("[data-demo-login]");
-  if (demoButton) {
-    loginDemo(demoButton.dataset.demoLogin);
-    return;
-  }
+window.addEventListener("hashchange", () => {
+  syncRouteFromHash();
+  renderClient();
+});
 
+document.addEventListener("click", (event) => {
   const roleSwitch = event.target.closest("[data-role-switch]");
   if (roleSwitch) {
     const role = roleSwitch.dataset.roleSwitch;
@@ -1154,7 +1564,35 @@ document.addEventListener("click", (event) => {
     document.querySelectorAll("[data-order-mode]").forEach((button) => {
       button.classList.toggle("active", button === modeButton);
     });
-    renderOrderPanel();
+    renderClient();
+    return;
+  }
+
+  const showRegister = event.target.closest("[data-show-register]");
+  if (showRegister) {
+    setAuthMode(showRegister.dataset.showRegister, "register");
+    return;
+  }
+
+  const showLogin = event.target.closest("[data-show-login]");
+  if (showLogin) {
+    setAuthMode(showLogin.dataset.showLogin, "login");
+    return;
+  }
+
+  const forgotPassword = event.target.closest("[data-forgot-password]");
+  if (forgotPassword) {
+    showToast("Recuperacion pendiente: en produccion enviariamos un correo seguro.");
+    return;
+  }
+
+  const openStore = event.target.closest("[data-open-store]");
+  if (openStore) {
+    event.preventDefault();
+    state.selectedStoreId = openStore.dataset.openStore;
+    renderSelectedStore();
+    updateStoreRoute(state.selectedStoreId);
+    els.storeProfileSection.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
 
@@ -1166,15 +1604,15 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const addButton = event.target.closest("[data-add-product]");
-  if (addButton) {
-    addToCart(addButton.dataset.addProduct);
+  const viewProduct = event.target.closest("[data-view-product]");
+  if (viewProduct) {
+    openProductModal(viewProduct.dataset.viewProduct);
     return;
   }
 
-  const removeButton = event.target.closest("[data-remove-product]");
+  const removeButton = event.target.closest("[data-remove-line]");
   if (removeButton) {
-    removeFromCart(removeButton.dataset.removeProduct);
+    removeFromCart(removeButton.dataset.removeLine);
     return;
   }
 
@@ -1211,5 +1649,15 @@ document.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const viewProduct = event.target.closest(".menu-item[data-view-product]");
+  if (!viewProduct) return;
+  event.preventDefault();
+  openProductModal(viewProduct.dataset.viewProduct);
+});
+
+cleanStaticText();
+syncRouteFromHash();
 syncDiscountField();
 render();
