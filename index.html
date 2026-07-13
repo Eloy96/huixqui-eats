@@ -6,7 +6,7 @@
     <title>PuebloPedidos - Marketplace local por WhatsApp</title>
     <meta
       name="description"
-      content="Demo de marketplace local de comida con pedidos por WhatsApp y cobro por contactos generados."
+      content="Marketplace local de comida con perfil de cliente, perfil de tienda, productos, descuentos, destacados y pedidos por WhatsApp."
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -16,99 +16,314 @@
         <span class="brand-mark">P</span>
         <span>
           <strong>PuebloPedidos</strong>
-          <small>Comida local por WhatsApp</small>
+          <small id="sessionLabel">Sin sesion</small>
         </span>
       </a>
-      <nav class="nav" aria-label="Vistas">
-        <button class="nav-button active" data-view="market">Cliente</button>
-        <button class="nav-button" data-view="owner">Due&ntilde;o</button>
+      <nav class="role-nav" id="roleNav" aria-label="Registro y perfiles">
+        <button class="role-button" data-role-switch="client" type="button">Cliente</button>
+        <button class="role-button" data-role-switch="store" type="button">Tienda</button>
       </nav>
+      <button id="openProfileBtn" class="ghost-button compact" type="button" hidden>Perfil</button>
+      <button id="logoutBtn" class="ghost-button compact" type="button" hidden>Cambiar perfil</button>
     </header>
 
     <main id="inicio">
-      <section class="market-view view active" data-panel="market" aria-label="Marketplace">
-        <div class="market-shell">
-          <aside class="filters" aria-label="Filtros de busqueda">
-            <div class="town-card">
-              <span class="eyebrow">Demo comercial</span>
-              <h1>Comida del pueblo, directo al WhatsApp del local.</h1>
-              <p>Explora, arma pedido y manda el contacto. Cada bot&oacute;n registra un lead cobrable.</p>
-              <div class="hero-chips" aria-label="Beneficios">
-                <span>Sin comisiones</span>
-                <span>Lead cobrable</span>
-                <span>Listo para QR</span>
-              </div>
+      <section id="authView" class="modal auth-modal" hidden aria-label="Registro">
+        <div class="modal-card auth-modal-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+          <div class="section-title compact-title">
+            <div>
+              <span class="eyebrow">Registro</span>
+              <h2 id="authTitle">Elige tu tipo de perfil</h2>
             </div>
+            <button id="closeAuthModal" class="icon-button" type="button" aria-label="Cerrar">x</button>
+          </div>
+          <p class="modal-copy">El home siempre queda visible. Solo necesitas registrarte cuando quieras pedir o administrar una tienda.</p>
 
-            <label class="search-label" for="searchInput">Buscar</label>
-            <input id="searchInput" class="search" type="search" placeholder="Tacos, pizza, postres..." />
+          <div class="auth-grid">
+          <form id="clientForm" class="auth-card" data-auth-card="client">
+            <div class="card-kicker">Soy cliente</div>
+            <h2>Crear perfil de cliente</h2>
+            <p>Tu direccion se agrega automaticamente al mensaje de WhatsApp.</p>
+            <label>
+              Nombre
+              <input id="clientName" required placeholder="Ej. Erika Rosales" />
+            </label>
+            <label>
+              WhatsApp
+              <input id="clientPhone" required placeholder="Ej. 5551234567" />
+            </label>
+            <label>
+              Direccion de entrega
+              <textarea id="clientAddress" required rows="3" placeholder="Calle, numero, colonia y referencias"></textarea>
+            </label>
+            <label>
+              Referencia rapida
+              <input id="clientReference" placeholder="Ej. Casa azul frente a la primaria" />
+            </label>
+            <div class="button-row">
+              <button class="primary-button" type="submit">Registrarme como cliente</button>
+              <button class="ghost-button" data-demo-login="client" type="button">Usar demo</button>
+            </div>
+          </form>
 
-            <div class="category-list" id="categoryList" aria-label="Categorias"></div>
+          <form id="storeForm" class="auth-card store-card" data-auth-card="store">
+            <div class="card-kicker">Soy tienda</div>
+            <h2>Registrar tienda</h2>
+            <p>Da de alta tu negocio, productos, descuentos y publicidad destacada.</p>
+            <label>
+              Nombre del local
+              <input id="storeName" required placeholder="Ej. Burger Plaza" />
+            </label>
+            <label>
+              Responsable
+              <input id="storeOwner" required placeholder="Nombre del dueno" />
+            </label>
+            <label>
+              WhatsApp del local
+              <input id="storePhone" required placeholder="Ej. 5559876543" />
+            </label>
+            <div class="form-grid">
+              <label>
+                Categoria
+                <select id="storeCategory">
+                  <option>Hamburguesas</option>
+                  <option>Tacos</option>
+                  <option>Pizza</option>
+                  <option>Postres</option>
+                  <option>Pollos</option>
+                  <option>Sushi</option>
+                </select>
+              </label>
+              <label>
+                Creditos iniciales
+                <input id="storeCredits" type="number" min="0" value="30" />
+              </label>
+            </div>
+            <label>
+              Direccion del local
+              <textarea id="storeAddress" required rows="3" placeholder="Direccion visible para recoger pedidos"></textarea>
+            </label>
+            <div class="button-row">
+              <button class="primary-button" type="submit">Registrar tienda</button>
+              <button class="ghost-button" data-demo-login="store" type="button">Usar demo</button>
+            </div>
+          </form>
+          </div>
+        </div>
+      </section>
 
-            <div class="rate-box">
-              <label for="leadPrice">Precio por contacto</label>
+      <section id="clientView" class="view" aria-label="Pantalla cliente">
+        <div class="client-shell">
+          <section class="market-area">
+            <div class="client-toolbar panel-card">
               <div>
-                <span>$</span>
-                <input id="leadPrice" type="number" min="0.5" step="0.5" value="0.50" />
-                <span>MXN</span>
+                <span class="eyebrow">Entregar en</span>
+                <strong id="clientAddressLabel">Direccion guardada</strong>
+                <small id="clientReferenceLabel">Referencia</small>
+              </div>
+              <div class="toolbar-actions">
+                <button class="ghost-button compact" id="editClientProfileBtn" type="button">Editar perfil</button>
+                <button class="ghost-button compact" id="openOrdersBtn" type="button">Mis pedidos <span id="clientOrderCount">0</span></button>
               </div>
             </div>
-          </aside>
 
-          <section class="results" aria-label="Locales">
-            <div class="result-head">
+            <div class="market-hero compact-hero">
               <div>
-                <span class="eyebrow">Abiertos ahora</span>
-                <h2>Locales listos para recibir pedidos</h2>
+                <span class="eyebrow">Centro del pueblo</span>
+                <h1>Pide comida en pocos toques.</h1>
+                <p>Elige producto, confirma sugeridos y manda el pedido con tu direccion por WhatsApp.</p>
               </div>
-              <button id="clearDemo" class="ghost-button" type="button">Reiniciar demo</button>
+              <div class="mode-switch" aria-label="Tipo de pedido">
+                <button class="mode-button active" data-order-mode="Entrega" type="button">Entrega</button>
+                <button class="mode-button" data-order-mode="Recoger" type="button">Recoger</button>
+              </div>
             </div>
-            <div id="restaurantGrid" class="restaurant-grid"></div>
+
+            <div class="section-title">
+              <div>
+                <span class="eyebrow">Marketing pagado</span>
+                <h2>Destacados de hoy</h2>
+              </div>
+              <span class="muted">3 dias: $89 | 7 dias: $169</span>
+            </div>
+            <div id="featuredCarousel" class="featured-carousel"></div>
+
+            <div class="section-title">
+              <div>
+                <span class="eyebrow">Locales asociados</span>
+                <h2>Tiendas del pueblo</h2>
+              </div>
+              <span class="muted">Abiertos y listos para WhatsApp</span>
+            </div>
+            <div id="storeStrip" class="store-strip"></div>
+
+            <div class="search-row">
+              <input id="searchInput" class="search" type="search" placeholder="Buscar hamburguesa, tacos, postres..." />
+            </div>
+            <div id="categoryList" class="category-list" aria-label="Categorias"></div>
+            <div id="productGrid" class="product-grid"></div>
           </section>
 
-          <aside class="order-panel" aria-label="Pedido">
-            <div id="restaurantDetail" class="detail-empty">
-              <strong>Elige un local</strong>
-              <span>Su men&uacute; aparecer&aacute; aqu&iacute;.</span>
-            </div>
+          <aside class="order-panel">
+            <div id="orderPanel" class="panel-card sticky-panel"></div>
           </aside>
         </div>
       </section>
 
-      <section class="owner-view view" data-panel="owner" aria-label="Panel del dueno">
-        <div class="dashboard-shell">
+      <section id="storeView" class="view" aria-label="Pantalla tienda">
+        <div class="store-shell">
           <div class="dashboard-head">
             <div>
-              <span class="eyebrow">Panel demo</span>
-              <h1>Contactos generados por WhatsApp</h1>
-              <p>El cobro se calcula por lead v&aacute;lido, no por venta cerrada.</p>
+              <span class="eyebrow">Panel de tienda</span>
+              <h1 id="storeTitle">Mi tienda</h1>
+              <p>Sube productos, revisa contactos, ventas y creditos disponibles.</p>
             </div>
             <div class="dashboard-actions">
-              <button id="exportCsv" class="primary-button" type="button">Exportar CSV</button>
-              <button id="clearLeads" class="ghost-button" type="button">Borrar leads</button>
+              <button id="exportStoreCsv" class="primary-button" type="button">Descargar reporte</button>
+              <button id="addCreditsBtn" class="ghost-button" type="button">Simular recarga +50</button>
             </div>
           </div>
 
-          <div class="metric-grid" id="metricGrid"></div>
-          <div class="owner-layout">
-            <section class="leaderboard">
-              <div class="section-title">
-                <h2>Locales con m&aacute;s contactos</h2>
-                <span id="billingLabel">$0.50 por contacto</span>
-              </div>
-              <div id="businessRows"></div>
+          <div id="storeMetrics" class="metric-grid"></div>
+
+          <div class="store-layout">
+            <section class="panel-card">
+              <span class="eyebrow">Producto nuevo</span>
+              <h2>Alta de producto</h2>
+              <form id="productForm" class="stacked-form">
+                <label>
+                  Imagen o fotografia
+                  <input id="productImage" type="file" accept="image/*" capture="environment" />
+                </label>
+                <div id="imagePreview" class="image-preview">Sin imagen seleccionada</div>
+                <label>
+                  Titulo
+                  <input id="productTitle" required placeholder="Ej. Hamburguesa doble" />
+                </label>
+                <label>
+                  Breve descripcion
+                  <textarea id="productDescription" required rows="3" placeholder="Ingredientes principales y tamano"></textarea>
+                </label>
+                <div class="form-grid">
+                  <label>
+                    Precio
+                    <input id="productPrice" required type="number" min="1" step="1" placeholder="99" />
+                  </label>
+                  <label>
+                    Descuento
+                    <select id="discountType">
+                      <option value="none">Sin descuento</option>
+                      <option value="percent">Porcentaje</option>
+                      <option value="amount">Pesos</option>
+                    </select>
+                  </label>
+                </div>
+                <label id="discountValueWrap" hidden>
+                  Cantidad de descuento
+                  <input id="discountValue" type="number" min="0" step="1" placeholder="Ej. 15 o 20" />
+                </label>
+                <label>
+                  Destacar producto
+                  <select id="featuredPlan">
+                    <option value="none">No destacar</option>
+                    <option value="3">3 dias destacados - $89</option>
+                    <option value="7">7 dias destacados - $169</option>
+                  </select>
+                </label>
+                <div class="button-row">
+                  <button id="productSubmitBtn" class="primary-button" type="submit">Publicar producto</button>
+                  <button id="cancelEditProduct" class="ghost-button" type="button" hidden>Cancelar edicion</button>
+                </div>
+              </form>
             </section>
-            <section class="lead-log">
-              <div class="section-title">
-                <h2>Registro reciente</h2>
-                <span>&Uacute;ltimos clics</span>
+
+            <section class="panel-card">
+              <div class="section-title compact-title">
+                <h2>Mis productos</h2>
+                <span id="storeProductCount">0</span>
               </div>
-              <div id="leadRows"></div>
+              <div id="storeProducts" class="store-products"></div>
+            </section>
+          </div>
+
+          <div class="store-layout reports-layout">
+            <section class="panel-card">
+              <div class="section-title compact-title">
+                <h2>Contactos y creditos</h2>
+                <span id="creditStatus">0 creditos</span>
+              </div>
+              <div id="storeContacts" class="mini-list"></div>
+            </section>
+
+            <section class="panel-card">
+              <div class="section-title compact-title">
+                <h2>Ventas por WhatsApp</h2>
+                <span id="storeSalesCount">0</span>
+              </div>
+              <div id="storeOrders" class="mini-list"></div>
             </section>
           </div>
         </div>
       </section>
     </main>
+
+    <div id="profileModal" class="modal" hidden>
+      <div class="modal-card profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+        <div class="section-title compact-title">
+          <div>
+            <span class="eyebrow">Perfil de cliente</span>
+            <h2 id="profileTitle">Datos de entrega</h2>
+          </div>
+          <button id="closeProfileModal" class="icon-button" type="button" aria-label="Cerrar">x</button>
+        </div>
+        <div class="profile-modal-grid">
+          <form id="clientProfileForm" class="stacked-form">
+            <label>
+              Nombre
+              <input id="profileName" />
+            </label>
+            <label>
+              WhatsApp
+              <input id="profilePhone" />
+            </label>
+            <label>
+              Direccion de entrega
+              <textarea id="profileAddress" rows="3"></textarea>
+            </label>
+            <label>
+              Referencia
+              <input id="profileReference" />
+            </label>
+            <button class="primary-button" type="submit">Guardar perfil</button>
+          </form>
+          <section class="orders-preview">
+            <div class="section-title compact-title">
+              <h2>Mis pedidos</h2>
+              <span id="ordersModalCount">0</span>
+            </div>
+            <div id="clientOrders" class="mini-list"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div id="upsellModal" class="modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="upsellTitle">
+        <div class="section-title compact-title">
+          <div>
+            <span class="eyebrow">Antes de enviar</span>
+            <h2 id="upsellTitle">No olvides agregar algo mas</h2>
+          </div>
+          <button id="closeUpsell" class="icon-button" type="button" aria-label="Cerrar">x</button>
+        </div>
+        <p class="modal-copy">Estos sugeridos salen de la misma tienda para impulsar el ticket promedio.</p>
+        <div id="upsellItems" class="upsell-grid"></div>
+        <div class="button-row modal-actions">
+          <button id="skipUpsell" class="ghost-button" type="button">No gracias, enviar</button>
+          <button id="sendFinalOrder" class="primary-button" type="button">Enviar pedido</button>
+        </div>
+      </div>
+    </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="./app.js"></script>

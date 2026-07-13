@@ -1,133 +1,245 @@
-const restaurants = [
-  {
-    id: "tacos-don-luis",
-    name: "Tacos Don Luis",
-    category: "Tacos",
-    image: "./assets/tacos.png",
-    phone: "5215550100101",
-    rating: "4.8",
-    time: "15-25 min",
-    neighborhood: "Centro",
-    tags: ["Pastor", "Suadero", "Para recoger"],
-    menu: [
-      { name: "Orden de pastor", description: "5 tacos con pina y salsa verde", price: 68 },
-      { name: "Campechana", description: "Pastor, suadero y queso", price: 38 },
-      { name: "Agua de jamaica", description: "Medio litro", price: 22 },
-    ],
-  },
+const STORAGE_KEY = "pueblopedidos-v5";
+
+function futureDate(days) {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+const defaultClient = {
+  id: "client-demo",
+  name: "Erika Rosales",
+  phone: "5551234567",
+  address: "Calle Hidalgo 25, Colonia Centro",
+  reference: "Casa azul frente a la primaria",
+};
+
+const defaultStores = [
   {
     id: "burger-plaza",
     name: "Burger Plaza",
-    category: "Hamburguesas",
-    image: "./assets/hamburguesas.png",
+    owner: "Ana Lopez",
     phone: "5215550100202",
-    rating: "4.6",
+    category: "Hamburguesas",
+    address: "Plaza principal, local 4",
+    image: "./assets/hamburguesas.png",
+    rating: "4.7",
     time: "20-30 min",
-    neighborhood: "Plaza principal",
-    tags: ["Papas", "Combos", "Noche"],
-    menu: [
-      { name: "Clásica con queso", description: "Carne, queso, lechuga y aderezo", price: 89 },
-      { name: "Doble plaza", description: "Doble carne, tocino y queso", price: 128 },
-      { name: "Papas grandes", description: "Papas crujientes con sal de casa", price: 45 },
-    ],
+    credits: 38,
+    marketingSpend: 169,
+  },
+  {
+    id: "tacos-don-luis",
+    name: "Tacos Don Luis",
+    owner: "Luis Martinez",
+    phone: "5215550100101",
+    category: "Tacos",
+    address: "Calle Morelos 12, Centro",
+    image: "./assets/tacos.png",
+    rating: "4.8",
+    time: "15-25 min",
+    credits: 24,
+    marketingSpend: 89,
   },
   {
     id: "pizza-la-esquina",
     name: "Pizza La Esquina",
-    category: "Pizza",
-    image: "./assets/pizza.png",
+    owner: "Rosa Nunez",
     phone: "5215550100303",
-    rating: "4.7",
+    category: "Pizza",
+    address: "Esquina Zaragoza y Juarez",
+    image: "./assets/pizza.png",
+    rating: "4.6",
     time: "25-40 min",
-    neighborhood: "La Esquina",
-    tags: ["Familiar", "Entrega local", "Promo"],
-    menu: [
-      { name: "Pepperoni mediana", description: "8 rebanadas con extra queso", price: 149 },
-      { name: "Mexicana grande", description: "Chorizo, jalapeno, cebolla y queso", price: 219 },
-      { name: "Refresco 2 L", description: "Sabor disponible del día", price: 42 },
-    ],
-  },
-  {
-    id: "sushi-norte",
-    name: "Sushi Norte",
-    category: "Sushi",
-    image: "./assets/sushi.png",
-    phone: "5215550100404",
-    rating: "4.5",
-    time: "30-45 min",
-    neighborhood: "Zona norte",
-    tags: ["Rollos", "Charolas", "Viernes"],
-    menu: [
-      { name: "California roll", description: "Surimi, aguacate, pepino y ajonjoli", price: 105 },
-      { name: "Rollo empanizado", description: "Queso crema, camarón y salsa de anguila", price: 132 },
-      { name: "Charola pareja", description: "3 rollos mixtos y aderezos", price: 299 },
-    ],
+    credits: 18,
+    marketingSpend: 0,
   },
   {
     id: "postres-mia",
     name: "Postres Mia",
-    category: "Postres",
-    image: "./assets/postres.png",
+    owner: "Mia Garcia",
     phone: "5215550100505",
+    category: "Postres",
+    address: "Mercado municipal, pasillo 2",
+    image: "./assets/postres.png",
     rating: "4.9",
     time: "10-20 min",
-    neighborhood: "Mercado",
-    tags: ["Pastel", "Pay", "Café"],
-    menu: [
-      { name: "Rebanada de pastel", description: "Chocolate o tres leches", price: 55 },
-      { name: "Pay de queso", description: "Porción individual con frutos rojos", price: 48 },
-      { name: "Caja mini postres", description: "6 piezas surtidas", price: 155 },
-    ],
-  },
-  {
-    id: "pollos-el-guero",
-    name: "Pollos El Guero",
-    category: "Pollos",
-    image: "./assets/pollo.png",
-    phone: "5215550100606",
-    rating: "4.4",
-    time: "20-35 min",
-    neighborhood: "Salida sur",
-    tags: ["Asado", "Familia", "Salsas"],
-    menu: [
-      { name: "Pollo entero", description: "Incluye tortillas, salsa y cebollitas", price: 185 },
-      { name: "Medio pollo", description: "Con arroz y salsa de casa", price: 105 },
-      { name: "Paquete familiar", description: "Pollo, papas, arroz y refresco", price: 289 },
-    ],
+    credits: 31,
+    marketingSpend: 0,
   },
 ];
 
+const defaultProducts = [
+  {
+    id: "burger-clasica",
+    storeId: "burger-plaza",
+    title: "Clasica con queso",
+    description: "Carne, queso, lechuga y aderezo de casa.",
+    price: 89,
+    image: "./assets/hamburguesas.png",
+    discountType: "percent",
+    discountValue: 10,
+    featuredUntil: futureDate(7),
+  },
+  {
+    id: "burger-doble",
+    storeId: "burger-plaza",
+    title: "Doble plaza",
+    description: "Doble carne, tocino, queso y papas pequenas.",
+    price: 128,
+    image: "./assets/hamburguesas.png",
+    discountType: "none",
+    discountValue: 0,
+    featuredUntil: "",
+  },
+  {
+    id: "tacos-pastor",
+    storeId: "tacos-don-luis",
+    title: "Orden de pastor",
+    description: "5 tacos con pina, cebolla, cilantro y salsa verde.",
+    price: 68,
+    image: "./assets/tacos.png",
+    discountType: "amount",
+    discountValue: 8,
+    featuredUntil: futureDate(3),
+  },
+  {
+    id: "pizza-pepperoni",
+    storeId: "pizza-la-esquina",
+    title: "Pepperoni mediana",
+    description: "8 rebanadas con queso extra y orilla dorada.",
+    price: 149,
+    image: "./assets/pizza.png",
+    discountType: "none",
+    discountValue: 0,
+    featuredUntil: "",
+  },
+  {
+    id: "postre-pastel",
+    storeId: "postres-mia",
+    title: "Rebanada de pastel",
+    description: "Chocolate o tres leches, lista para recoger.",
+    price: 55,
+    image: "./assets/postres.png",
+    discountType: "percent",
+    discountValue: 15,
+    featuredUntil: futureDate(3),
+  },
+  {
+    id: "pizza-mexicana",
+    storeId: "pizza-la-esquina",
+    title: "Pizza mexicana grande",
+    description: "Chorizo, jalapeno, cebolla, queso y salsa de casa.",
+    price: 219,
+    image: "./assets/pizza.png",
+    discountType: "amount",
+    discountValue: 20,
+    featuredUntil: "",
+  },
+];
+
+function initialDb() {
+  return {
+    clients: [defaultClient],
+    stores: defaultStores,
+    products: defaultProducts,
+    leads: [],
+    orders: [],
+    session: null,
+    lastClientId: defaultClient.id,
+    lastStoreId: "burger-plaza",
+    leadPrice: 1,
+  };
+}
+
+function loadDb() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (stored && stored.products && stored.stores && stored.clients) {
+      return stored;
+    }
+  } catch (error) {
+    console.warn("No se pudo leer storage", error);
+  }
+  return initialDb();
+}
+
+let db = loadDb();
 const state = {
   selectedCategory: "Todos",
-  selectedRestaurantId: restaurants[0].id,
   query: "",
+  orderMode: "Entrega",
   cart: [],
-  leadPrice: Number(localStorage.getItem("puebloLeadPrice") || "0.5"),
-  leads: JSON.parse(localStorage.getItem("puebloLeads") || "[]"),
+  pendingImage: "",
+  editingProductId: "",
 };
 
 const els = {
-  navButtons: document.querySelectorAll(".nav-button"),
-  panels: document.querySelectorAll(".view"),
-  categoryList: document.getElementById("categoryList"),
-  restaurantGrid: document.getElementById("restaurantGrid"),
-  restaurantDetail: document.getElementById("restaurantDetail"),
+  authView: document.getElementById("authView"),
+  closeAuthModal: document.getElementById("closeAuthModal"),
+  clientView: document.getElementById("clientView"),
+  storeView: document.getElementById("storeView"),
+  roleNav: document.getElementById("roleNav"),
+  roleButtons: document.querySelectorAll("[data-role-switch]"),
+  openProfileBtn: document.getElementById("openProfileBtn"),
+  logoutBtn: document.getElementById("logoutBtn"),
+  sessionLabel: document.getElementById("sessionLabel"),
+  clientForm: document.getElementById("clientForm"),
+  storeForm: document.getElementById("storeForm"),
+  clientAddressLabel: document.getElementById("clientAddressLabel"),
+  clientReferenceLabel: document.getElementById("clientReferenceLabel"),
+  editClientProfileBtn: document.getElementById("editClientProfileBtn"),
+  openOrdersBtn: document.getElementById("openOrdersBtn"),
+  profileModal: document.getElementById("profileModal"),
+  closeProfileModal: document.getElementById("closeProfileModal"),
+  clientProfileForm: document.getElementById("clientProfileForm"),
+  profileName: document.getElementById("profileName"),
+  profilePhone: document.getElementById("profilePhone"),
+  profileAddress: document.getElementById("profileAddress"),
+  profileReference: document.getElementById("profileReference"),
+  clientOrders: document.getElementById("clientOrders"),
+  clientOrderCount: document.getElementById("clientOrderCount"),
+  ordersModalCount: document.getElementById("ordersModalCount"),
+  featuredCarousel: document.getElementById("featuredCarousel"),
+  storeStrip: document.getElementById("storeStrip"),
   searchInput: document.getElementById("searchInput"),
-  leadPrice: document.getElementById("leadPrice"),
-  metricGrid: document.getElementById("metricGrid"),
-  businessRows: document.getElementById("businessRows"),
-  leadRows: document.getElementById("leadRows"),
-  billingLabel: document.getElementById("billingLabel"),
-  exportCsv: document.getElementById("exportCsv"),
-  clearLeads: document.getElementById("clearLeads"),
-  clearDemo: document.getElementById("clearDemo"),
+  categoryList: document.getElementById("categoryList"),
+  productGrid: document.getElementById("productGrid"),
+  orderPanel: document.getElementById("orderPanel"),
+  storeTitle: document.getElementById("storeTitle"),
+  storeMetrics: document.getElementById("storeMetrics"),
+  productForm: document.getElementById("productForm"),
+  productImage: document.getElementById("productImage"),
+  imagePreview: document.getElementById("imagePreview"),
+  discountType: document.getElementById("discountType"),
+  discountValue: document.getElementById("discountValue"),
+  discountValueWrap: document.getElementById("discountValueWrap"),
+  featuredPlan: document.getElementById("featuredPlan"),
+  productSubmitBtn: document.getElementById("productSubmitBtn"),
+  cancelEditProduct: document.getElementById("cancelEditProduct"),
+  storeProducts: document.getElementById("storeProducts"),
+  storeProductCount: document.getElementById("storeProductCount"),
+  storeContacts: document.getElementById("storeContacts"),
+  storeOrders: document.getElementById("storeOrders"),
+  storeSalesCount: document.getElementById("storeSalesCount"),
+  creditStatus: document.getElementById("creditStatus"),
+  exportStoreCsv: document.getElementById("exportStoreCsv"),
+  addCreditsBtn: document.getElementById("addCreditsBtn"),
+  upsellModal: document.getElementById("upsellModal"),
+  upsellItems: document.getElementById("upsellItems"),
+  closeUpsell: document.getElementById("closeUpsell"),
+  skipUpsell: document.getElementById("skipUpsell"),
+  sendFinalOrder: document.getElementById("sendFinalOrder"),
   toast: document.getElementById("toast"),
 };
 
-els.leadPrice.value = state.leadPrice.toFixed(2);
+function saveDb() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
 
 function money(value) {
-  return value.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+  return Number(value || 0).toLocaleString("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  });
 }
 
 function showToast(message) {
@@ -137,31 +249,269 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 2600);
 }
 
-function saveLeads() {
-  localStorage.setItem("puebloLeads", JSON.stringify(state.leads));
+function normalizeWhatsApp(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) return `521${digits}`;
+  if (digits.startsWith("52")) return digits;
+  return digits;
+}
+
+function currentClient() {
+  if (!db.session || db.session.role !== "client") return null;
+  return db.clients.find((client) => client.id === db.session.id) || null;
+}
+
+function currentStore() {
+  if (!db.session || db.session.role !== "store") return null;
+  return db.stores.find((store) => store.id === db.session.id) || null;
+}
+
+function getStore(storeId) {
+  return db.stores.find((store) => store.id === storeId);
+}
+
+function getProduct(productId) {
+  return db.products.find((product) => product.id === productId);
+}
+
+function finalPrice(product) {
+  const price = Number(product.price || 0);
+  const value = Number(product.discountValue || 0);
+  if (product.discountType === "percent" && value > 0) {
+    return Math.max(1, Math.round(price * (1 - value / 100)));
+  }
+  if (product.discountType === "amount" && value > 0) {
+    return Math.max(1, price - value);
+  }
+  return price;
+}
+
+function hasDiscount(product) {
+  return finalPrice(product) < Number(product.price || 0);
+}
+
+function isFeatured(product) {
+  return product.featuredUntil && new Date(product.featuredUntil).getTime() > Date.now();
+}
+
+function priceMarkup(product) {
+  if (!hasDiscount(product)) {
+    return `<span class="new-price">${money(product.price)}</span>`;
+  }
+  return `
+    <span class="old-price">${money(product.price)}</span>
+    <span class="new-price">${money(finalPrice(product))}</span>
+  `;
+}
+
+function defaultImageForCategory(category) {
+  const map = {
+    Hamburguesas: "./assets/hamburguesas.png",
+    Tacos: "./assets/tacos.png",
+    Pizza: "./assets/pizza.png",
+    Postres: "./assets/postres.png",
+    Pollos: "./assets/pollo.png",
+    Sushi: "./assets/sushi.png",
+  };
+  return map[category] || "./assets/hamburguesas.png";
+}
+
+function setSession(role, id) {
+  db.session = { role, id };
+  if (role === "client") db.lastClientId = id;
+  if (role === "store") db.lastStoreId = id;
+  saveDb();
+  render();
+}
+
+function setVisibleView(viewName) {
+  els.clientView.classList.toggle("active", viewName === "client");
+  els.storeView.classList.toggle("active", viewName === "store");
+}
+
+function openAuthModal(role = "client") {
+  els.authView.hidden = false;
+  document.querySelectorAll("[data-auth-card]").forEach((card) => {
+    card.classList.toggle("active-auth-card", card.dataset.authCard === role);
+  });
+  const firstInput = role === "store" ? document.getElementById("storeName") : document.getElementById("clientName");
+  window.setTimeout(() => firstInput?.focus(), 50);
+}
+
+function closeAuthModal() {
+  els.authView.hidden = true;
+}
+
+function renderHeader() {
+  const role = db.session?.role;
+  els.logoutBtn.hidden = !role;
+  els.openProfileBtn.hidden = role !== "client";
+  els.roleButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.roleSwitch === role);
+  });
+
+  if (!role) {
+    els.sessionLabel.textContent = "Explora sin registro";
+    return;
+  }
+
+  const profile = role === "client" ? currentClient() : currentStore();
+  els.sessionLabel.textContent = role === "client" ? `Cliente: ${profile?.name || ""}` : `Tienda: ${profile?.name || ""}`;
+}
+
+function render() {
+  renderHeader();
+  if (!db.session) {
+    setVisibleView("client");
+    renderClient();
+    return;
+  }
+
+  if (db.session.role === "client" && currentClient()) {
+    setVisibleView("client");
+    renderClient();
+    return;
+  }
+
+  if (db.session.role === "store" && currentStore()) {
+    setVisibleView("store");
+    renderStore();
+    return;
+  }
+
+  db.session = null;
+  saveDb();
+  setVisibleView("client");
+  renderClient();
 }
 
 function categories() {
-  return ["Todos", ...new Set(restaurants.map((restaurant) => restaurant.category))];
+  return ["Todos", ...new Set(db.stores.map((store) => store.category))];
 }
 
-function filteredRestaurants() {
+function productsForCatalog() {
   const query = state.query.trim().toLowerCase();
-  return restaurants.filter((restaurant) => {
-    const categoryMatch =
-      state.selectedCategory === "Todos" || restaurant.category === state.selectedCategory;
-    const searchMatch =
-      !query ||
-      restaurant.name.toLowerCase().includes(query) ||
-      restaurant.category.toLowerCase().includes(query) ||
-      restaurant.tags.join(" ").toLowerCase().includes(query) ||
-      restaurant.menu.some((item) => item.name.toLowerCase().includes(query));
-    return categoryMatch && searchMatch;
-  });
+  return db.products
+    .filter((product) => {
+      const store = getStore(product.storeId);
+      if (!store) return false;
+      const categoryMatch = state.selectedCategory === "Todos" || store.category === state.selectedCategory;
+      const haystack = `${product.title} ${product.description} ${store.name} ${store.category}`.toLowerCase();
+      return categoryMatch && (!query || haystack.includes(query));
+    })
+    .sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
 }
 
-function selectedRestaurant() {
-  return restaurants.find((restaurant) => restaurant.id === state.selectedRestaurantId) || restaurants[0];
+function renderClient() {
+  const client = currentClient();
+  els.clientAddressLabel.textContent = client?.address || "Centro del pueblo";
+  els.clientReferenceLabel.textContent = client?.reference || "Registrate para guardar direccion y pedir mas rapido";
+  els.editClientProfileBtn.textContent = client ? "Editar perfil" : "Registrarme para pedir";
+  els.openOrdersBtn.hidden = !client;
+  if (client) {
+    els.profileName.value = client.name;
+    els.profilePhone.value = client.phone;
+    els.profileAddress.value = client.address;
+    els.profileReference.value = client.reference || "";
+  }
+  renderClientOrders();
+  renderFeatured();
+  renderStores();
+  renderCategories();
+  renderProducts();
+  renderOrderPanel();
+}
+
+function renderClientOrders() {
+  const client = currentClient();
+  if (!client) {
+    els.clientOrderCount.textContent = "0";
+    els.ordersModalCount.textContent = "0";
+    els.clientOrders.innerHTML = `<p class="muted">Registrate como cliente para ver tu historial.</p>`;
+    return;
+  }
+  const orders = db.orders.filter((order) => order.clientId === client.id).reverse();
+  els.clientOrderCount.textContent = orders.length;
+  els.ordersModalCount.textContent = orders.length;
+  els.clientOrders.innerHTML = orders.length
+    ? orders
+        .slice(0, 6)
+        .map((order) => {
+          const store = getStore(order.storeId);
+          return `
+            <div class="mini-row">
+              <div>
+                <strong>${store?.name || "Tienda"}</strong>
+                <small>${new Date(order.createdAt).toLocaleString("es-MX")} - ${order.items.length} producto(s)</small>
+              </div>
+              <span>${money(order.total)}</span>
+            </div>
+          `;
+        })
+        .join("")
+    : `<p class="muted">Aun no hay pedidos.</p>`;
+}
+
+function openProfileModal() {
+  els.profileModal.hidden = false;
+}
+
+function closeProfileModal() {
+  els.profileModal.hidden = true;
+}
+
+function syncDiscountField() {
+  const hasDiscountChoice = els.discountType.value !== "none";
+  els.discountValueWrap.hidden = !hasDiscountChoice;
+  els.discountValue.required = hasDiscountChoice;
+  els.discountValue.disabled = !hasDiscountChoice;
+  if (!hasDiscountChoice) {
+    els.discountValue.value = "";
+  }
+}
+
+function renderFeatured() {
+  const featured = db.products.filter(isFeatured).slice(0, 8);
+  els.featuredCarousel.innerHTML = featured.length
+    ? featured
+        .map((product) => {
+          const store = getStore(product.storeId);
+          return `
+            <article class="featured-card">
+              <img src="${product.image}" alt="${product.title}" />
+              <div class="featured-body">
+                <span class="badge">Destacado</span>
+                <h3>${product.title}</h3>
+                <div class="product-meta">
+                  <span>${store?.name || "Tienda"}</span>
+                  <span>${store?.time || ""}</span>
+                </div>
+                <div class="price-row">${priceMarkup(product)}</div>
+                <button class="primary-button compact" data-add-product="${product.id}" type="button">Agregar</button>
+              </div>
+            </article>
+          `;
+        })
+        .join("")
+    : `<div class="cart-empty"><strong>No hay destacados activos</strong><span>Las tiendas pueden comprar espacios desde su panel.</span></div>`;
+}
+
+function renderStores() {
+  els.storeStrip.innerHTML = db.stores
+    .map((store) => {
+      const count = db.products.filter((product) => product.storeId === store.id).length;
+      return `
+        <article class="store-card-public">
+          <img src="${store.image}" alt="${store.name}" />
+          <div>
+            <strong>${store.name}</strong>
+            <small>${store.category} - ${store.rating} - ${store.time}</small>
+            <span>${count} producto${count === 1 ? "" : "s"}</span>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 function renderCategories() {
@@ -169,127 +519,292 @@ function renderCategories() {
     .map((category) => {
       const count =
         category === "Todos"
-          ? restaurants.length
-          : restaurants.filter((restaurant) => restaurant.category === category).length;
+          ? db.products.length
+          : db.products.filter((product) => getStore(product.storeId)?.category === category).length;
       return `
         <button class="category-button ${state.selectedCategory === category ? "active" : ""}" data-category="${category}" type="button">
           <span>${category}</span>
-          <span class="category-count">${count}</span>
+          <span>${count}</span>
         </button>
       `;
     })
     .join("");
 }
 
-function renderRestaurants() {
-  const list = filteredRestaurants();
-  if (!list.length) {
-    els.restaurantGrid.innerHTML = `<div class="detail-empty"><strong>No hay resultados</strong><span>Prueba con otra categoría.</span></div>`;
+function renderProducts() {
+  const products = productsForCatalog();
+  els.productGrid.innerHTML = products.length
+    ? products
+        .map((product) => {
+          const store = getStore(product.storeId);
+          return `
+            <article class="product-card">
+              <div class="product-image">
+                <img src="${product.image}" alt="${product.title}" />
+                ${isFeatured(product) ? `<span class="badge">Destacado</span>` : ""}
+              </div>
+              <div class="product-body">
+                <div>
+                  <h3>${product.title}</h3>
+                  <p>${product.description}</p>
+                </div>
+                <div class="product-meta">
+                  <span>${store?.name || "Tienda"}</span>
+                  <span>${store?.rating || "4.7"} - ${store?.time || ""}</span>
+                </div>
+                <div class="price-row">${priceMarkup(product)}</div>
+                <button class="add-button" data-add-product="${product.id}" type="button">Agregar al pedido</button>
+              </div>
+            </article>
+          `;
+        })
+        .join("")
+    : `<div class="cart-empty"><strong>No encontramos productos</strong><span>Prueba otra busqueda o categoria.</span></div>`;
+}
+
+function cartStore() {
+  const first = state.cart[0];
+  if (!first) return null;
+  return getStore(getProduct(first.productId)?.storeId);
+}
+
+function cartTotal() {
+  return state.cart.reduce((sum, item) => {
+    const product = getProduct(item.productId);
+    return product ? sum + finalPrice(product) * item.qty : sum;
+  }, 0);
+}
+
+function renderOrderPanel() {
+  const client = currentClient();
+  const store = cartStore();
+  if (!state.cart.length) {
+    els.orderPanel.innerHTML = `
+      <div class="cart-empty">
+        <strong>Tu pedido esta vacio</strong>
+        <span>Agrega productos y el sistema preparara el WhatsApp.</span>
+      </div>
+    `;
     return;
   }
 
-  els.restaurantGrid.innerHTML = list
-    .map(
-      (restaurant) => `
-      <article class="restaurant-card ${restaurant.id === state.selectedRestaurantId ? "active" : ""}">
-        <button class="card-hit" data-restaurant="${restaurant.id}" type="button" aria-label="Ver ${restaurant.name}">
-          <div class="restaurant-image">
-            <img src="${restaurant.image}" alt="${restaurant.name}" />
-            <span class="status-pill">Abierto</span>
-          </div>
-          <div class="card-body">
-            <h3>${restaurant.name}</h3>
-            <div class="meta-row">
-              <span>${restaurant.category}</span>
-              <span>${restaurant.rating} · ${restaurant.time}</span>
-            </div>
-            <div class="tag-row">
-              ${restaurant.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}
-            </div>
-          </div>
-        </button>
-      </article>
-    `,
-    )
-    .join("");
-}
-
-function renderDetail() {
-  const restaurant = selectedRestaurant();
-  const cartTotal = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-  els.restaurantDetail.className = "detail-card";
-  els.restaurantDetail.innerHTML = `
-    <div class="detail-hero">
-      <img src="${restaurant.image}" alt="${restaurant.name}" />
-      <span class="status-pill">${restaurant.neighborhood}</span>
+  els.orderPanel.innerHTML = `
+    <span class="eyebrow">${state.orderMode}</span>
+    <h2>Pedido para ${store?.name || "tienda"}</h2>
+    <div class="address-box">
+      <strong>${client ? "Direccion guardada" : "Direccion pendiente"}</strong><br />
+      ${client ? client.address : "Registrate como cliente para agregar direccion al WhatsApp."}<br />
+      ${client?.reference ? `<small>${client.reference}</small>` : ""}
     </div>
-    <div class="detail-content">
-      <span class="eyebrow">${restaurant.category}</span>
-      <h2>${restaurant.name}</h2>
-      <p>${restaurant.rating} de calificación · ${restaurant.time} · Pedido por WhatsApp</p>
-      <div class="menu-list">
-        ${restaurant.menu
-          .map(
-            (item, index) => `
-              <div class="item-row">
-                <div>
-                  <strong>${item.name}</strong>
-                  <p>${item.description}</p>
-                </div>
-                <div>
-                  <div class="price">${money(item.price)}</div>
-                  <button class="add-button" data-add="${index}" type="button">Agregar</button>
-                </div>
+    <div class="cart-list">
+      ${state.cart
+        .map((item) => {
+          const product = getProduct(item.productId);
+          return `
+            <div class="cart-row">
+              <div>
+                <strong>${item.qty} x ${product.title}</strong>
+                <small>${money(finalPrice(product) * item.qty)}</small>
               </div>
-            `,
-          )
-          .join("")}
-      </div>
-      <div class="cart-box">
-        <h3>Pedido</h3>
-        <div class="cart-list">
-          ${
-            state.cart.length
-              ? state.cart
-                  .map(
-                    (item, index) => `
-                    <div class="cart-row">
-                      <span>${item.qty} x ${item.name}</span>
-                      <span>${money(item.qty * item.price)} <button class="remove-button" data-remove="${index}" type="button">Quitar</button></span>
-                    </div>
-                  `,
-                  )
-                  .join("")
-              : `<p class="small-note">Agrega productos para preparar el mensaje.</p>`
-          }
-        </div>
-        <div class="total-row">
-          <span>Total estimado</span>
-          <span>${money(cartTotal)}</span>
-        </div>
-        <button class="whatsapp-button" id="sendWhatsapp" type="button">Pedir por WhatsApp</button>
-        <p class="small-note">Al tocar el botón se registra el contacto para el negocio.</p>
-      </div>
+              <button class="remove-button" data-remove-product="${product.id}" type="button">Quitar</button>
+            </div>
+          `;
+        })
+        .join("")}
     </div>
+    <div class="total-row">
+      <span>Total estimado</span>
+      <span>${money(cartTotal())}</span>
+    </div>
+    <button class="primary-button" id="openUpsell" type="button">${client ? "Continuar por WhatsApp" : "Registrarme para pedir"}</button>
+    <p class="muted">Antes de enviar se mostraran dos sugeridos de la tienda.</p>
   `;
 }
 
-function renderMetrics() {
-  const billable = state.leads.filter((lead) => lead.billable).length;
-  const total = state.leads.length;
-  const businesses = new Set(state.leads.map((lead) => lead.restaurantId)).size;
-  const revenue = billable * state.leadPrice;
-  els.billingLabel.textContent = `${money(state.leadPrice)} por contacto`;
+function addToCart(productId, silent = false) {
+  const product = getProduct(productId);
+  if (!product) return;
+  const currentStore = cartStore();
+  if (currentStore && currentStore.id !== product.storeId) {
+    state.cart = [];
+    if (!silent) showToast("El pedido solo puede ser de una tienda. Reiniciamos el carrito.");
+  }
 
+  const existing = state.cart.find((item) => item.productId === productId);
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    state.cart.push({ productId, qty: 1 });
+  }
+  renderClient();
+}
+
+function removeFromCart(productId) {
+  state.cart = state.cart.filter((item) => item.productId !== productId);
+  renderClient();
+}
+
+function openUpsellModal() {
+  const client = currentClient();
+  if (!client) {
+    openAuthModal("client");
+    showToast("Crea tu perfil para enviar el pedido por WhatsApp.");
+    return;
+  }
+  if (!client.address || !client.phone) {
+    showToast("Completa tu direccion y WhatsApp antes de enviar.");
+    return;
+  }
+  if (!state.cart.length) {
+    showToast("Agrega un producto primero.");
+    return;
+  }
+
+  const store = cartStore();
+  const cartIds = new Set(state.cart.map((item) => item.productId));
+  const suggestions = db.products
+    .filter((product) => product.storeId === store.id && !cartIds.has(product.id))
+    .slice(0, 2);
+
+  els.upsellItems.innerHTML = suggestions.length
+    ? suggestions
+        .map(
+          (product) => `
+          <article class="upsell-card">
+            <img src="${product.image}" alt="${product.title}" />
+            <div>
+              <h3>${product.title}</h3>
+              <p>${product.description}</p>
+              <div class="price-row">${priceMarkup(product)}</div>
+              <button class="add-button" data-upsell-add="${product.id}" type="button">Agregar y enviar</button>
+            </div>
+          </article>
+        `,
+        )
+        .join("")
+    : `<div class="cart-empty"><strong>Todo listo</strong><span>No hay sugeridos de esta tienda por ahora.</span></div>`;
+
+  els.upsellModal.hidden = false;
+}
+
+function closeUpsellModal() {
+  els.upsellModal.hidden = true;
+}
+
+function sendOrder() {
+  const client = currentClient();
+  const store = cartStore();
+  if (!client || !store || !state.cart.length) return;
+
+  const items = state.cart
+    .map((item) => {
+      const product = getProduct(item.productId);
+      return {
+        productId: item.productId,
+        title: product.title,
+        qty: item.qty,
+        price: finalPrice(product),
+      };
+    })
+    .filter(Boolean);
+  const total = cartTotal();
+  const billable = store.credits > 0;
+  if (billable) store.credits -= 1;
+
+  const order = {
+    id: `order-${Date.now()}`,
+    clientId: client.id,
+    storeId: store.id,
+    mode: state.orderMode,
+    items,
+    total,
+    address: client.address,
+    reference: client.reference,
+    createdAt: new Date().toISOString(),
+  };
+
+  const lead = {
+    id: `lead-${Date.now()}`,
+    clientId: client.id,
+    storeId: store.id,
+    orderId: order.id,
+    total,
+    billable,
+    creditAfter: store.credits,
+    createdAt: order.createdAt,
+  };
+
+  db.orders.push(order);
+  db.leads.push(lead);
+  saveDb();
+
+  const orderLines = items.map((item) => `${item.qty} x ${item.title} (${money(item.qty * item.price)})`).join("\n");
+  const message = [
+    `Hola, vi su menu en PuebloPedidos.`,
+    ``,
+    `Pedido:`,
+    orderLines,
+    ``,
+    `Total estimado: ${money(total)}`,
+    `Modo: ${state.orderMode}`,
+    `Cliente: ${client.name}`,
+    `WhatsApp cliente: ${client.phone}`,
+    `Direccion: ${client.address}`,
+    client.reference ? `Referencia: ${client.reference}` : "",
+    ``,
+    `Me confirma disponibilidad?`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  state.cart = [];
+  closeUpsellModal();
+  renderClient();
+  window.open(`https://wa.me/${normalizeWhatsApp(store.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  showToast(billable ? "Pedido enviado y contacto descontado." : "Pedido enviado. La tienda ya no tenia creditos.");
+}
+
+function renderStore() {
+  const store = currentStore();
+  els.storeTitle.textContent = store.name;
+  renderStoreMetrics();
+  renderStoreProducts();
+  renderStoreContacts();
+  renderStoreOrders();
+}
+
+function storeProducts() {
+  const store = currentStore();
+  return db.products.filter((product) => product.storeId === store.id);
+}
+
+function storeOrders() {
+  const store = currentStore();
+  return db.orders.filter((order) => order.storeId === store.id);
+}
+
+function storeLeads() {
+  const store = currentStore();
+  return db.leads.filter((lead) => lead.storeId === store.id);
+}
+
+function renderStoreMetrics() {
+  const store = currentStore();
+  const orders = storeOrders();
+  const leads = storeLeads();
+  const revenue = orders.reduce((sum, order) => sum + order.total, 0);
   const metrics = [
-    ["Contactos", total],
-    ["Cobrables", billable],
-    ["Locales activos", businesses],
-    ["Ingreso estimado", money(revenue)],
+    ["Creditos restantes", store.credits],
+    ["Contactos recibidos", leads.length],
+    ["Ventas WhatsApp", orders.length],
+    ["Venta estimada", money(revenue)],
+    ["Productos activos", storeProducts().length],
+    ["Publicidad usada", money(store.marketingSpend || 0)],
+    ["Costo lead", money(db.leadPrice)],
+    ["Recarga sugerida", store.credits <= 5 ? "Urgente" : "Bien"],
   ];
 
-  els.metricGrid.innerHTML = metrics
+  els.storeMetrics.innerHTML = metrics
     .map(
       ([label, value]) => `
       <div class="metric-card">
@@ -299,144 +814,347 @@ function renderMetrics() {
     `,
     )
     .join("");
+  els.creditStatus.textContent = `${store.credits} contactos disponibles`;
 }
 
-function renderBusinessRows() {
-  const rows = restaurants
-    .map((restaurant) => {
-      const leads = state.leads.filter((lead) => lead.restaurantId === restaurant.id);
-      const billable = leads.filter((lead) => lead.billable).length;
-      return { restaurant, leads: leads.length, billable, amount: billable * state.leadPrice };
-    })
-    .sort((a, b) => b.billable - a.billable);
-
-  els.businessRows.innerHTML = rows
-    .map(
-      (row) => `
-      <div class="business-row">
-        <div>
-          <strong>${row.restaurant.name}</strong>
-          <small>${row.leads} clics · ${row.billable} cobrables</small>
-        </div>
-        <span class="row-amount">${money(row.amount)}</span>
-      </div>
-    `,
-    )
-    .join("");
+function renderStoreProducts() {
+  const products = storeProducts();
+  els.storeProductCount.textContent = products.length;
+  els.storeProducts.innerHTML = products.length
+    ? products
+        .map(
+          (product) => `
+          <div class="store-product-row">
+            <img src="${product.image}" alt="${product.title}" />
+            <div>
+              <strong>${product.title}</strong>
+              <small>${isFeatured(product) ? "Destacado activo" : "Sin destacar"} - ${product.description}</small>
+              <div class="price-row">${priceMarkup(product)}</div>
+            </div>
+            <div class="row-actions">
+              <button class="ghost-button compact" data-edit-product="${product.id}" type="button">Editar</button>
+              <button class="ghost-button compact" data-feature-product="${product.id}" data-days="3" type="button">3 dias</button>
+              <button class="ghost-button compact" data-feature-product="${product.id}" data-days="7" type="button">7 dias</button>
+              <button class="danger-button compact" data-delete-product="${product.id}" type="button">Eliminar</button>
+            </div>
+          </div>
+        `,
+        )
+        .join("")
+    : `<p class="muted">Aun no tienes productos publicados.</p>`;
 }
 
-function renderLeadRows() {
-  const recent = [...state.leads].reverse().slice(0, 10);
+function resetProductForm() {
+  state.pendingImage = "";
+  state.editingProductId = "";
+  els.imagePreview.textContent = "Sin imagen seleccionada";
+  els.productForm.reset();
+  els.productSubmitBtn.textContent = "Publicar producto";
+  els.cancelEditProduct.hidden = true;
+  syncDiscountField();
+}
 
-  els.leadRows.innerHTML = recent.length
-    ? recent
+function editProduct(productId) {
+  const product = getProduct(productId);
+  if (!product) return;
+  state.editingProductId = product.id;
+  state.pendingImage = product.image;
+  document.getElementById("productTitle").value = product.title;
+  document.getElementById("productDescription").value = product.description;
+  document.getElementById("productPrice").value = product.price;
+  els.discountType.value = product.discountType || "none";
+  els.discountValue.value = product.discountValue || "";
+  els.featuredPlan.value = "none";
+  els.imagePreview.innerHTML = `<img src="${product.image}" alt="Vista previa" />`;
+  els.productSubmitBtn.textContent = "Guardar cambios";
+  els.cancelEditProduct.hidden = false;
+  syncDiscountField();
+  document.getElementById("productTitle").focus();
+  showToast("Editando producto.");
+}
+
+function featureProduct(productId, days) {
+  const product = getProduct(productId);
+  const store = currentStore();
+  if (!product || !store) return;
+  product.featuredUntil = futureDate(days);
+  store.marketingSpend = Number(store.marketingSpend || 0) + (days === 7 ? 169 : 89);
+  saveDb();
+  renderStore();
+  showToast(`Producto destacado por ${days} dias.`);
+}
+
+function renderStoreContacts() {
+  const leads = storeLeads().reverse();
+  els.storeContacts.innerHTML = leads.length
+    ? leads
         .map((lead) => {
-          const restaurant = restaurants.find((item) => item.id === lead.restaurantId);
+          const client = db.clients.find((item) => item.id === lead.clientId);
           return `
-            <div class="lead-row">
+            <div class="mini-row">
               <div>
-                <strong>${restaurant ? restaurant.name : "Local"}</strong>
-                <small>${new Date(lead.createdAt).toLocaleString("es-MX")} · ${lead.items} producto${lead.items === 1 ? "" : "s"}</small>
+                <strong>${client?.name || "Cliente"}</strong>
+                <small>${new Date(lead.createdAt).toLocaleString("es-MX")} - ${client?.address || ""}</small>
               </div>
-              <span class="row-amount">${lead.billable ? "Cobrable" : "Repetido"}</span>
+              <span>${lead.billable ? `Quedan ${lead.creditAfter}` : "Sin credito"}</span>
             </div>
           `;
         })
         .join("")
-    : `<p class="small-note">Todavía no hay contactos registrados.</p>`;
+    : `<p class="muted">Todavia no hay contactos.</p>`;
 }
 
-function renderOwner() {
-  renderMetrics();
-  renderBusinessRows();
-  renderLeadRows();
+function renderStoreOrders() {
+  const orders = storeOrders().reverse();
+  els.storeSalesCount.textContent = orders.length;
+  els.storeOrders.innerHTML = orders.length
+    ? orders
+        .map(
+          (order) => `
+          <div class="mini-row">
+            <div>
+              <strong>${order.items.map((item) => `${item.qty} x ${item.title}`).join(", ")}</strong>
+              <small>${new Date(order.createdAt).toLocaleString("es-MX")} - ${order.mode}</small>
+            </div>
+            <span>${money(order.total)}</span>
+          </div>
+        `,
+        )
+        .join("")
+    : `<p class="muted">Aun no hay ventas registradas.</p>`;
 }
 
-function render() {
-  renderCategories();
-  renderRestaurants();
-  renderDetail();
-  renderOwner();
-}
-
-function addItem(index) {
-  const restaurant = selectedRestaurant();
-  const item = restaurant.menu[index];
-  const existing = state.cart.find((cartItem) => cartItem.name === item.name);
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    state.cart.push({ ...item, qty: 1 });
+function publishProduct(event) {
+  event.preventDefault();
+  const store = currentStore();
+  const editingProduct = state.editingProductId ? getProduct(state.editingProductId) : null;
+  const title = document.getElementById("productTitle").value.trim();
+  const description = document.getElementById("productDescription").value.trim();
+  const price = Number(document.getElementById("productPrice").value);
+  const discountType = document.getElementById("discountType").value;
+  const discountValue = Number(document.getElementById("discountValue").value || 0);
+  const featuredPlan = document.getElementById("featuredPlan").value;
+  if (!title || !description || !price) {
+    showToast("Completa titulo, descripcion y precio.");
+    return;
   }
-  renderDetail();
+
+  let featuredUntil = editingProduct?.featuredUntil || "";
+  if (featuredPlan === "3") {
+    featuredUntil = futureDate(3);
+    store.marketingSpend = Number(store.marketingSpend || 0) + 89;
+  }
+  if (featuredPlan === "7") {
+    featuredUntil = futureDate(7);
+    store.marketingSpend = Number(store.marketingSpend || 0) + 169;
+  }
+
+  const productData = {
+    storeId: store.id,
+    title,
+    description,
+    price,
+    image: state.pendingImage || editingProduct?.image || store.image || defaultImageForCategory(store.category),
+    discountType,
+    discountValue: discountType === "none" ? 0 : discountValue,
+    featuredUntil,
+  };
+
+  if (editingProduct) {
+    Object.assign(editingProduct, productData);
+  } else {
+    db.products.unshift({
+      id: `product-${Date.now()}`,
+      ...productData,
+    });
+  }
+
+  resetProductForm();
+  saveDb();
+  renderStore();
+  showToast(editingProduct ? "Producto actualizado." : "Producto publicado.");
 }
 
-function removeItem(index) {
-  state.cart.splice(index, 1);
-  renderDetail();
-}
-
-function registerLead() {
-  const restaurant = selectedRestaurant();
-  const now = Date.now();
-  const hasRecentBillable = state.leads.some(
-    (lead) =>
-      lead.restaurantId === restaurant.id &&
-      lead.billable &&
-      now - new Date(lead.createdAt).getTime() < 24 * 60 * 60 * 1000,
-  );
-  const billable = !hasRecentBillable;
-  const items = state.cart.reduce((sum, item) => sum + item.qty, 0);
-
-  state.leads.push({
-    id: `${restaurant.id}-${now}`,
-    restaurantId: restaurant.id,
-    createdAt: new Date(now).toISOString(),
-    billable,
-    items,
-  });
-  saveLeads();
-  renderOwner();
-
-  const orderLines = state.cart.length
-    ? state.cart.map((item) => `${item.qty} x ${item.name} (${money(item.price * item.qty)})`).join("\n")
-    : "Quiero información para pedir.";
-  const total = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const text = `Hola, vi su menú en PuebloPedidos.\n\n${orderLines}\n\nTotal estimado: ${money(total)}\n¿Me confirma disponibilidad?`;
-  const url = `https://wa.me/${restaurant.phone}?text=${encodeURIComponent(text)}`;
-  window.open(url, "_blank", "noopener,noreferrer");
-
-  showToast(billable ? "Contacto cobrable registrado." : "Contacto repetido: registrado sin cobro.");
-}
-
-function exportCsv() {
-  const rows = [["fecha", "local", "categoria", "productos", "cobrable", "monto"]];
-  state.leads.forEach((lead) => {
-    const restaurant = restaurants.find((item) => item.id === lead.restaurantId);
+function exportStoreReport() {
+  const store = currentStore();
+  const rows = [["tipo", "fecha", "cliente", "detalle", "total", "creditos_restantes"]];
+  storeLeads().forEach((lead) => {
+    const client = db.clients.find((item) => item.id === lead.clientId);
+    const order = db.orders.find((item) => item.id === lead.orderId);
     rows.push([
+      "contacto",
       lead.createdAt,
-      restaurant?.name || "",
-      restaurant?.category || "",
-      String(lead.items),
-      lead.billable ? "si" : "no",
-      lead.billable ? state.leadPrice.toFixed(2) : "0.00",
+      client?.name || "",
+      order?.items.map((item) => `${item.qty} x ${item.title}`).join(" | ") || "",
+      lead.total,
+      lead.creditAfter,
     ]);
   });
+  storeOrders().forEach((order) => {
+    const client = db.clients.find((item) => item.id === order.clientId);
+    rows.push([
+      "venta",
+      order.createdAt,
+      client?.name || "",
+      order.items.map((item) => `${item.qty} x ${item.title}`).join(" | "),
+      order.total,
+      "",
+    ]);
+  });
+
   const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "pueblopedidos-leads.csv";
+  link.download = `${store.name.toLowerCase().replaceAll(" ", "-")}-reporte.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
+function loginDemo(role) {
+  if (role === "client") {
+    closeAuthModal();
+    setSession("client", db.lastClientId || defaultClient.id);
+    return;
+  }
+  closeAuthModal();
+  setSession("store", db.lastStoreId || db.stores[0].id);
+}
+
+els.clientForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const client = {
+    id: `client-${Date.now()}`,
+    name: document.getElementById("clientName").value.trim(),
+    phone: document.getElementById("clientPhone").value.trim(),
+    address: document.getElementById("clientAddress").value.trim(),
+    reference: document.getElementById("clientReference").value.trim(),
+  };
+  db.clients.push(client);
+  closeAuthModal();
+  setSession("client", client.id);
+});
+
+els.storeForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const category = document.getElementById("storeCategory").value;
+  const store = {
+    id: `store-${Date.now()}`,
+    name: document.getElementById("storeName").value.trim(),
+    owner: document.getElementById("storeOwner").value.trim(),
+    phone: normalizeWhatsApp(document.getElementById("storePhone").value),
+    category,
+    address: document.getElementById("storeAddress").value.trim(),
+    image: defaultImageForCategory(category),
+    rating: "Nuevo",
+    time: "15-35 min",
+    credits: Number(document.getElementById("storeCredits").value || 0),
+    marketingSpend: 0,
+  };
+  db.stores.push(store);
+  closeAuthModal();
+  setSession("store", store.id);
+});
+
+els.clientProfileForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const client = currentClient();
+  client.name = els.profileName.value.trim();
+  client.phone = els.profilePhone.value.trim();
+  client.address = els.profileAddress.value.trim();
+  client.reference = els.profileReference.value.trim();
+  saveDb();
+  renderClient();
+  renderHeader();
+  closeProfileModal();
+  showToast("Perfil actualizado.");
+});
+
+els.productForm.addEventListener("submit", publishProduct);
+
+els.discountType.addEventListener("change", syncDiscountField);
+
+els.cancelEditProduct.addEventListener("click", resetProductForm);
+
+els.productImage.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.pendingImage = String(reader.result);
+    els.imagePreview.innerHTML = `<img src="${state.pendingImage}" alt="Vista previa" />`;
+  };
+  reader.readAsDataURL(file);
+});
+
+els.openProfileBtn.addEventListener("click", openProfileModal);
+els.editClientProfileBtn.addEventListener("click", () => {
+  if (currentClient()) {
+    openProfileModal();
+  } else {
+    openAuthModal("client");
+  }
+});
+els.openOrdersBtn.addEventListener("click", openProfileModal);
+els.closeProfileModal.addEventListener("click", closeProfileModal);
+els.closeAuthModal.addEventListener("click", closeAuthModal);
+
+els.searchInput.addEventListener("input", (event) => {
+  state.query = event.target.value;
+  renderProducts();
+});
+
+els.logoutBtn.addEventListener("click", () => {
+  db.session = null;
+  saveDb();
+  state.cart = [];
+  render();
+});
+
+els.exportStoreCsv.addEventListener("click", exportStoreReport);
+
+els.addCreditsBtn.addEventListener("click", () => {
+  const store = currentStore();
+  store.credits += 50;
+  saveDb();
+  renderStore();
+  showToast("Recarga simulada: +50 contactos.");
+});
+
+els.closeUpsell.addEventListener("click", closeUpsellModal);
+els.skipUpsell.addEventListener("click", sendOrder);
+els.sendFinalOrder.addEventListener("click", sendOrder);
+
 document.addEventListener("click", (event) => {
-  const nav = event.target.closest("[data-view]");
-  if (nav) {
-    els.navButtons.forEach((button) => button.classList.toggle("active", button === nav));
-    els.panels.forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === nav.dataset.view));
+  const demoButton = event.target.closest("[data-demo-login]");
+  if (demoButton) {
+    loginDemo(demoButton.dataset.demoLogin);
+    return;
+  }
+
+  const roleSwitch = event.target.closest("[data-role-switch]");
+  if (roleSwitch) {
+    const role = roleSwitch.dataset.roleSwitch;
+    if (!db.session || db.session.role !== role) {
+      openAuthModal(role);
+      return;
+    }
+    if (role === "client") {
+      openProfileModal();
+      return;
+    }
+    setVisibleView("store");
+    return;
+  }
+
+  const modeButton = event.target.closest("[data-order-mode]");
+  if (modeButton) {
+    state.orderMode = modeButton.dataset.orderMode;
+    document.querySelectorAll("[data-order-mode]").forEach((button) => {
+      button.classList.toggle("active", button === modeButton);
+    });
+    renderOrderPanel();
     return;
   }
 
@@ -444,64 +1162,54 @@ document.addEventListener("click", (event) => {
   if (categoryButton) {
     state.selectedCategory = categoryButton.dataset.category;
     renderCategories();
-    renderRestaurants();
+    renderProducts();
     return;
   }
 
-  const restaurantButton = event.target.closest("[data-restaurant]");
-  if (restaurantButton) {
-    state.selectedRestaurantId = restaurantButton.dataset.restaurant;
-    state.cart = [];
-    renderRestaurants();
-    renderDetail();
-    return;
-  }
-
-  const addButton = event.target.closest("[data-add]");
+  const addButton = event.target.closest("[data-add-product]");
   if (addButton) {
-    addItem(Number(addButton.dataset.add));
+    addToCart(addButton.dataset.addProduct);
     return;
   }
 
-  const removeButton = event.target.closest("[data-remove]");
+  const removeButton = event.target.closest("[data-remove-product]");
   if (removeButton) {
-    removeItem(Number(removeButton.dataset.remove));
+    removeFromCart(removeButton.dataset.removeProduct);
     return;
   }
 
-  if (event.target.closest("#sendWhatsapp")) {
-    registerLead();
+  if (event.target.closest("#openUpsell")) {
+    openUpsellModal();
+    return;
+  }
+
+  const upsellAdd = event.target.closest("[data-upsell-add]");
+  if (upsellAdd) {
+    addToCart(upsellAdd.dataset.upsellAdd, true);
+    sendOrder();
+    return;
+  }
+
+  const editButton = event.target.closest("[data-edit-product]");
+  if (editButton) {
+    editProduct(editButton.dataset.editProduct);
+    return;
+  }
+
+  const featureButton = event.target.closest("[data-feature-product]");
+  if (featureButton) {
+    featureProduct(featureButton.dataset.featureProduct, Number(featureButton.dataset.days));
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-delete-product]");
+  if (deleteButton) {
+    db.products = db.products.filter((product) => product.id !== deleteButton.dataset.deleteProduct);
+    saveDb();
+    renderStore();
+    showToast("Producto eliminado.");
   }
 });
 
-els.searchInput.addEventListener("input", (event) => {
-  state.query = event.target.value;
-  renderRestaurants();
-});
-
-els.leadPrice.addEventListener("input", (event) => {
-  state.leadPrice = Number(event.target.value || "0.5");
-  localStorage.setItem("puebloLeadPrice", String(state.leadPrice));
-  renderOwner();
-});
-
-els.exportCsv.addEventListener("click", exportCsv);
-
-els.clearLeads.addEventListener("click", () => {
-  state.leads = [];
-  saveLeads();
-  renderOwner();
-  showToast("Leads borrados.");
-});
-
-els.clearDemo.addEventListener("click", () => {
-  state.cart = [];
-  state.selectedCategory = "Todos";
-  state.query = "";
-  els.searchInput.value = "";
-  state.selectedRestaurantId = restaurants[0].id;
-  render();
-  showToast("Demo reiniciada.");
-});
-
+syncDiscountField();
 render();

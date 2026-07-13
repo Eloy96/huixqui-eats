@@ -1,16 +1,28 @@
 # PuebloPedidos
 
-Demo de marketplace local de comida con pedidos por WhatsApp y panel de contactos generados.
+Demo estatica de marketplace local de comida por WhatsApp.
 
-## Que incluye
+## Que incluye esta version
 
-- Pagina principal para clientes.
-- Lista de locales por categoria.
-- Menu por local.
-- Carrito simple.
-- Boton para abrir WhatsApp con mensaje preparado.
-- Registro de contactos en el navegador.
-- Panel de dueno con conteo de leads, calculo de cobro y exportacion CSV.
+- Registro/inicio como cliente.
+- Registro/inicio como tienda.
+- Home publico tipo marketplace, visible antes del registro.
+- Menu con acceso a registro de cliente o tienda.
+- Perfil de cliente en modal con nombre, WhatsApp, direccion y referencia.
+- Historial de pedidos del cliente.
+- Marketplace horizontal con busqueda, categorias y productos destacados.
+- Carrito por tienda.
+- Modal antes de WhatsApp con dos productos sugeridos de la misma tienda.
+- Mensaje de WhatsApp con productos, cantidades, total, direccion y referencia del cliente.
+- Panel de tienda con metricas, ventas, contactos y creditos restantes.
+- Alta de productos con titulo, descripcion, precio e imagen.
+- Soporte para subir imagen o tomar fotografia desde celular.
+- Descuentos por porcentaje o por pesos, mostrando el campo de cantidad solo cuando aplica.
+- Precio anterior tachado y precio nuevo visible.
+- Destacados pagados de 3 dias o 7 dias.
+- Edicion de productos ya publicados.
+- Destacar productos ya publicados sin volver a darlos de alta.
+- Descarga de reporte CSV por tienda.
 
 ## Como subirlo a GitHub Pages
 
@@ -30,22 +42,20 @@ Demo de marketplace local de comida con pedidos por WhatsApp y panel de contacto
    - Folder: `/root`
 6. Guarda y espera a que GitHub genere la URL.
 
-## Como editar locales
+## Como editar datos demo
 
-Abre `app.js` y modifica la lista `restaurants`.
+Abre `app.js`.
 
-Cada local tiene:
-
-- `name`: nombre del negocio.
-- `category`: categoria.
-- `image`: ruta de imagen.
-- `phone`: numero de WhatsApp en formato internacional.
-- `rating`: calificacion demo.
-- `time`: tiempo estimado.
-- `neighborhood`: zona.
-- `tags`: etiquetas.
-- `menu`: productos, descripcion y precio.
+- `defaultClient`: perfil demo del cliente.
+- `defaultStores`: tiendas demo.
+- `defaultProducts`: productos demo.
 
 ## Importante
 
-Esta version es una demo estatica. Los contactos se guardan en el navegador usando `localStorage`, no en una base de datos. Para venderlo como producto real, el siguiente paso es agregar backend, panel de administrador y usuarios para negocios.
+Esta es una demo estatica pensada para GitHub Pages. Los registros, productos,
+imagenes subidas, pedidos, contactos y creditos se guardan en el navegador con
+`localStorage`.
+
+Para venderlo como producto real, el siguiente paso es agregar backend, base de
+datos, inicio de sesion real, panel administrativo central, pasarela de pagos y
+almacenamiento real de imagenes.
