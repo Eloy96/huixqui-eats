@@ -15,6 +15,9 @@ Prototipo funcional de marketplace local de comida por WhatsApp.
 - Detalle de producto antes de agregar al carrito.
 - Caja de comentarios por producto, por ejemplo: sin cebolla.
 - Carrito de compras en modal con contador.
+- Carrito agrupado por tienda cuando el cliente compra en varios negocios.
+- Confirmacion multi-tienda: cada negocio recibe su propio pedido por WhatsApp.
+- Descuento de 1 contacto por tienda contactada, no por carrito completo.
 - Perfil de cliente en modal con nombre, WhatsApp, direccion y referencia.
 - Historial de pedidos del cliente.
 - Selector de entrega o recoger que cambia productos disponibles.

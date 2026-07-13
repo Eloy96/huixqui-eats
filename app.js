@@ -182,6 +182,7 @@ const state = {
   editingProductId: "",
   selectedStoreId: "",
   selectedProductId: "",
+  pendingWhatsApps: [],
 };
 
 const els = {
@@ -474,6 +475,7 @@ function closeAuthModal() {
 }
 
 function openCartModal() {
+  renderOrderPanel();
   els.cartModal.hidden = false;
 }
 
@@ -593,7 +595,7 @@ function renderClientOrders() {
             <div class="mini-row">
               <div>
                 <strong>${store?.name || "Tienda"}</strong>
-                <small>${new Date(order.createdAt).toLocaleString("es-MX")} - ${order.items.length} producto(s)</small>
+                <small>${new Date(order.createdAt).toLocaleString("es-MX")} - ${order.items.length} producto(s)${order.batchTotal > 1 ? ` - Pedido ${order.batchIndex}/${order.batchTotal}` : ""}</small>
               </div>
               <span>${money(order.total)}</span>
             </div>
@@ -812,23 +814,73 @@ function renderSelectedStore() {
 }
 
 function cartStore() {
-  const first = state.cart[0];
-  if (!first) return null;
-  return getStore(getProduct(first.productId)?.storeId);
+  return cartGroups()[0]?.store || null;
+}
+
+function cartGroups() {
+  const groups = [];
+  state.cart.forEach((item) => {
+    const product = getProduct(item.productId);
+    const store = product ? getStore(product.storeId) : null;
+    if (!product || !store) return;
+    let group = groups.find((entry) => entry.store.id === store.id);
+    if (!group) {
+      group = { store, items: [] };
+      groups.push(group);
+    }
+    group.items.push({ ...item, product });
+  });
+  return groups;
+}
+
+function cartGroupTotal(group) {
+  return group.items.reduce((sum, item) => sum + finalPrice(item.product) * item.qty, 0);
+}
+
+function cartGroupCount(group) {
+  return group.items.reduce((sum, item) => sum + item.qty, 0);
 }
 
 function cartTotal() {
-  return state.cart.reduce((sum, item) => {
-    const product = getProduct(item.productId);
-    return product ? sum + finalPrice(product) * item.qty : sum;
-  }, 0);
+  return cartGroups().reduce((sum, group) => sum + cartGroupTotal(group), 0);
+}
+
+function renderWhatsAppQueue() {
+  const queue = state.pendingWhatsApps || [];
+  const opened = queue.filter((item) => item.opened).length;
+  els.orderPanel.innerHTML = `
+    <span class="eyebrow">WhatsApp</span>
+    <h2>Envia ${queue.length} pedidos separados</h2>
+    <p class="cart-note">Cada negocio recibe solo sus productos. Si el navegador bloqueo una pestaña, abre manualmente el WhatsApp pendiente.</p>
+    <div class="whatsapp-queue">
+      ${queue
+        .map(
+          (item, index) => `
+            <button class="queue-button ${item.opened ? "opened" : ""}" data-open-whatsapp="${item.orderId}" type="button">
+              <span>${index + 1}. ${item.storeName}</span>
+              <strong>${item.opened ? "Reabrir WhatsApp" : "Abrir WhatsApp"}</strong>
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+    <div class="total-row">
+      <span>WhatsApps abiertos</span>
+      <span>${opened}/${queue.length}</span>
+    </div>
+    <button class="ghost-button" data-clear-whatsapp-queue type="button">Listo, cerrar</button>
+  `;
 }
 
 function renderOrderPanel() {
   renderCartBadge();
   const client = currentClient();
-  const store = cartStore();
-  if (!state.cart.length) {
+  if ((state.pendingWhatsApps || []).length) {
+    renderWhatsAppQueue();
+    return;
+  }
+  const groups = cartGroups();
+  if (!groups.length) {
     els.orderPanel.innerHTML = `
       <div class="cart-empty">
         <strong>Tu pedido esta vacio</strong>
@@ -838,37 +890,57 @@ function renderOrderPanel() {
     return;
   }
 
+  const storesLabel = groups.length === 1 ? "1 tienda" : `${groups.length} tiendas`;
   els.orderPanel.innerHTML = `
     <span class="eyebrow">${state.orderMode}</span>
-    <h2>Pedido para ${store?.name || "tienda"}</h2>
+    <h2>Tu compra: ${storesLabel}</h2>
     <div class="address-box">
       <strong>${client ? "Direccion guardada" : "Direccion pendiente"}</strong><br />
       ${client ? client.address : "Registrate como cliente para agregar direccion al WhatsApp."}<br />
       ${client?.reference ? `<small>${client.reference}</small>` : ""}
     </div>
-    <div class="cart-list">
-      ${state.cart
-        .map((item) => {
-          const product = getProduct(item.productId);
-          return `
-            <div class="cart-row">
+    ${
+      groups.length > 1
+        ? `<p class="cart-note">Tienes productos de ${groups.length} tiendas. Se generara un pedido y un WhatsApp separado para cada negocio.</p>`
+        : `<p class="cart-note">Este pedido se enviara directo al WhatsApp de la tienda.</p>`
+    }
+    ${groups
+      .map(
+        (group) => `
+          <section class="cart-store-group">
+            <div class="cart-store-head">
               <div>
-                <strong>${item.qty} x ${product.title}</strong>
-                <small>${money(finalPrice(product) * item.qty)}</small>
-                ${item.note ? `<small>Nota: ${item.note}</small>` : ""}
+                <strong>${group.store.name}</strong>
+                <small>${cartGroupCount(group)} producto(s)</small>
               </div>
-              <button class="remove-button" data-remove-line="${item.lineId}" type="button">Quitar</button>
+              <span>${money(cartGroupTotal(group))}</span>
             </div>
-          `;
-        })
-        .join("")}
-    </div>
+            <div class="cart-list">
+              ${group.items
+                .map(
+                  (item) => `
+                    <div class="cart-row">
+                      <div>
+                        <strong>${item.qty} x ${item.product.title}</strong>
+                        <small>${money(finalPrice(item.product) * item.qty)}</small>
+                        ${item.note ? `<small>Nota: ${item.note}</small>` : ""}
+                      </div>
+                      <button class="remove-button" data-remove-line="${item.lineId}" type="button">Quitar</button>
+                    </div>
+                  `,
+                )
+                .join("")}
+            </div>
+          </section>
+        `,
+      )
+      .join("")}
     <div class="total-row">
       <span>Total estimado</span>
       <span>${money(cartTotal())}</span>
     </div>
-    <button class="primary-button" id="openUpsell" type="button">${client ? "Continuar por WhatsApp" : "Iniciar sesion para enviar"}</button>
-    <p class="muted">Antes de enviar se mostraran dos sugeridos de la tienda.</p>
+    <button class="primary-button" id="openUpsell" type="button">${client ? `Enviar ${groups.length === 1 ? "pedido" : `${groups.length} pedidos`} por WhatsApp` : "Iniciar sesion para enviar"}</button>
+    <p class="muted">${groups.length === 1 ? "Antes de enviar se mostraran sugeridos de la misma tienda." : "Cada tienda recibe solo su parte del pedido y consume 1 contacto."}</p>
   `;
 }
 
@@ -896,11 +968,9 @@ function closeProductModal() {
 function addToCart(productId, silent = false, note = "") {
   const product = getProduct(productId);
   if (!product) return;
-  const currentStore = cartStore();
-  if (currentStore && currentStore.id !== product.storeId) {
-    state.cart = [];
-    if (!silent) showToast("El pedido solo puede ser de una tienda. Reiniciamos el carrito.");
-  }
+  const addingNewStore =
+    state.cart.length > 0 && !state.cart.some((item) => getProduct(item.productId)?.storeId === product.storeId);
+  state.pendingWhatsApps = [];
 
   const cleanNote = note.trim();
   const existing = state.cart.find((item) => item.productId === productId && (item.note || "") === cleanNote);
@@ -911,6 +981,9 @@ function addToCart(productId, silent = false, note = "") {
   }
   renderClient();
   if (!silent) {
+    if (addingNewStore) {
+      showToast("Agregamos otra tienda. Se enviara como pedido separado.");
+    }
     openCartModal();
   }
 }
@@ -937,30 +1010,41 @@ function openUpsellModal() {
     return;
   }
 
-  const store = cartStore();
+  const groups = cartGroups();
+  if (!groups.length) return;
   const cartIds = new Set(state.cart.map((item) => item.productId));
-  const suggestions = db.products
-    .filter((product) => product.storeId === store.id && !cartIds.has(product.id))
-    .slice(0, 2);
+  const suggestions = groups
+    .flatMap((group) =>
+      db.products
+        .filter((product) => product.storeId === group.store.id && productAvailableForMode(product) && !cartIds.has(product.id))
+        .slice(0, groups.length === 1 ? 2 : 1),
+    )
+    .slice(0, 3);
 
   els.upsellItems.innerHTML = suggestions.length
     ? suggestions
         .map(
-          (product) => `
+          (product) => {
+            const store = getStore(product.storeId);
+            return `
           <article class="upsell-card">
             <img src="${product.image}" alt="${product.title}" />
             <div>
               <h3>${product.title}</h3>
+              <small>${store?.name || "Tienda"}</small>
               <p>${product.description}</p>
               <div class="price-row">${priceMarkup(product)}</div>
-              <button class="add-button" data-upsell-add="${product.id}" type="button">Agregar y enviar</button>
+              <button class="add-button" data-upsell-add="${product.id}" type="button">Agregar</button>
             </div>
           </article>
-        `,
+        `;
+          },
         )
         .join("")
-    : `<div class="cart-empty"><strong>Todo listo</strong><span>No hay sugeridos de esta tienda por ahora.</span></div>`;
+    : `<div class="cart-empty"><strong>Todo listo</strong><span>No hay sugeridos disponibles para estas tiendas.</span></div>`;
 
+  els.skipUpsell.textContent = groups.length === 1 ? "No gracias, enviar" : "No gracias, enviar pedidos";
+  els.sendFinalOrder.textContent = groups.length === 1 ? "Enviar pedido" : `Enviar ${groups.length} pedidos`;
   els.upsellModal.hidden = false;
 }
 
@@ -968,65 +1052,33 @@ function closeUpsellModal() {
   els.upsellModal.hidden = true;
 }
 
-function sendOrder() {
-  const client = currentClient();
-  const store = cartStore();
-  if (!client || !store || !state.cart.length) return;
-
-  const items = state.cart
+function orderItemsForGroup(group) {
+  return group.items
     .map((item) => {
-      const product = getProduct(item.productId);
       return {
-        productId: item.productId,
-        title: product.title,
+        productId: item.product.id,
+        title: item.product.title,
         qty: item.qty,
-        price: finalPrice(product),
+        price: finalPrice(item.product),
         note: item.note || "",
       };
     })
     .filter(Boolean);
-  const total = cartTotal();
-  const billable = store.credits > 0;
-  if (billable) store.credits -= 1;
+}
 
-  const order = {
-    id: `order-${Date.now()}`,
-    clientId: client.id,
-    storeId: store.id,
-    mode: state.orderMode,
-    items,
-    total,
-    address: client.address,
-    reference: client.reference,
-    createdAt: new Date().toISOString(),
-  };
-
-  const lead = {
-    id: `lead-${Date.now()}`,
-    clientId: client.id,
-    storeId: store.id,
-    orderId: order.id,
-    total,
-    billable,
-    creditAfter: store.credits,
-    createdAt: order.createdAt,
-  };
-
-  db.orders.push(order);
-  db.leads.push(lead);
-  saveDb();
-
-  const orderLines = items
+function whatsAppMessageForOrder(order, store, client) {
+  const orderLines = order.items
     .map((item) => `${item.qty} x ${item.title} (${money(item.qty * item.price)})${item.note ? ` - Nota: ${item.note}` : ""}`)
     .join("\n");
-  const message = [
+  return [
     `Hola, vi su menu en PuebloPedidos.`,
     ``,
-    `Pedido:`,
+    order.batchTotal > 1 ? `Pedido ${order.batchIndex} de ${order.batchTotal} de esta compra. Este mensaje es solo para ${store.name}.` : "",
+    `Pedido para ${store.name}:`,
     orderLines,
     ``,
-    `Total estimado: ${money(total)}`,
-    `Modo: ${state.orderMode}`,
+    `Total estimado: ${money(order.total)}`,
+    `Modo: ${order.mode}`,
     `Cliente: ${client.name}`,
     `WhatsApp cliente: ${client.phone}`,
     `Direccion: ${client.address}`,
@@ -1036,13 +1088,82 @@ function sendOrder() {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function sendOrder() {
+  const client = currentClient();
+  const groups = cartGroups();
+  if (!client || !groups.length) return;
+
+  const createdAt = new Date().toISOString();
+  const batchId = `batch-${Date.now()}`;
+  const queue = groups.map((group, index) => {
+    const store = group.store;
+    const items = orderItemsForGroup(group);
+    const total = items.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const billable = store.credits > 0;
+    if (billable) store.credits -= 1;
+
+    const order = {
+      id: `${batchId}-${index + 1}`,
+      batchId,
+      batchIndex: index + 1,
+      batchTotal: groups.length,
+      clientId: client.id,
+      storeId: store.id,
+      mode: state.orderMode,
+      items,
+      total,
+      address: client.address,
+      reference: client.reference,
+      createdAt,
+    };
+
+    const lead = {
+      id: `lead-${Date.now()}-${index + 1}`,
+      clientId: client.id,
+      storeId: store.id,
+      orderId: order.id,
+      batchId,
+      total,
+      billable,
+      creditAfter: store.credits,
+      createdAt,
+    };
+
+    db.orders.push(order);
+    db.leads.push(lead);
+
+    const message = whatsAppMessageForOrder(order, store, client);
+    return {
+      orderId: order.id,
+      storeId: store.id,
+      storeName: store.name,
+      url: `https://wa.me/${normalizeWhatsApp(store.phone)}?text=${encodeURIComponent(message)}`,
+      opened: false,
+      billable,
+    };
+  });
+
+  saveDb();
 
   state.cart = [];
   closeUpsellModal();
-  closeCartModal();
+  if (queue.length === 1) {
+    state.pendingWhatsApps = [];
+    closeCartModal();
+    renderClient();
+    window.open(queue[0].url, "_blank", "noopener,noreferrer");
+    showToast(queue[0].billable ? "Pedido enviado y contacto descontado." : "Pedido enviado. La tienda ya no tenia creditos.");
+    return;
+  }
+
+  queue[0].opened = true;
+  state.pendingWhatsApps = queue;
   renderClient();
-  window.open(`https://wa.me/${normalizeWhatsApp(store.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
-  showToast(billable ? "Pedido enviado y contacto descontado." : "Pedido enviado. La tienda ya no tenia creditos.");
+  openCartModal();
+  window.open(queue[0].url, "_blank", "noopener,noreferrer");
+  showToast(`Se crearon ${queue.length} pedidos. Abre un WhatsApp por tienda.`);
 }
 
 function renderStore() {
@@ -1516,6 +1637,7 @@ els.logoutBtn.addEventListener("click", () => {
   db.session = null;
   saveDb();
   state.cart = [];
+  state.pendingWhatsApps = [];
   closeProfileModal();
   closeCartModal();
   closeUpsellModal();
@@ -1624,7 +1746,27 @@ document.addEventListener("click", (event) => {
   const upsellAdd = event.target.closest("[data-upsell-add]");
   if (upsellAdd) {
     addToCart(upsellAdd.dataset.upsellAdd, true);
-    sendOrder();
+    renderOrderPanel();
+    openUpsellModal();
+    showToast("Agregado al carrito.");
+    return;
+  }
+
+  const openWhatsApp = event.target.closest("[data-open-whatsapp]");
+  if (openWhatsApp) {
+    const item = (state.pendingWhatsApps || []).find((entry) => entry.orderId === openWhatsApp.dataset.openWhatsapp);
+    if (item) {
+      item.opened = true;
+      renderOrderPanel();
+      window.open(item.url, "_blank", "noopener,noreferrer");
+    }
+    return;
+  }
+
+  if (event.target.closest("[data-clear-whatsapp-queue]")) {
+    state.pendingWhatsApps = [];
+    closeCartModal();
+    renderClient();
     return;
   }
 

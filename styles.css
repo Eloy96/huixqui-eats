@@ -967,6 +967,75 @@ textarea:focus {
   min-width: 0;
 }
 
+.cart-note {
+  border: 1px solid rgba(39, 95, 69, 0.18);
+  border-radius: 8px;
+  background: rgba(39, 95, 69, 0.06);
+  color: var(--muted);
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.cart-store-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 12px;
+}
+
+.cart-store-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cart-store-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.cart-store-head small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.cart-store-head span {
+  color: var(--leaf);
+  font-weight: 950;
+}
+
+.whatsapp-queue {
+  display: grid;
+  gap: 10px;
+}
+
+.queue-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  padding: 12px;
+  text-align: left;
+}
+
+.queue-button strong {
+  color: var(--leaf);
+}
+
+.queue-button.opened {
+  border-color: rgba(39, 95, 69, 0.4);
+  background: rgba(39, 95, 69, 0.06);
+}
+
 .remove-button {
   border: 0;
   background: transparent;
@@ -1525,9 +1594,17 @@ textarea:focus {
   .store-product-row,
   .mini-row,
   .cart-row,
+  .cart-store-head,
+  .queue-button,
   .campaign-row,
   .total-row {
     grid-template-columns: 1fr;
+  }
+
+  .cart-store-head,
+  .queue-button {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .store-product-row img,
