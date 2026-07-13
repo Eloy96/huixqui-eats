@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PuebloPedidos - Marketplace local por WhatsApp</title>
+    <meta
+      name="description"
+      content="Demo de marketplace local de comida con pedidos por WhatsApp y cobro por contactos generados."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#inicio" aria-label="PuebloPedidos inicio">
+        <span class="brand-mark">P</span>
+        <span>
+          <strong>PuebloPedidos</strong>
+          <small>Comida local por WhatsApp</small>
+        </span>
+      </a>
+      <nav class="nav" aria-label="Vistas">
+        <button class="nav-button active" data-view="market">Cliente</button>
+        <button class="nav-button" data-view="owner">Due&ntilde;o</button>
+      </nav>
+    </header>
+
+    <main id="inicio">
+      <section class="market-view view active" data-panel="market" aria-label="Marketplace">
+        <div class="market-shell">
+          <aside class="filters" aria-label="Filtros de busqueda">
+            <div class="town-card">
+              <span class="eyebrow">Demo comercial</span>
+              <h1>Comida del pueblo, directo al WhatsApp del local.</h1>
+              <p>Explora, arma pedido y manda el contacto. Cada bot&oacute;n registra un lead cobrable.</p>
+              <div class="hero-chips" aria-label="Beneficios">
+                <span>Sin comisiones</span>
+                <span>Lead cobrable</span>
+                <span>Listo para QR</span>
+              </div>
+            </div>
+
+            <label class="search-label" for="searchInput">Buscar</label>
+            <input id="searchInput" class="search" type="search" placeholder="Tacos, pizza, postres..." />
+
+            <div class="category-list" id="categoryList" aria-label="Categorias"></div>
+
+            <div class="rate-box">
+              <label for="leadPrice">Precio por contacto</label>
+              <div>
+                <span>$</span>
+                <input id="leadPrice" type="number" min="0.5" step="0.5" value="0.50" />
+                <span>MXN</span>
+              </div>
+            </div>
+          </aside>
+
+          <section class="results" aria-label="Locales">
+            <div class="result-head">
+              <div>
+                <span class="eyebrow">Abiertos ahora</span>
+                <h2>Locales listos para recibir pedidos</h2>
+              </div>
+              <button id="clearDemo" class="ghost-button" type="button">Reiniciar demo</button>
+            </div>
+            <div id="restaurantGrid" class="restaurant-grid"></div>
+          </section>
+
+          <aside class="order-panel" aria-label="Pedido">
+            <div id="restaurantDetail" class="detail-empty">
+              <strong>Elige un local</strong>
+              <span>Su men&uacute; aparecer&aacute; aqu&iacute;.</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="owner-view view" data-panel="owner" aria-label="Panel del dueno">
+        <div class="dashboard-shell">
+          <div class="dashboard-head">
+            <div>
+              <span class="eyebrow">Panel demo</span>
+              <h1>Contactos generados por WhatsApp</h1>
+              <p>El cobro se calcula por lead v&aacute;lido, no por venta cerrada.</p>
+            </div>
+            <div class="dashboard-actions">
+              <button id="exportCsv" class="primary-button" type="button">Exportar CSV</button>
+              <button id="clearLeads" class="ghost-button" type="button">Borrar leads</button>
+            </div>
+          </div>
+
+          <div class="metric-grid" id="metricGrid"></div>
+          <div class="owner-layout">
+            <section class="leaderboard">
+              <div class="section-title">
+                <h2>Locales con m&aacute;s contactos</h2>
+                <span id="billingLabel">$0.50 por contacto</span>
+              </div>
+              <div id="businessRows"></div>
+            </section>
+            <section class="lead-log">
+              <div class="section-title">
+                <h2>Registro reciente</h2>
+                <span>&Uacute;ltimos clics</span>
+              </div>
+              <div id="leadRows"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
