@@ -1,6 +1,6 @@
 # PuebloPedidos
 
-Prototipo funcional de marketplace local de comida por WhatsApp.
+Prototipo funcional de marketplace local por WhatsApp para comida, productos y servicios.
 
 ## Que incluye esta version
 
@@ -29,7 +29,10 @@ Prototipo funcional de marketplace local de comida por WhatsApp.
 - Panel de tienda con metricas, ventas, contactos y creditos restantes.
 - Panel de tienda con link publico, paquetes de creditos y conversion.
 - Panel de tienda con edicion de datos del negocio.
-- Alta de productos con titulo, descripcion, precio e imagen.
+- Registro de tienda con logo, portada, direccion, contacto, descripcion publica y responsable.
+- Alta de productos con tipo: comida/bebida, producto fisico o servicio.
+- Campos dinamicos segun tipo: ingredientes, inventario, especificaciones, duracion o requisitos.
+- Alta de productos con titulo, categoria interna, descripcion, precio e imagen.
 - Disponibilidad por producto: entrega, recoger o ambos.
 - Soporte para subir imagen o tomar fotografia desde celular.
 - Descuentos por porcentaje o por pesos.
@@ -46,6 +49,8 @@ Prototipo funcional de marketplace local de comida por WhatsApp.
    - `index.html`
    - `styles.css`
    - `app.js`
+   - `supabase-config.js`
+   - `supabase-adapter.js`
    - `.nojekyll`
    - `hamburguesas.png`
    - `pizza.png`
@@ -78,3 +83,21 @@ imagenes subidas, pedidos, contactos y creditos se guardan en el navegador con
 Para venderlo como producto real, el siguiente paso es agregar backend, base de
 datos, contrasenas cifradas, panel administrativo central, pasarela de pagos y
 almacenamiento real de imagenes.
+
+Se agregaron fuera de esta carpeta dos archivos planos de preparacion para produccion:
+
+- `pueblopedidos-supabase-schema.sql`: tablas, buckets y politicas RLS para Supabase.
+- `pueblopedidos-supabase-after-install.sql`: permisos y trigger para crear perfiles desde Auth.
+- `pueblopedidos-supabase-plan.md`: plan de arquitectura y flujo de datos.
+
+## Despues de crear Supabase
+
+1. Ejecuta `pueblopedidos-supabase-after-install.sql` en el SQL Editor de Supabase.
+2. En Authentication > Sign In / Providers > Email, deja activo correo/contrasena.
+3. Para probar rapido, puedes desactivar temporalmente confirmacion de correo.
+4. Sube tambien `supabase-config.js` y `supabase-adapter.js` a GitHub Pages.
+5. El sitio ya queda con tu URL y publishable key configuradas.
+
+La app todavia conserva el demo local mientras se cambia gradualmente a Supabase.
+El siguiente trabajo es reemplazar registros, login, tiendas, productos e imagenes
+para que usen `supabase-adapter.js` en vez de `localStorage`.

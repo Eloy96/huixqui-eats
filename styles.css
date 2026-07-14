@@ -1340,6 +1340,24 @@ textarea:focus {
   object-fit: cover;
 }
 
+.conditional-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  padding: 12px;
+}
+
+.conditional-fields[hidden] {
+  display: none;
+}
+
+.product-options-field {
+  min-width: 0;
+}
+
 .store-product-row {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr) minmax(260px, auto);
@@ -1375,11 +1393,12 @@ textarea:focus {
   grid-column: 1;
 }
 
-#productForm label:nth-of-type(2),
-#productForm label:nth-of-type(3),
+#productForm > :not(label:first-child):not(#imagePreview) {
+  grid-column: 2;
+}
+
 #productForm .form-grid,
 #discountValueWrap,
-#productForm label:nth-of-type(5),
 #productForm .button-row {
   grid-column: 2;
 }
@@ -1697,11 +1716,9 @@ textarea:focus {
 
   #productForm label:first-child,
   #imagePreview,
-  #productForm label:nth-of-type(2),
-  #productForm label:nth-of-type(3),
+  #productForm > :not(label:first-child):not(#imagePreview),
   #productForm .form-grid,
   #discountValueWrap,
-  #productForm label:nth-of-type(5),
   #productForm .button-row {
     grid-column: 1;
   }
@@ -1744,6 +1761,10 @@ textarea:focus {
 
   .wide-field {
     grid-column: 1;
+  }
+
+  .conditional-fields {
+    grid-template-columns: 1fr;
   }
 }
 

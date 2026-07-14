@@ -120,6 +120,16 @@
                 Nombre del local
                 <input id="storeName" required placeholder="Ej. Burger Plaza" />
               </label>
+              <div class="form-grid">
+                <label>
+                  Logo o imagen principal
+                  <input id="storeLogo" type="file" accept="image/*" />
+                </label>
+                <label>
+                  Foto de portada
+                  <input id="storeCover" type="file" accept="image/*" />
+                </label>
+              </div>
               <label>
                 Responsable
                 <input id="storeOwner" required placeholder="Nombre del dueno" />
@@ -146,6 +156,12 @@
                   <option>Postres</option>
                   <option>Pollos</option>
                   <option>Sushi</option>
+                  <option>Abarrotes</option>
+                  <option>Farmacia</option>
+                  <option>Belleza</option>
+                  <option>Servicios</option>
+                  <option>Ferreteria</option>
+                  <option>Ropa</option>
                 </select>
               </label>
               <label>
@@ -164,6 +180,10 @@
               <label>
                 Direccion del local
                 <textarea id="storeAddress" required rows="3" placeholder="Direccion visible para recoger pedidos"></textarea>
+              </label>
+              <label>
+                Descripcion publica
+                <textarea id="storeDescription" rows="3" placeholder="Ej. Hamburguesas al carbon, entregas cerca del centro y pedidos por WhatsApp."></textarea>
               </label>
               <button class="ghost-button" type="submit">Registrar tienda</button>
               <button class="link-button" data-show-login="store" type="button">Ya tengo cuenta</button>
@@ -318,7 +338,17 @@
                   <option>Postres</option>
                   <option>Pollos</option>
                   <option>Sushi</option>
+                  <option>Abarrotes</option>
+                  <option>Farmacia</option>
+                  <option>Belleza</option>
+                  <option>Servicios</option>
+                  <option>Ferreteria</option>
+                  <option>Ropa</option>
                 </select>
+              </label>
+              <label>
+                Logo o imagen
+                <input id="profileStoreLogo" type="file" accept="image/*" />
               </label>
               <label>
                 WhatsApp del local
@@ -335,6 +365,10 @@
               <label class="wide-field">
                 Direccion del local
                 <textarea id="profileStoreAddress" rows="2"></textarea>
+              </label>
+              <label class="wide-field">
+                Descripcion publica
+                <textarea id="profileStoreDescription" rows="2" placeholder="Lo que vera el cliente en tu tienda"></textarea>
               </label>
               <button class="primary-button compact" type="submit">Guardar tienda</button>
             </form>
@@ -354,9 +388,69 @@
                   Titulo
                   <input id="productTitle" required placeholder="Ej. Hamburguesa doble" />
                 </label>
+                <div class="form-grid product-type-grid">
+                  <label>
+                    Tipo de producto
+                    <select id="productType">
+                      <option value="food">Comida o bebida</option>
+                      <option value="retail">Producto fisico</option>
+                      <option value="service">Servicio</option>
+                    </select>
+                  </label>
+                  <label>
+                    Categoria del producto
+                    <input id="productCategory" placeholder="Ej. Combos, Bebidas, Cortes, Refacciones" />
+                  </label>
+                </div>
                 <label>
                   Breve descripcion
                   <textarea id="productDescription" required rows="3" placeholder="Ingredientes principales y tamano"></textarea>
+                </label>
+                <div id="foodFields" class="conditional-fields">
+                  <label class="wide-field">
+                    Ingredientes principales
+                    <textarea id="productIngredients" rows="2" placeholder="Ej. Carne, queso, lechuga, pan artesanal"></textarea>
+                  </label>
+                  <label>
+                    Alergenos o avisos
+                    <input id="productAllergens" placeholder="Ej. Lacteos, gluten, nuez" />
+                  </label>
+                  <label>
+                    Tamano o porcion
+                    <input id="productPortion" placeholder="Ej. 180 g, 8 piezas, 500 ml" />
+                  </label>
+                </div>
+                <div id="retailFields" class="conditional-fields" hidden>
+                  <label>
+                    Marca o presentacion
+                    <input id="productBrand" placeholder="Ej. Generico, 1 kg, pieza" />
+                  </label>
+                  <label>
+                    Inventario disponible
+                    <input id="productStock" type="number" min="0" step="1" placeholder="Ej. 12" />
+                  </label>
+                  <label class="wide-field">
+                    Condicion o especificaciones
+                    <textarea id="productSpecs" rows="2" placeholder="Ej. Nuevo, color, medidas, material"></textarea>
+                  </label>
+                </div>
+                <div id="serviceFields" class="conditional-fields" hidden>
+                  <label>
+                    Duracion aproximada
+                    <input id="productDuration" placeholder="Ej. 45 min, 1 hora, por visita" />
+                  </label>
+                  <label>
+                    Zona de servicio
+                    <input id="productServiceArea" placeholder="Ej. Centro y colonias cercanas" />
+                  </label>
+                  <label class="wide-field">
+                    Requisitos para atender
+                    <textarea id="productRequirements" rows="2" placeholder="Ej. Agendar con 1 dia, enviar foto previa, anticipo opcional"></textarea>
+                  </label>
+                </div>
+                <label class="product-options-field">
+                  Variantes, extras o configuracion
+                  <textarea id="productOptions" rows="3" placeholder="Ej. Tamanos, toppings, sabores, colores, paquetes o extras con costo"></textarea>
                 </label>
                 <div class="form-grid">
                   <label>
@@ -555,6 +649,9 @@
 
     <button id="stickyCartBar" class="sticky-cart-bar" type="button" hidden></button>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js"></script>
+    <script src="./supabase-adapter.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

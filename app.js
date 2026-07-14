@@ -179,6 +179,11 @@ const state = {
   orderMode: "Entrega",
   cart: [],
   pendingImage: "",
+  pendingImageFile: null,
+  pendingStoreLogo: "",
+  pendingStoreLogoFile: null,
+  pendingStoreCover: "",
+  pendingStoreCoverFile: null,
   editingProductId: "",
   selectedStoreId: "",
   selectedProductId: "",
@@ -210,9 +215,12 @@ const els = {
   storeLoginPhone: document.getElementById("storeLoginPhone"),
   storeLoginPassword: document.getElementById("storeLoginPassword"),
   storeForm: document.getElementById("storeForm"),
+  storeLogo: document.getElementById("storeLogo"),
+  storeCover: document.getElementById("storeCover"),
   storeEmail: document.getElementById("storeEmail"),
   storePassword: document.getElementById("storePassword"),
   storeServiceModes: document.getElementById("storeServiceModes"),
+  storeDescription: document.getElementById("storeDescription"),
   clientAddressLabel: document.getElementById("clientAddressLabel"),
   clientReferenceLabel: document.getElementById("clientReferenceLabel"),
   editClientProfileBtn: document.getElementById("editClientProfileBtn"),
@@ -255,6 +263,21 @@ const els = {
   productForm: document.getElementById("productForm"),
   productImage: document.getElementById("productImage"),
   imagePreview: document.getElementById("imagePreview"),
+  productType: document.getElementById("productType"),
+  productCategory: document.getElementById("productCategory"),
+  foodFields: document.getElementById("foodFields"),
+  retailFields: document.getElementById("retailFields"),
+  serviceFields: document.getElementById("serviceFields"),
+  productIngredients: document.getElementById("productIngredients"),
+  productAllergens: document.getElementById("productAllergens"),
+  productPortion: document.getElementById("productPortion"),
+  productBrand: document.getElementById("productBrand"),
+  productStock: document.getElementById("productStock"),
+  productSpecs: document.getElementById("productSpecs"),
+  productDuration: document.getElementById("productDuration"),
+  productServiceArea: document.getElementById("productServiceArea"),
+  productRequirements: document.getElementById("productRequirements"),
+  productOptions: document.getElementById("productOptions"),
   productAvailability: document.getElementById("productAvailability"),
   discountType: document.getElementById("discountType"),
   discountValue: document.getElementById("discountValue"),
@@ -276,9 +299,11 @@ const els = {
   storeProfileForm: document.getElementById("storeProfileForm"),
   profileStoreName: document.getElementById("profileStoreName"),
   profileStoreCategory: document.getElementById("profileStoreCategory"),
+  profileStoreLogo: document.getElementById("profileStoreLogo"),
   profileStorePhone: document.getElementById("profileStorePhone"),
   profileStoreServiceModes: document.getElementById("profileStoreServiceModes"),
   profileStoreAddress: document.getElementById("profileStoreAddress"),
+  profileStoreDescription: document.getElementById("profileStoreDescription"),
   upsellModal: document.getElementById("upsellModal"),
   upsellItems: document.getElementById("upsellItems"),
   closeUpsell: document.getElementById("closeUpsell"),
@@ -321,6 +346,160 @@ function showToast(message) {
   els.toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 2600);
+}
+
+function readImageFile(file, onLoad) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => onLoad(String(reader.result));
+  reader.readAsDataURL(file);
+}
+
+function productTypeLabel(type) {
+  const labels = {
+    food: "Comida o bebida",
+    retail: "Producto fisico",
+    service: "Servicio",
+  };
+  return labels[type] || labels.food;
+}
+
+function syncProductTypeFields() {
+  const type = els.productType?.value || "food";
+  els.foodFields.hidden = type !== "food";
+  els.retailFields.hidden = type !== "retail";
+  els.serviceFields.hidden = type !== "service";
+  const placeholders = {
+    food: "Ingredientes principales, tamano y preparacion",
+    retail: "Caracteristicas principales, marca, tamano o presentacion",
+    service: "Que incluye el servicio, duracion o condiciones",
+  };
+  document.getElementById("productDescription").placeholder = placeholders[type] || placeholders.food;
+}
+
+function productDetailSummary(product) {
+  const details = [product.description];
+  if ((product.type || "food") === "food") {
+    if (product.ingredients) details.push(`Ingredientes: ${product.ingredients}`);
+    if (product.portion) details.push(`Porcion: ${product.portion}`);
+    if (product.allergens) details.push(`Avisos: ${product.allergens}`);
+  }
+  if (product.type === "retail") {
+    if (product.brand) details.push(`Presentacion: ${product.brand}`);
+    if (product.specs) details.push(`Especificaciones: ${product.specs}`);
+    if (product.stock !== "" && product.stock !== undefined) details.push(`Inventario: ${product.stock}`);
+  }
+  if (product.type === "service") {
+    if (product.duration) details.push(`Duracion: ${product.duration}`);
+    if (product.serviceArea) details.push(`Zona: ${product.serviceArea}`);
+    if (product.requirements) details.push(`Requisitos: ${product.requirements}`);
+  }
+  if (product.options) details.push(`Opciones: ${product.options}`);
+  return details.filter(Boolean).join(" | ");
+}
+
+function remoteApi() {
+  const api = window.PuebloPedidosSupabase;
+  return api && api.enabled ? api : null;
+}
+
+function slugify(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || `tienda-${Date.now()}`;
+}
+
+function fileExtension(file) {
+  const ext = String(file?.name || "").split(".").pop();
+  return ext && ext.length <= 5 ? ext.toLowerCase() : "jpg";
+}
+
+function toRemoteServiceModes(value) {
+  if (value === "both") return ["delivery", "pickup"];
+  if (value === "pickup" || value === "Recoger") return ["pickup"];
+  return ["delivery"];
+}
+
+function fromRemoteServiceModes(modes) {
+  const values = Array.isArray(modes) ? modes : [];
+  if (values.includes("delivery") && values.includes("pickup")) return "both";
+  if (values.includes("pickup")) return "pickup";
+  return "delivery";
+}
+
+function upsertById(collection, item) {
+  const index = collection.findIndex((entry) => entry.id === item.id);
+  if (index >= 0) {
+    collection[index] = { ...collection[index], ...item };
+  } else {
+    collection.unshift(item);
+  }
+}
+
+function mapRemoteStore(store) {
+  const api = remoteApi();
+  return {
+    id: store.id,
+    remote: true,
+    name: store.name,
+    owner: store.responsible_name || "",
+    phone: store.whatsapp || store.public_phone || "",
+    email: store.responsible_email || "",
+    password: "",
+    category: store.category,
+    address: store.address,
+    description: store.description || "",
+    serviceModes: fromRemoteServiceModes(store.service_modes),
+    image: store.logo_path && api ? api.publicUrl("store-assets", store.logo_path) : defaultImageForCategory(store.category),
+    coverImage: store.cover_path && api ? api.publicUrl("store-assets", store.cover_path) : "",
+    rating: "Nuevo",
+    time: "15-35 min",
+    credits: Number(store.credits || 0),
+    marketingSpend: 0,
+    creditSpend: 0,
+  };
+}
+
+function mapRemoteProduct(product, store) {
+  const api = remoteApi();
+  return {
+    id: product.id,
+    remote: true,
+    storeId: product.store_id,
+    title: product.title,
+    type: product.type || "food",
+    productCategory: product.category || "",
+    description: product.description,
+    price: Number(product.price || 0),
+    image: product.main_image_path && api ? api.publicUrl("product-images", product.main_image_path) : store?.image || defaultImageForCategory(store?.category),
+    discountType: product.discount_type || "none",
+    discountValue: Number(product.discount_value || 0),
+    availability: fromRemoteServiceModes(product.availability_modes),
+    featuredUntil: product.featured_until || "",
+  };
+}
+
+async function uploadRemoteStoreImages(api, store) {
+  const patch = {};
+  if (state.pendingStoreLogoFile) {
+    patch.logo_path = await api.uploadFile("store-assets", `${store.id}/logo.${fileExtension(state.pendingStoreLogoFile)}`, state.pendingStoreLogoFile);
+  }
+  if (state.pendingStoreCoverFile) {
+    patch.cover_path = await api.uploadFile("store-assets", `${store.id}/cover.${fileExtension(state.pendingStoreCoverFile)}`, state.pendingStoreCoverFile);
+  }
+  if (!Object.keys(patch).length) return store;
+  return api.updateStore(store.id, patch);
+}
+
+async function uploadRemoteProductImage(api, store, product) {
+  if (!state.pendingImageFile) return product;
+  const imagePath = `${store.id}/${product.id}/main.${fileExtension(state.pendingImageFile)}`;
+  await api.uploadFile("product-images", imagePath, state.pendingImageFile);
+  return api.updateProduct(product.id, { main_image_path: imagePath });
 }
 
 function cleanStaticText() {
@@ -605,7 +784,7 @@ function productsForCatalog() {
       const store = getStore(product.storeId);
       if (!store) return false;
       const categoryMatch = state.selectedCategory === "Todos" || store.category === state.selectedCategory;
-      const haystack = `${product.title} ${product.description} ${store.name} ${store.category}`.toLowerCase();
+      const haystack = `${product.title} ${product.description} ${product.productCategory || ""} ${product.ingredients || ""} ${product.brand || ""} ${product.specs || ""} ${productTypeLabel(product.type)} ${store.name} ${store.category}`.toLowerCase();
       return categoryMatch && productAvailableForMode(product) && (!query || haystack.includes(query));
     })
     .sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
@@ -828,6 +1007,7 @@ function menuItemMarkup(product) {
         </div>
         <p>${product.description}</p>
         <div class="menu-item-meta">
+          <span class="availability-pill">${product.productCategory || productTypeLabel(product.type)}</span>
           <span class="availability-pill">${availabilityLabel(product.availability)}</span>
           <div class="price-row">${priceMarkup(product)}</div>
         </div>
@@ -858,6 +1038,7 @@ function renderSelectedStore() {
       <span class="eyebrow">${store.category}</span>
       <h2>${store.name}</h2>
       <p>${store.address}</p>
+      ${store.description ? `<p>${store.description}</p>` : ""}
       <div class="product-meta">
         <span>${store.rating} - ${store.time}</span>
         <span>${availabilityLabel(store.serviceModes)}</span>
@@ -1023,7 +1204,7 @@ function openProductModal(productId) {
   els.productModalTitle.textContent = product.title;
   els.productModalImage.src = product.image;
   els.productModalImage.alt = product.title;
-  els.productModalDescription.textContent = product.description;
+  els.productModalDescription.textContent = productDetailSummary(product);
   els.productModalPrice.innerHTML = priceMarkup(product);
   els.productComment.value = "";
   els.productModal.hidden = false;
@@ -1255,6 +1436,7 @@ function renderStoreProfile() {
   els.profileStorePhone.value = store.phone;
   els.profileStoreServiceModes.value = store.serviceModes || "both";
   els.profileStoreAddress.value = store.address;
+  els.profileStoreDescription.value = store.description || "";
 }
 
 function creditPackagePrice(amount) {
@@ -1501,7 +1683,7 @@ function renderStoreProducts() {
             <img src="${product.image}" alt="${product.title}" />
             <div>
               <strong>${product.title}</strong>
-              <small>${isFeatured(product) ? "Promocionado activo" : "Sin promocion"} - ${availabilityLabel(product.availability)} - ${product.description}</small>
+              <small>${isFeatured(product) ? "Promocionado activo" : "Sin promocion"} - ${productTypeLabel(product.type)} - ${product.productCategory || "Sin categoria interna"} - ${availabilityLabel(product.availability)} - ${product.description}</small>
               <div class="price-row">${priceMarkup(product)}</div>
             </div>
             <div class="row-actions">
@@ -1519,12 +1701,15 @@ function renderStoreProducts() {
 
 function resetProductForm() {
   state.pendingImage = "";
+  state.pendingImageFile = null;
   state.editingProductId = "";
   els.imagePreview.textContent = "Sin imagen seleccionada";
   els.productForm.reset();
   els.productSubmitBtn.textContent = "Publicar producto";
   els.cancelEditProduct.hidden = true;
   els.productAvailability.value = "both";
+  els.productType.value = "food";
+  syncProductTypeFields();
   syncDiscountField();
 }
 
@@ -1534,7 +1719,19 @@ function editProduct(productId) {
   state.editingProductId = product.id;
   state.pendingImage = product.image;
   document.getElementById("productTitle").value = product.title;
+  els.productType.value = product.type || "food";
+  els.productCategory.value = product.productCategory || "";
   document.getElementById("productDescription").value = product.description;
+  els.productIngredients.value = product.ingredients || "";
+  els.productAllergens.value = product.allergens || "";
+  els.productPortion.value = product.portion || "";
+  els.productBrand.value = product.brand || "";
+  els.productStock.value = product.stock ?? "";
+  els.productSpecs.value = product.specs || "";
+  els.productDuration.value = product.duration || "";
+  els.productServiceArea.value = product.serviceArea || "";
+  els.productRequirements.value = product.requirements || "";
+  els.productOptions.value = product.options || "";
   document.getElementById("productPrice").value = product.price;
   els.productAvailability.value = product.availability || "both";
   els.discountType.value = product.discountType || "none";
@@ -1543,6 +1740,7 @@ function editProduct(productId) {
   els.imagePreview.innerHTML = `<img src="${product.image}" alt="Vista previa" />`;
   els.productSubmitBtn.textContent = "Guardar cambios";
   els.cancelEditProduct.hidden = false;
+  syncProductTypeFields();
   syncDiscountField();
   document.getElementById("productTitle").focus();
   showToast("Editando producto.");
@@ -1599,11 +1797,13 @@ function renderStoreOrders() {
     : `<p class="muted">Aun no hay ventas registradas.</p>`;
 }
 
-function publishProduct(event) {
+async function publishProduct(event) {
   event.preventDefault();
   const store = currentStore();
   const editingProduct = state.editingProductId ? getProduct(state.editingProductId) : null;
   const title = document.getElementById("productTitle").value.trim();
+  const type = els.productType.value;
+  const productCategory = els.productCategory.value.trim();
   const description = document.getElementById("productDescription").value.trim();
   const price = Number(document.getElementById("productPrice").value);
   const availability = els.productAvailability.value;
@@ -1628,6 +1828,8 @@ function publishProduct(event) {
   const productData = {
     storeId: store.id,
     title,
+    type,
+    productCategory,
     description,
     price,
     image: state.pendingImage || editingProduct?.image || store.image || defaultImageForCategory(store.category),
@@ -1635,13 +1837,97 @@ function publishProduct(event) {
     discountType,
     discountValue: discountType === "none" ? 0 : discountValue,
     featuredUntil,
+    ingredients: type === "food" ? els.productIngredients.value.trim() : "",
+    allergens: type === "food" ? els.productAllergens.value.trim() : "",
+    portion: type === "food" ? els.productPortion.value.trim() : "",
+    brand: type === "retail" ? els.productBrand.value.trim() : "",
+    stock: type === "retail" ? Number(els.productStock.value || 0) : "",
+    specs: type === "retail" ? els.productSpecs.value.trim() : "",
+    duration: type === "service" ? els.productDuration.value.trim() : "",
+    serviceArea: type === "service" ? els.productServiceArea.value.trim() : "",
+    requirements: type === "service" ? els.productRequirements.value.trim() : "",
+    options: els.productOptions.value.trim(),
   };
+
+  let remoteProductId = "";
+  const api = remoteApi();
+  if (api && store.remote) {
+    try {
+      const remotePayload = {
+        store_id: store.id,
+        type,
+        title,
+        category: productCategory,
+        description,
+        price,
+        discount_type: discountType,
+        discount_value: discountType === "none" ? 0 : discountValue,
+        availability_modes: toRemoteServiceModes(availability),
+        is_active: true,
+        featured_until: featuredUntil || null,
+      };
+      let remoteProduct = editingProduct?.remote
+        ? await api.updateProduct(editingProduct.id, remotePayload)
+        : await api.createProduct(remotePayload);
+
+      remoteProduct = await uploadRemoteProductImage(api, store, remoteProduct);
+      remoteProductId = remoteProduct.id;
+
+      if (type === "food") {
+        await api.upsertFoodDetails({
+          product_id: remoteProduct.id,
+          ingredients: productData.ingredients,
+          allergens: productData.allergens,
+          portion_size: productData.portion,
+        });
+      }
+
+      if (type === "retail") {
+        await api.upsertRetailDetails({
+          product_id: remoteProduct.id,
+          brand: productData.brand,
+          stock: Number(productData.stock || 0),
+          unit: "",
+          condition: "",
+          specs: {
+            notes: productData.specs,
+            options: productData.options,
+          },
+        });
+      }
+
+      if (type === "service") {
+        await api.upsertServiceDetails({
+          product_id: remoteProduct.id,
+          duration_text: productData.duration,
+          service_area: productData.serviceArea,
+          requirements: [productData.requirements, productData.options].filter(Boolean).join(" | "),
+        });
+      }
+
+      Object.assign(productData, mapRemoteProduct(remoteProduct, store), {
+        ingredients: productData.ingredients,
+        allergens: productData.allergens,
+        portion: productData.portion,
+        brand: productData.brand,
+        stock: productData.stock,
+        specs: productData.specs,
+        duration: productData.duration,
+        serviceArea: productData.serviceArea,
+        requirements: productData.requirements,
+        options: productData.options,
+      });
+    } catch (error) {
+      showToast(error.message || "No se pudo guardar producto en Supabase.");
+      return;
+    }
+  }
 
   if (editingProduct) {
     Object.assign(editingProduct, productData);
   } else {
     db.products.unshift({
-      id: `product-${Date.now()}`,
+      id: remoteProductId || `product-${Date.now()}`,
       ...productData,
     });
   }
@@ -1712,8 +1998,75 @@ function findStoreByIdentifier(identifier) {
   return db.stores.find((store) => sameIdentifier(identifier, store));
 }
 
-els.clientLoginForm.addEventListener("submit", (event) => {
+async function restoreRemoteSession() {
+  const api = remoteApi();
+  if (!api || db.session) return;
+  try {
+    const { data } = await api.getSession();
+    if (!data.session?.user) return;
+    const profile = await api.getProfile();
+    if (profile?.role === "store_owner") {
+      const store = await api.getOwnedStore();
+      if (!store) return;
+      const localStore = mapRemoteStore(store);
+      upsertById(db.stores, localStore);
+      const products = await api.listProductsByStore(store.id);
+      products.forEach((product) => upsertById(db.products, mapRemoteProduct(product, localStore)));
+      db.session = { role: "store", id: localStore.id };
+    } else {
+      const client = {
+        id: data.session.user.id,
+        remote: true,
+        name: profile?.full_name || data.session.user.email,
+        email: data.session.user.email,
+        phone: profile?.phone || "",
+        password: "",
+        address: profile?.default_address || "",
+        reference: profile?.default_reference || "",
+      };
+      upsertById(db.clients, client);
+      db.session = { role: "client", id: client.id };
+    }
+    saveDb();
+    render();
+  } catch (error) {
+    console.warn("No se pudo restaurar sesion Supabase", error);
+  }
+}
+
+els.clientLoginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const api = remoteApi();
+  if (api) {
+    const identifier = els.clientLoginPhone.value.trim();
+    if (!identifier.includes("@")) {
+      showToast("Para produccion inicia sesion con correo y contrasena.");
+      return;
+    }
+    try {
+      const { data, error } = await api.signInWithEmail(identifier, els.clientLoginPassword.value);
+      if (error) throw error;
+      const profile = await api.getProfile();
+      const client = {
+        id: data.user.id,
+        remote: true,
+        name: profile?.full_name || data.user.email,
+        email: data.user.email,
+        phone: profile?.phone || "",
+        password: "",
+        address: profile?.default_address || "",
+        reference: profile?.default_reference || "",
+      };
+      upsertById(db.clients, client);
+      closeAuthModal();
+      setSession("client", client.id);
+      showToast("Sesion iniciada con Supabase.");
+      return;
+    } catch (error) {
+      showToast(error.message || "No se pudo iniciar sesion.");
+      return;
+    }
+  }
   const client = findClientByIdentifier(els.clientLoginPhone.value);
   if (!client || !passwordMatches(client, els.clientLoginPassword.value)) {
     showToast("Usuario o contrasena incorrectos.");
@@ -1723,8 +2076,36 @@ els.clientLoginForm.addEventListener("submit", (event) => {
   setSession("client", client.id);
 });
 
-els.storeLoginForm.addEventListener("submit", (event) => {
+els.storeLoginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const api = remoteApi();
+  if (api) {
+    const identifier = els.storeLoginPhone.value.trim();
+    if (!identifier.includes("@")) {
+      showToast("Para produccion inicia sesion con correo y contrasena.");
+      return;
+    }
+    try {
+      const { error } = await api.signInWithEmail(identifier, els.storeLoginPassword.value);
+      if (error) throw error;
+      const store = await api.getOwnedStore();
+      if (!store) {
+        showToast("Sesion correcta, pero aun no hay tienda registrada.");
+        return;
+      }
+      const localStore = mapRemoteStore(store);
+      upsertById(db.stores, localStore);
+      const products = await api.listProductsByStore(store.id);
+      products.forEach((product) => upsertById(db.products, mapRemoteProduct(product, localStore)));
+      closeAuthModal();
+      setSession("store", localStore.id);
+      showToast("Tienda conectada con Supabase.");
+      return;
+    } catch (error) {
+      showToast(error.message || "No se pudo iniciar sesion.");
+      return;
+    }
+  }
   const store = findStoreByIdentifier(els.storeLoginPhone.value);
   if (!store || !passwordMatches(store, els.storeLoginPassword.value)) {
     showToast("Usuario o contrasena incorrectos.");
@@ -1734,11 +2115,15 @@ els.storeLoginForm.addEventListener("submit", (event) => {
   setSession("store", store.id);
 });
 
-els.clientForm.addEventListener("submit", (event) => {
+els.clientForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const phone = document.getElementById("clientPhone").value.trim();
   const email = els.clientEmail.value.trim();
   const password = els.clientPassword.value;
+  const name = document.getElementById("clientName").value.trim();
+  const address = document.getElementById("clientAddress").value.trim();
+  const reference = document.getElementById("clientReference").value.trim();
+  const api = remoteApi();
   const existingClient = findClientByIdentifier(phone) || findClientByIdentifier(email);
   if (existingClient) {
     showToast("Ese cliente ya esta registrado. Inicia sesion.");
@@ -1749,26 +2134,68 @@ els.clientForm.addEventListener("submit", (event) => {
     showToast("La contrasena debe tener al menos 8 caracteres.");
     return;
   }
+  if (api) {
+    try {
+      const { data, error } = await api.signUpCustomer({ email, password, name, phone });
+      if (error) throw error;
+      if (!data.session) {
+        showToast("Cuenta creada. Confirma tu correo y luego inicia sesion.");
+        return;
+      }
+      await api.upsertProfile({
+        id: data.user.id,
+        role: "customer",
+        full_name: name,
+        phone,
+        default_address: address,
+        default_reference: reference,
+      });
+      const client = {
+        id: data.user.id,
+        remote: true,
+        name,
+        email,
+        phone,
+        password: "",
+        address,
+        reference,
+      };
+      upsertById(db.clients, client);
+      closeAuthModal();
+      setSession("client", client.id);
+      showToast("Cliente creado en Supabase.");
+      return;
+    } catch (error) {
+      showToast(error.message || "No se pudo crear cliente.");
+      return;
+    }
+  }
   const client = {
     id: `client-${Date.now()}`,
-    name: document.getElementById("clientName").value.trim(),
+    name,
     email,
     phone,
     password,
-    address: document.getElementById("clientAddress").value.trim(),
-    reference: document.getElementById("clientReference").value.trim(),
+    address,
+    reference,
   };
   db.clients.push(client);
   closeAuthModal();
   setSession("client", client.id);
 });
 
-els.storeForm.addEventListener("submit", (event) => {
+els.storeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const category = document.getElementById("storeCategory").value;
   const phone = normalizeWhatsApp(document.getElementById("storePhone").value);
   const email = els.storeEmail.value.trim();
   const password = els.storePassword.value;
+  const name = document.getElementById("storeName").value.trim();
+  const owner = document.getElementById("storeOwner").value.trim();
+  const address = document.getElementById("storeAddress").value.trim();
+  const description = els.storeDescription.value.trim();
+  const credits = Number(document.getElementById("storeCredits").value || 0);
+  const api = remoteApi();
   const existingStore = findStoreByIdentifier(phone) || findStoreByIdentifier(email);
   if (existingStore) {
     showToast("Esa tienda ya esta registrada. Inicia sesion.");
@@ -1779,35 +2206,101 @@ els.storeForm.addEventListener("submit", (event) => {
     showToast("La contrasena debe tener al menos 8 caracteres.");
     return;
   }
+  if (api) {
+    try {
+      const { data, error } = await api.signUpStoreOwner({ email, password, owner, phone });
+      if (error) throw error;
+      if (!data.session) {
+        showToast("Cuenta creada. Confirma tu correo y luego inicia sesion para crear la tienda.");
+        return;
+      }
+      await api.upsertProfile({
+        id: data.user.id,
+        role: "store_owner",
+        full_name: owner,
+        phone,
+      });
+      let remoteStore = await api.createStore({
+        owner_id: data.user.id,
+        slug: `${slugify(name)}-${Date.now().toString(36)}`,
+        name,
+        category,
+        description,
+        address,
+        whatsapp: phone,
+        public_phone: phone,
+        service_modes: toRemoteServiceModes(els.storeServiceModes.value),
+        status: "active",
+        credits,
+        responsible_name: owner,
+        responsible_email: email,
+        responsible_phone: phone,
+      });
+      remoteStore = await uploadRemoteStoreImages(api, remoteStore);
+      const localStore = mapRemoteStore(remoteStore);
+      upsertById(db.stores, localStore);
+      state.pendingStoreLogo = "";
+      state.pendingStoreLogoFile = null;
+      state.pendingStoreCover = "";
+      state.pendingStoreCoverFile = null;
+      closeAuthModal();
+      setSession("store", localStore.id);
+      showToast("Tienda creada en Supabase.");
+      return;
+    } catch (error) {
+      showToast(error.message || "No se pudo crear tienda.");
+      return;
+    }
+  }
   const store = {
     id: `store-${Date.now()}`,
-    name: document.getElementById("storeName").value.trim(),
-    owner: document.getElementById("storeOwner").value.trim(),
+    name,
+    owner,
     email,
     password,
     phone,
     category,
-    address: document.getElementById("storeAddress").value.trim(),
+    address,
+    description,
     serviceModes: els.storeServiceModes.value,
-    image: defaultImageForCategory(category),
+    image: state.pendingStoreLogo || defaultImageForCategory(category),
+    coverImage: state.pendingStoreCover || "",
     rating: "Nuevo",
     time: "15-35 min",
-    credits: Number(document.getElementById("storeCredits").value || 0),
+    credits,
     marketingSpend: 0,
     creditSpend: 0,
   };
   db.stores.push(store);
+  state.pendingStoreLogo = "";
+  state.pendingStoreCover = "";
   closeAuthModal();
   setSession("store", store.id);
 });
 
-els.clientProfileForm.addEventListener("submit", (event) => {
+els.clientProfileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const client = currentClient();
   client.name = els.profileName.value.trim();
   client.phone = els.profilePhone.value.trim();
   client.address = els.profileAddress.value.trim();
   client.reference = els.profileReference.value.trim();
+  const api = remoteApi();
+  if (api && client.remote) {
+    try {
+      await api.upsertProfile({
+        id: client.id,
+        role: "customer",
+        full_name: client.name,
+        phone: client.phone,
+        default_address: client.address,
+        default_reference: client.reference,
+      });
+    } catch (error) {
+      showToast(error.message || "No se pudo actualizar Supabase.");
+      return;
+    }
+  }
   saveDb();
   renderClient();
   renderHeader();
@@ -1815,7 +2308,7 @@ els.clientProfileForm.addEventListener("submit", (event) => {
   showToast("Perfil actualizado.");
 });
 
-els.storeProfileForm.addEventListener("submit", (event) => {
+els.storeProfileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const store = currentStore();
   store.name = els.profileStoreName.value.trim();
@@ -1823,6 +2316,24 @@ els.storeProfileForm.addEventListener("submit", (event) => {
   store.phone = normalizeWhatsApp(els.profileStorePhone.value);
   store.serviceModes = els.profileStoreServiceModes.value;
   store.address = els.profileStoreAddress.value.trim();
+  store.description = els.profileStoreDescription.value.trim();
+  const api = remoteApi();
+  if (api && store.remote) {
+    try {
+      await api.updateStore(store.id, {
+        name: store.name,
+        category: store.category,
+        whatsapp: store.phone,
+        public_phone: store.phone,
+        service_modes: toRemoteServiceModes(store.serviceModes),
+        address: store.address,
+        description: store.description,
+      });
+    } catch (error) {
+      showToast(error.message || "No se pudo actualizar Supabase.");
+      return;
+    }
+  }
   saveDb();
   renderStore();
   renderHeader();
@@ -1833,17 +2344,58 @@ els.productForm.addEventListener("submit", publishProduct);
 
 els.discountType.addEventListener("change", syncDiscountField);
 
+els.productType.addEventListener("change", syncProductTypeFields);
+
 els.cancelEditProduct.addEventListener("click", resetProductForm);
+
+els.storeLogo.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  state.pendingStoreLogoFile = file || null;
+  readImageFile(file, (image) => {
+    state.pendingStoreLogo = image;
+    showToast("Logo cargado para la tienda.");
+  });
+});
+
+els.storeCover.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  state.pendingStoreCoverFile = file || null;
+  readImageFile(file, (image) => {
+    state.pendingStoreCover = image;
+    showToast("Portada cargada para la tienda.");
+  });
+});
+
+els.profileStoreLogo.addEventListener("change", (event) => {
+  const store = currentStore();
+  if (!store) return;
+  const file = event.target.files?.[0];
+  readImageFile(file, async (image) => {
+    store.image = image;
+    const api = remoteApi();
+    if (api && store.remote && file) {
+      try {
+        const logoPath = await api.uploadFile("store-assets", `${store.id}/logo.${fileExtension(file)}`, file);
+        await api.updateStore(store.id, { logo_path: logoPath });
+      } catch (error) {
+        showToast(error.message || "No se pudo subir logo.");
+        return;
+      }
+    }
+    saveDb();
+    renderStore();
+    renderClient();
+    showToast("Imagen de tienda actualizada.");
+  });
+});
 
 els.productImage.addEventListener("change", (event) => {
   const file = event.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    state.pendingImage = String(reader.result);
+  state.pendingImageFile = file || null;
+  readImageFile(file, (image) => {
+    state.pendingImage = image;
     els.imagePreview.innerHTML = `<img src="${state.pendingImage}" alt="Vista previa" />`;
-  };
-  reader.readAsDataURL(file);
+  });
 });
 
 els.openProfileBtn.addEventListener("click", openProfileModal);
@@ -1879,7 +2431,15 @@ els.searchInput.addEventListener("input", (event) => {
   renderProducts();
 });
 
-els.logoutBtn.addEventListener("click", () => {
+els.logoutBtn.addEventListener("click", async () => {
+  const api = remoteApi();
+  if (api) {
+    try {
+      await api.signOut();
+    } catch (error) {
+      console.warn("No se pudo cerrar Supabase", error);
+    }
+  }
   db.session = null;
   saveDb();
   state.cart = [];
@@ -2062,5 +2622,7 @@ document.addEventListener("keydown", (event) => {
 
 cleanStaticText();
 syncRouteFromHash();
+syncProductTypeFields();
 syncDiscountField();
 render();
+restoreRemoteSession();
