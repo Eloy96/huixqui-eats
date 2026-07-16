@@ -1,0 +1,261 @@
+// Datos de arranque del MODO DEMO.
+//
+// Ojo con lo que cambió: aquí ya NO hay contraseñas.
+// Antes `defaultStores` traía password: "Burger123" y eso viajaba en
+// texto plano dentro del bundle público. Cualquiera abría el archivo y
+// entraba al panel de cualquier tienda. Las contraseñas ahora solo
+// existen en Supabase Auth (hasheadas), nunca en el navegador.
+
+import { enDias } from "./lib-formato.js";
+
+// Horario tipo del pueblo. Clave = día (0 = domingo).
+const HORARIO_COMIDA = {
+  0: [["10:00", "17:00"]],
+  1: [["09:00", "15:00"], ["18:00", "22:00"]],
+  2: [["09:00", "15:00"], ["18:00", "22:00"]],
+  3: [["09:00", "15:00"], ["18:00", "22:00"]],
+  4: [["09:00", "15:00"], ["18:00", "22:00"]],
+  5: [["09:00", "23:00"]],
+  6: [["09:00", "23:00"]],
+};
+
+export const TIENDAS_DEMO = [
+  {
+    id: "burger-plaza",
+    slug: "burger-plaza",
+    name: "Burger Plaza",
+    owner: "Ana López",
+    phone: "5215550100202",
+    email: "burger@pueblopedidos.mx",
+    category: "Hamburguesas",
+    description: "Hamburguesas al carbón, papas de casa y malteadas.",
+    address: "Plaza principal, local 4",
+    coords: { lat: 19.4326, lng: -99.1332 },
+    serviceModes: "both",
+    image: "./hamburguesas.png",
+    cover: "./hamburguesas.png",
+    schedule: HORARIO_COMIDA,
+    prepMinutes: 18,
+    credits: 38,
+    marketingSpend: 169,
+    creditSpend: 0,
+    status: "active",
+  },
+  {
+    id: "tacos-don-luis",
+    slug: "tacos-don-luis",
+    name: "Tacos Don Luis",
+    owner: "Luis Martínez",
+    phone: "5215550100101",
+    email: "tacos@pueblopedidos.mx",
+    category: "Tacos",
+    description: "Pastor, suadero y campechanos desde 1998.",
+    address: "Calle Morelos 12, Centro",
+    coords: { lat: 19.4351, lng: -99.1401 },
+    serviceModes: "both",
+    image: "./tacos.png",
+    cover: "./tacos.png",
+    schedule: HORARIO_COMIDA,
+    prepMinutes: 12,
+    credits: 24,
+    marketingSpend: 89,
+    creditSpend: 0,
+    status: "active",
+  },
+  {
+    id: "pizza-la-esquina",
+    slug: "pizza-la-esquina",
+    name: "Pizza La Esquina",
+    owner: "Rosa Núñez",
+    phone: "5215550100303",
+    email: "pizza@pueblopedidos.mx",
+    category: "Pizza",
+    description: "Masa del día y orilla rellena. Solo entregas.",
+    address: "Esquina Zaragoza y Juárez",
+    coords: { lat: 19.4289, lng: -99.1288 },
+    serviceModes: "delivery",
+    image: "./pizza.png",
+    cover: "./pizza.png",
+    schedule: {
+      0: [], // cierra domingos: ahora la app lo muestra de verdad
+      1: [["13:00", "22:00"]],
+      2: [["13:00", "22:00"]],
+      3: [["13:00", "22:00"]],
+      4: [["13:00", "22:00"]],
+      5: [["13:00", "23:30"]],
+      6: [["13:00", "23:30"]],
+    },
+    prepMinutes: 25,
+    credits: 18,
+    marketingSpend: 0,
+    creditSpend: 0,
+    status: "active",
+  },
+  {
+    id: "postres-mia",
+    slug: "postres-mia",
+    name: "Postres Mía",
+    owner: "Mía García",
+    phone: "5215550100505",
+    email: "postres@pueblopedidos.mx",
+    category: "Postres",
+    description: "Pasteles por rebanada y gelatinas para pedido.",
+    address: "Mercado municipal, pasillo 2",
+    coords: { lat: 19.4368, lng: -99.1355 },
+    serviceModes: "pickup",
+    image: "./postres.png",
+    cover: "./postres.png",
+    schedule: {
+      0: [["09:00", "14:00"]],
+      1: [["09:00", "18:00"]],
+      2: [["09:00", "18:00"]],
+      3: [["09:00", "18:00"]],
+      4: [["09:00", "18:00"]],
+      5: [["09:00", "18:00"]],
+      6: [["09:00", "16:00"]],
+    },
+    prepMinutes: 10,
+    credits: 31,
+    marketingSpend: 0,
+    creditSpend: 0,
+    status: "active",
+  },
+];
+
+export const PRODUCTOS_DEMO = [
+  {
+    id: "burger-clasica",
+    storeId: "burger-plaza",
+    type: "food",
+    title: "Clásica con queso",
+    productCategory: "Hamburguesas",
+    description: "Carne de 120 g, queso amarillo, lechuga y aderezo de casa.",
+    price: 89,
+    image: "./hamburguesas.png",
+    discountType: "percent",
+    discountValue: 10,
+    availability: "both",
+    featuredUntil: enDias(7),
+    ingredients: "Carne de res, pan brioche, queso, lechuga, jitomate",
+    allergens: "Gluten, lácteos",
+    portion: "1 pieza",
+    isActive: true,
+  },
+  {
+    id: "burger-doble",
+    storeId: "burger-plaza",
+    type: "food",
+    title: "Doble plaza",
+    productCategory: "Hamburguesas",
+    description: "Doble carne, tocino, queso y papas pequeñas.",
+    price: 128,
+    image: "./hamburguesas.png",
+    discountType: "none",
+    discountValue: 0,
+    availability: "delivery",
+    featuredUntil: "",
+    isActive: true,
+  },
+  {
+    id: "tacos-pastor",
+    storeId: "tacos-don-luis",
+    type: "food",
+    title: "Orden de pastor",
+    productCategory: "Tacos",
+    description: "5 tacos con piña, cebolla, cilantro y salsa verde.",
+    price: 68,
+    image: "./tacos.png",
+    discountType: "amount",
+    discountValue: 8,
+    availability: "both",
+    featuredUntil: enDias(3),
+    ingredients: "Cerdo adobado, tortilla de maíz, piña",
+    portion: "5 piezas",
+    isActive: true,
+  },
+  {
+    id: "pizza-pepperoni",
+    storeId: "pizza-la-esquina",
+    type: "food",
+    title: "Pepperoni mediana",
+    productCategory: "Pizza",
+    description: "8 rebanadas con queso extra y orilla dorada.",
+    price: 149,
+    image: "./pizza.png",
+    discountType: "none",
+    discountValue: 0,
+    availability: "delivery",
+    featuredUntil: "",
+    isActive: true,
+  },
+  {
+    id: "pizza-mexicana",
+    storeId: "pizza-la-esquina",
+    type: "food",
+    title: "Pizza mexicana grande",
+    productCategory: "Pizza",
+    description: "Chorizo, jalapeño, cebolla, queso y salsa de casa.",
+    price: 219,
+    image: "./pizza.png",
+    discountType: "amount",
+    discountValue: 20,
+    availability: "delivery",
+    featuredUntil: "",
+    isActive: true,
+  },
+  {
+    id: "postre-pastel",
+    storeId: "postres-mia",
+    type: "food",
+    title: "Rebanada de pastel",
+    productCategory: "Postres",
+    description: "Chocolate o tres leches, lista para recoger.",
+    price: 55,
+    image: "./postres.png",
+    discountType: "percent",
+    discountValue: 15,
+    availability: "pickup",
+    featuredUntil: enDias(3),
+    isActive: true,
+  },
+];
+
+export const IMAGEN_POR_CATEGORIA = {
+  Hamburguesas: "./hamburguesas.png",
+  Tacos: "./tacos.png",
+  Pizza: "./pizza.png",
+  Postres: "./postres.png",
+  Sushi: "./sushi.png",
+  Pollo: "./pollo.png",
+};
+
+export const CATEGORIAS = [
+  "Tacos",
+  "Hamburguesas",
+  "Pizza",
+  "Pollo",
+  "Sushi",
+  "Postres",
+  "Abarrotes",
+  "Papelería",
+  "Servicios",
+  "Otros",
+];
+
+export function imagenPorCategoria(categoria) {
+  return IMAGEN_POR_CATEGORIA[categoria] || "./hamburguesas.png";
+}
+
+/** Paquetes de contactos. El precio del paquete es la única tabla de precios. */
+export const PAQUETES = [
+  { contactos: 20, precio: 10 },
+  { contactos: 50, precio: 25, mejor: true },
+  { contactos: 120, precio: 55 },
+];
+
+export const PRECIO_CONTACTO = 0.5;
+
+export const PLANES_PROMO = [
+  { dias: 3, precio: 89 },
+  { dias: 7, precio: 169 },
+];

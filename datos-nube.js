@@ -1,0 +1,530 @@
+// Driver NUBE (Supabase). Mismo contrato que driverLocal.
+//
+// Dos reglas que no se rompen aquí:
+// 1. Las contraseñas nunca tocan nuestro código: son de Supabase Auth.
+// 2. Los créditos NUNCA se descuentan en el navegador. `crearPedidos`
+//    llama a la función `crear_pedidos` del servidor (sql/01-...sql),
+//    que descuenta y registra el lead en una sola transacción. Si el
+//    cliente edita algo, el servidor lo ignora.
+
+import { normalizarWhatsApp } from "./lib-formato.js";
+
+let cliente = null;
+
+export function conectar(config, fabrica) {
+  if (!config?.url || !config?.publishableKey || !fabrica?.createClient) return null;
+  cliente = fabrica.createClient(config.url, config.publishableKey, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+  return cliente;
+}
+
+function urlPublica(bucket, ruta) {
+  if (!ruta) return "";
+  if (/^https?:/.test(ruta)) return ruta;
+  return cliente.storage.from(bucket).getPublicUrl(ruta).data.publicUrl;
+}
+
+async function subir(bucket, ruta, file) {
+  const { error } = await cliente.storage.from(bucket).upload(ruta, file, {
+    cacheControl: "3600",
+    upsert: true,
+  });
+  if (error) throw error;
+  return ruta;
+}
+
+function revisar({ data, error }) {
+  if (error) throw new Error(traducir(error));
+  return data;
+}
+
+/** Los errores de Supabase vienen en inglés. El pueblo no lee inglés. */
+function traducir(error) {
+  const mensaje = error?.message || "";
+  if (/Invalid login credentials/i.test(mensaje)) return "Correo o contraseña incorrectos.";
+  if (/Email not confirmed/i.test(mensaje)) return "Falta confirmar tu correo. Revisa tu bandeja.";
+  if (/User already registered/i.test(mensaje)) return "Ese correo ya tiene cuenta. Inicia sesión.";
+  if (/duplicate key/i.test(mensaje)) return "Ese nombre de tienda ya existe. Prueba con otro.";
+  if (/creditos_insuficientes/i.test(mensaje)) return "La tienda se quedó sin contactos disponibles.";
+  if (/JWT|session/i.test(mensaje)) return "Tu sesión expiró. Vuelve a entrar.";
+  if (/Failed to fetch|NetworkError/i.test(mensaje)) return "Sin conexión. Revisa tus datos móviles.";
+  return mensaje || "Algo falló. Inténtalo otra vez.";
+}
+
+// ---------- Mapeos: la base habla snake_case, la app camelCase ----------
+
+function aTienda(fila) {
+  if (!fila) return null;
+  return {
+    id: fila.id,
+    slug: fila.slug,
+    name: fila.name,
+    owner: fila.owner_name || "",
+    phone: fila.whatsapp || "",
+    email: fila.email || "",
+    category: fila.category || "Otros",
+    description: fila.description || "",
+    address: fila.address || "",
+    coords: fila.lat && fila.lng ? { lat: Number(fila.lat), lng: Number(fila.lng) } : null,
+    serviceModes: deModos(fila.service_modes),
+    image: urlPublica("logos", fila.logo_path),
+    cover: urlPublica("portadas", fila.cover_path) || urlPublica("logos", fila.logo_path),
+    schedule: fila.schedule || null,
+    prepMinutes: fila.prep_minutes || 15,
+    credits: Number(fila.credits || 0),
+    marketingSpend: Number(fila.marketing_spend || 0),
+    creditSpend: Number(fila.credit_spend || 0),
+    status: fila.status || "active",
+    remoto: true,
+  };
+}
+
+function aProducto(fila) {
+  if (!fila) return null;
+  const detalle = fila.details || {};
+  return {
+    id: fila.id,
+    storeId: fila.store_id,
+    type: fila.type || "food",
+    title: fila.title,
+    productCategory: fila.category || "",
+    description: fila.description || "",
+    price: Number(fila.price || 0),
+    image: urlPublica("productos", fila.image_path),
+    discountType: fila.discount_type || "none",
+    discountValue: Number(fila.discount_value || 0),
+    availability: deModos(fila.availability_modes),
+    featuredUntil: fila.featured_until || "",
+    isActive: fila.is_active !== false,
+    ingredients: detalle.ingredients || "",
+    allergens: detalle.allergens || "",
+    portion: detalle.portion || "",
+    brand: detalle.brand || "",
+    stock: detalle.stock ?? "",
+    specs: detalle.specs || "",
+    duration: detalle.duration || "",
+    serviceArea: detalle.service_area || "",
+    requirements: detalle.requirements || "",
+    options: detalle.options || "",
+    remoto: true,
+  };
+}
+
+function aModos(valor) {
+  if (valor === "delivery") return ["delivery"];
+  if (valor === "pickup") return ["pickup"];
+  return ["delivery", "pickup"];
+}
+
+function deModos(modos) {
+  const lista = Array.isArray(modos) ? modos : [];
+  if (lista.length === 1) return lista[0];
+  return "both";
+}
+
+// ---------- Driver ----------
+
+export const driverNube = {
+  modo: "nube",
+
+  async iniciar() {
+    return revisar(await cliente.auth.getSession());
+  },
+
+  async sesion() {
+    const { data } = await cliente.auth.getUser();
+    const usuario = data?.user;
+    if (!usuario) return null;
+
+    const perfilFila = revisar(
+      await cliente.from("profiles").select("*").eq("id", usuario.id).maybeSingle(),
+    );
+    if (!perfilFila) return null;
+
+    if (perfilFila.role === "store_owner") {
+      const tienda = revisar(
+        await cliente.from("stores").select("*").eq("owner_id", usuario.id).maybeSingle(),
+      );
+      if (!tienda) return { role: "client", id: usuario.id, perfil: perfilFila, sinTienda: true };
+      return { role: "store", id: tienda.id, perfil: aTienda(tienda) };
+    }
+
+    return {
+      role: "client",
+      id: usuario.id,
+      perfil: {
+        id: usuario.id,
+        name: perfilFila.full_name || "",
+        phone: perfilFila.phone || "",
+        email: usuario.email || "",
+        address: perfilFila.address || "",
+        reference: perfilFila.reference || "",
+        coords:
+          perfilFila.lat && perfilFila.lng
+            ? { lat: Number(perfilFila.lat), lng: Number(perfilFila.lng) }
+            : null,
+      },
+    };
+  },
+
+  async entrar({ identificador, password }) {
+    revisar(await cliente.auth.signInWithPassword({ email: identificador, password }));
+    return this.sesion();
+  },
+
+  async registrarCliente(datos) {
+    revisar(
+      await cliente.auth.signUp({
+        email: datos.email,
+        password: datos.password,
+        options: {
+          data: { role: "customer", full_name: datos.name, phone: normalizarWhatsApp(datos.phone) },
+        },
+      }),
+    );
+    // El trigger de after-install crea el profile; aquí completamos dirección.
+    const usuario = revisar(await cliente.auth.getUser())?.user;
+    if (usuario) {
+      revisar(
+        await cliente
+          .from("profiles")
+          .upsert({
+            id: usuario.id,
+            full_name: datos.name,
+            phone: normalizarWhatsApp(datos.phone),
+            address: datos.address,
+            reference: datos.reference,
+            lat: datos.coords?.lat ?? null,
+            lng: datos.coords?.lng ?? null,
+          })
+          .select()
+          .single(),
+      );
+    }
+    return this.sesion();
+  },
+
+  async registrarTienda(datos) {
+    revisar(
+      await cliente.auth.signUp({
+        email: datos.email,
+        password: datos.password,
+        options: {
+          data: { role: "store_owner", full_name: datos.owner, phone: normalizarWhatsApp(datos.phone) },
+        },
+      }),
+    );
+    const usuario = revisar(await cliente.auth.getUser())?.user;
+    if (!usuario) throw new Error("Confirma tu correo y vuelve a entrar para terminar el registro.");
+
+    let logoRuta = "";
+    let portadaRuta = "";
+    if (datos.logoFile) {
+      logoRuta = await subir("logos", `${usuario.id}/logo-${Date.now()}`, datos.logoFile);
+    }
+    if (datos.coverFile) {
+      portadaRuta = await subir("portadas", `${usuario.id}/portada-${Date.now()}`, datos.coverFile);
+    }
+
+    revisar(
+      await cliente
+        .from("stores")
+        .insert({
+          owner_id: usuario.id,
+          slug: datos.slug,
+          name: datos.name,
+          owner_name: datos.owner,
+          whatsapp: normalizarWhatsApp(datos.phone),
+          email: datos.email,
+          category: datos.category,
+          description: datos.description,
+          address: datos.address,
+          lat: datos.coords?.lat ?? null,
+          lng: datos.coords?.lng ?? null,
+          service_modes: aModos(datos.serviceModes),
+          schedule: datos.schedule || null,
+          logo_path: logoRuta,
+          cover_path: portadaRuta,
+          status: "active",
+        })
+        .select()
+        .single(),
+    );
+    return this.sesion();
+  },
+
+  async salir() {
+    revisar(await cliente.auth.signOut());
+  },
+
+  async recuperarPassword(correo) {
+    revisar(
+      await cliente.auth.resetPasswordForEmail(correo, {
+        redirectTo: `${location.origin}${location.pathname}#/cuenta`,
+      }),
+    );
+  },
+
+  async tiendas() {
+    const filas = revisar(
+      await cliente
+        .from("stores")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false }),
+    );
+    return (filas || []).map(aTienda);
+  },
+
+  async tienda(slugOId) {
+    const filas = revisar(
+      await cliente.from("stores").select("*").or(`slug.eq.${slugOId},id.eq.${slugOId}`).limit(1),
+    );
+    return aTienda(filas?.[0]);
+  },
+
+  async productos(storeId) {
+    const filas = revisar(
+      await cliente
+        .from("products")
+        .select("*, details:product_details(*)")
+        .eq("store_id", storeId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false }),
+    );
+    return (filas || []).map((f) => aProducto({ ...f, details: f.details?.[0] || f.details }));
+  },
+
+  async todosLosProductos() {
+    const filas = revisar(
+      await cliente
+        .from("products")
+        .select("*, details:product_details(*)")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(500),
+    );
+    return (filas || []).map((f) => aProducto({ ...f, details: f.details?.[0] || f.details }));
+  },
+
+  async actualizarCliente(clienteId, parche) {
+    return revisar(
+      await cliente
+        .from("profiles")
+        .update({
+          full_name: parche.name,
+          phone: parche.phone ? normalizarWhatsApp(parche.phone) : undefined,
+          address: parche.address,
+          reference: parche.reference,
+          lat: parche.coords?.lat ?? undefined,
+          lng: parche.coords?.lng ?? undefined,
+        })
+        .eq("id", clienteId)
+        .select()
+        .single(),
+    );
+  },
+
+  async actualizarTienda(tiendaId, parche) {
+    const payload = {
+      name: parche.name,
+      owner_name: parche.owner,
+      whatsapp: parche.phone ? normalizarWhatsApp(parche.phone) : undefined,
+      category: parche.category,
+      description: parche.description,
+      address: parche.address,
+      service_modes: parche.serviceModes ? aModos(parche.serviceModes) : undefined,
+      schedule: parche.schedule,
+      prep_minutes: parche.prepMinutes,
+    };
+    if (parche.logoFile) {
+      payload.logo_path = await subir("logos", `${tiendaId}/logo-${Date.now()}`, parche.logoFile);
+    }
+    if (parche.coverFile) {
+      payload.cover_path = await subir("portadas", `${tiendaId}/portada-${Date.now()}`, parche.coverFile);
+    }
+    return aTienda(
+      revisar(await cliente.from("stores").update(payload).eq("id", tiendaId).select().single()),
+    );
+  },
+
+  async guardarProducto(producto) {
+    const payload = {
+      store_id: producto.storeId,
+      type: producto.type,
+      title: producto.title,
+      category: producto.productCategory,
+      description: producto.description,
+      price: producto.price,
+      discount_type: producto.discountType,
+      discount_value: producto.discountValue,
+      availability_modes: aModos(producto.availability),
+      is_active: producto.isActive !== false,
+    };
+    if (producto.imageFile) {
+      payload.image_path = await subir(
+        "productos",
+        `${producto.storeId}/${Date.now()}`,
+        producto.imageFile,
+      );
+    }
+
+    const fila = producto.id
+      ? revisar(await cliente.from("products").update(payload).eq("id", producto.id).select().single())
+      : revisar(await cliente.from("products").insert(payload).select().single());
+
+    revisar(
+      await cliente
+        .from("product_details")
+        .upsert({
+          product_id: fila.id,
+          ingredients: producto.ingredients || null,
+          allergens: producto.allergens || null,
+          portion: producto.portion || null,
+          brand: producto.brand || null,
+          stock: producto.stock === "" ? null : Number(producto.stock),
+          specs: producto.specs || null,
+          duration: producto.duration || null,
+          service_area: producto.serviceArea || null,
+          requirements: producto.requirements || null,
+          options: producto.options || null,
+        })
+        .select()
+        .single(),
+    );
+
+    return aProducto(fila);
+  },
+
+  async borrarProducto(productoId) {
+    revisar(await cliente.from("products").update({ is_active: false }).eq("id", productoId));
+  },
+
+  /** Promoción cobrada: también la valida el servidor, no el navegador. */
+  async promocionar(productoId, hasta, costo) {
+    return revisar(
+      await cliente.rpc("promocionar_producto", {
+        p_product_id: productoId,
+        p_hasta: hasta,
+        p_costo: costo,
+      }),
+    );
+  },
+
+  async comprarCreditos(tiendaId, contactos, precio) {
+    return revisar(
+      await cliente.rpc("comprar_creditos", {
+        p_store_id: tiendaId,
+        p_contactos: contactos,
+        p_precio: precio,
+      }),
+    );
+  },
+
+  /** Una llamada, una transacción, el servidor manda. */
+  async crearPedidos({ grupos, modo, direccion, referencia }) {
+    const data = revisar(
+      await cliente.rpc("crear_pedidos", {
+        p_grupos: grupos.map((g) => ({
+          store_id: g.storeId,
+          items: g.items,
+          total: g.total,
+        })),
+        p_modo: modo,
+        p_direccion: direccion,
+        p_referencia: referencia,
+      }),
+    );
+    return (data || []).map((fila) => ({
+      pedido: {
+        id: fila.order_id,
+        storeId: fila.store_id,
+        items: fila.items,
+        total: fila.total,
+        mode: modo,
+        address: direccion,
+        reference: referencia,
+        status: "enviado",
+        createdAt: fila.created_at,
+      },
+      cobrable: fila.billable,
+      creditosRestantes: fila.credits_left,
+    }));
+  },
+
+  async pedidosDeCliente(clienteId) {
+    const filas = revisar(
+      await cliente
+        .from("orders")
+        .select("*")
+        .eq("client_id", clienteId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    );
+    return (filas || []).map(aPedido);
+  },
+
+  async pedidosDeTienda(tiendaId) {
+    const filas = revisar(
+      await cliente
+        .from("orders")
+        .select("*")
+        .eq("store_id", tiendaId)
+        .order("created_at", { ascending: false })
+        .limit(200),
+    );
+    return (filas || []).map(aPedido);
+  },
+
+  async leadsDeTienda(tiendaId) {
+    const filas = revisar(
+      await cliente
+        .from("leads")
+        .select("*")
+        .eq("store_id", tiendaId)
+        .order("created_at", { ascending: false })
+        .limit(200),
+    );
+    return (filas || []).map((f) => ({
+      id: f.id,
+      clientId: f.client_id,
+      storeId: f.store_id,
+      orderId: f.order_id,
+      total: Number(f.total || 0),
+      billable: f.billable,
+      creditAfter: f.credit_after,
+      createdAt: f.created_at,
+    }));
+  },
+
+  async cliente(clienteId) {
+    const fila = revisar(
+      await cliente.from("profiles").select("*").eq("id", clienteId).maybeSingle(),
+    );
+    return fila ? { id: fila.id, name: fila.full_name, phone: fila.phone } : null;
+  },
+
+  async resumenPlataforma() {
+    return revisar(await cliente.rpc("resumen_plataforma"));
+  },
+
+  async todo() {
+    return null;
+  },
+};
+
+function aPedido(fila) {
+  return {
+    id: fila.id,
+    clientId: fila.client_id,
+    storeId: fila.store_id,
+    mode: fila.mode,
+    items: fila.items || [],
+    total: Number(fila.total || 0),
+    address: fila.address,
+    reference: fila.reference,
+    status: fila.status || "enviado",
+    createdAt: fila.created_at,
+  };
+}

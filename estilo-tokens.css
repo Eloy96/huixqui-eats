@@ -1,0 +1,122 @@
+/* ============================================================
+   PuebloPedidos · Sistema de diseño
+   Un solo lugar donde viven color, tipografía, espacio y capas.
+   Si un valor no está aquí, no debe existir en el resto del CSS.
+   ============================================================ */
+
+:root {
+  /* --- Marca -------------------------------------------------
+     Verde milpa como identidad (no copiamos el verde de Uber Eats
+     ni el rosa de Rappi: la marca es del pueblo, no de la app).
+     Tomate = acción y urgencia. Maíz = promocionado.            */
+  --verde-900: #0c3527;
+  --verde-700: #14563c;
+  --verde-500: #1f7a54;
+  --verde-300: #7db79b;
+  --verde-100: #e3f0e9;
+
+  --tomate-600: #b8371f;
+  --tomate-500: #d24a30;
+  --tomate-100: #fbe8e3;
+
+  --maiz-600: #b57d10;
+  --maiz-500: #f0b23c;
+  --maiz-100: #fdf1d9;
+
+  /* Verde oficial de WhatsApp. Se usa SOLO en el botón de enviar
+     pedido: es la promesa del producto, no decoración. */
+  --wa-500: #25d366;
+  --wa-700: #128c4a;
+
+  /* --- Neutrales --------------------------------------------- */
+  --tinta: #0f1613;
+  --tinta-80: #3a4741;
+  --tinta-60: #667368;
+  --tinta-40: #949e97;
+  --linea: #e5e8e2;
+  --linea-fuerte: #d3d8ce;
+  --superficie: #ffffff;
+  --superficie-2: #f8f8f4;
+  --fondo: #f4f3ee;
+
+  /* --- Semánticos -------------------------------------------- */
+  --ok-500: #1f7a54;
+  --ok-100: #e3f0e9;
+  --alerta-500: #b57d10;
+  --alerta-100: #fdf1d9;
+  --error-500: #b8371f;
+  --error-100: #fbe8e3;
+
+  /* --- Tipografía --------------------------------------------
+     Sin fuentes web: la app se usa en pueblo, con datos móviles
+     lentos y teléfonos de gama baja. Cada request cuenta más que
+     una tipografía bonita. La personalidad la carga la escala y
+     el peso, no el archivo .woff2.                              */
+  --fuente: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --fuente-num: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+
+  --t-2xs: 0.6875rem; /* 11 · sellos */
+  --t-xs: 0.75rem;    /* 12 · metadatos */
+  --t-sm: 0.8125rem;  /* 13 · apoyo */
+  --t-md: 0.9375rem;  /* 15 · cuerpo (base móvil) */
+  --t-lg: 1.0625rem;  /* 17 · título de tarjeta */
+  --t-xl: 1.25rem;    /* 20 · título de sección */
+  --t-2xl: 1.5rem;    /* 24 · título de pantalla */
+  --t-3xl: 1.875rem;  /* 30 · hero */
+
+  --peso-normal: 400;
+  --peso-medio: 550;
+  --peso-fuerte: 680;
+
+  --alto-apretado: 1.15;
+  --alto-normal: 1.45;
+
+  /* --- Espacio (escala de 4) --------------------------------- */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 20px;
+  --e-6: 24px;
+  --e-8: 32px;
+  --e-10: 40px;
+  --e-12: 48px;
+
+  /* --- Radios ------------------------------------------------ */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-full: 999px;
+
+  /* --- Sombras ----------------------------------------------- */
+  --s-1: 0 1px 2px rgba(15, 22, 19, 0.06);
+  --s-2: 0 4px 16px rgba(15, 22, 19, 0.08);
+  --s-3: 0 -8px 32px rgba(15, 22, 19, 0.14);
+
+  /* --- Capas (nunca escribas un z-index suelto) -------------- */
+  --z-sticky: 20;
+  --z-nav: 40;
+  --z-velo: 50;
+  --z-hoja: 60;
+  --z-toast: 80;
+
+  /* --- Medidas de chasis ------------------------------------- */
+  --h-header: 56px;
+  --h-nav: 60px;
+  --ancho-max: 1100px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+
+  /* --- Toque mínimo: 44px es el piso, no una sugerencia ------ */
+  --toque: 44px;
+
+  --transicion: 160ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transicion: 1ms;
+  }
+}
