@@ -42,6 +42,12 @@ function revisar({ data, error }) {
 /** Los errores de Supabase vienen en inglés. El pueblo no lee inglés. */
 function traducir(error) {
   const mensaje = error?.message || "";
+  if (/Invalid API key|JWSError|apikey|No API key/i.test(mensaje)) {
+    return "La llave de Supabase no sirve. Revísala en config.js contra Project Settings → API Keys.";
+  }
+  if (/relation .* does not exist|schema cache/i.test(mensaje)) {
+    return "Faltan las tablas. Corre 01-esquema.sql en el SQL Editor.";
+  }
   if (/Invalid login credentials/i.test(mensaje)) return "Correo o contraseña incorrectos.";
   if (/Email not confirmed/i.test(mensaje)) return "Falta confirmar tu correo. Revisa tu bandeja.";
   if (/User already registered/i.test(mensaje)) return "Ese correo ya tiene cuenta. Inicia sesión.";
@@ -130,6 +136,22 @@ export const driverNube = {
 
   async iniciar() {
     return revisar(await cliente.auth.getSession());
+  },
+
+  /**
+   * ¿De verdad hay servidor del otro lado?
+   *
+   * `auth.getSession()` NO sirve para saberlo: lee el token de
+   * localStorage y contesta que sí aunque la llave sea basura o las
+   * tablas no existan. Por eso la app se creía conectada y luego moría
+   * con "Invalid API key" en pantalla en vez de caerse a demo.
+   *
+   * Esto pega una consulta de verdad, la más barata posible.
+   */
+  async comprobar() {
+    const { error } = await cliente.from("stores").select("id").limit(1);
+    if (error) throw new Error(traducir(error));
+    return true;
   },
 
   async sesion() {

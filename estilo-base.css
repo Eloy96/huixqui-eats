@@ -312,21 +312,29 @@ a {
     padding: var(--e-6) var(--e-6) var(--e-12);
   }
 
+  /* Ojo con esto: `margin: 0 auto` sobre un flex item dentro de un
+     contenedor en columna NO lo centra a lo ancho — lo encoge al tamaño
+     de su contenido. Por eso la barra salía como una cajita blanca
+     flotando a la mitad. La barra va de orilla a orilla; lo que se
+     centra son los botones de adentro. */
   .nav-inferior {
     position: sticky;
-    top: var(--h-header);
+    top: calc(var(--h-header) + var(--safe-t));
     bottom: auto;
-    max-width: var(--ancho-max);
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
+    justify-content: center;
     border-top: 0;
     border-bottom: 1px solid var(--linea);
     padding-bottom: 0;
   }
 
   .nav-item {
+    flex: 0 0 auto;
     flex-direction: row;
     gap: var(--e-2);
     min-height: 52px;
+    padding: 0 var(--e-5);
     font-size: var(--t-sm);
   }
 

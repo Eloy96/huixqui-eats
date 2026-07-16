@@ -50,10 +50,15 @@ export async function iniciar({ config, fabrica }) {
     try {
       conectar(config, fabrica);
       await driverNube.iniciar();
+      // Probar de verdad ANTES de declararnos conectados. Si la llave está
+      // mal o faltan las tablas, mejor caer a demo con un aviso claro que
+      // dejar la app muerta en pantalla.
+      await driverNube.comprobar();
       driver = driverNube;
       razonDemo = "";
     } catch (error) {
-      razonDemo = `No conectamos con el servidor (${error.message}). Vas en demo local.`;
+      driver = driverLocal;
+      razonDemo = error.message;
     }
   }
   cache.sesion = await driver.sesion().catch(() => null);
