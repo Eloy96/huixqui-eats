@@ -473,12 +473,30 @@
    archivo" y no enseña lo que elegiste. Aquí el input real queda
    invisible encima de una caja que SÍ muestra la foto. */
 
+/* El logo chico y cuadrado; la portada ancha. Antes los dos iban en una
+   rejilla de 1fr 1fr con proporciones distintas (1:1 vs 16:9): salían de
+   alturas diferentes y los pies quedaban a distinta altura. Eso era lo
+   "movido". */
+.fotos-fila {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: var(--e-3);
+  align-items: start;
+}
+
+@media (max-width: 480px) {
+  .fotos-fila {
+    grid-template-columns: 1fr;
+  }
+}
+
 .foto-subir {
   display: grid;
   gap: var(--e-2);
+  min-width: 0;
 }
 
-.foto-subir > span {
+.foto-etiqueta {
   font-size: var(--t-sm);
   font-weight: var(--peso-medio);
   color: var(--tinta-80);
@@ -514,6 +532,10 @@
    parece un error del negocio, no de la app. */
 .foto-caja--logo {
   aspect-ratio: 1;
+}
+
+.foto-vista {
+  display: contents;
 }
 
 .foto-caja--logo img {
@@ -566,6 +588,7 @@
   font-size: var(--t-xs);
   color: var(--tinta-60);
   min-height: 24px;
+  flex-wrap: wrap;
 }
 
 /* ---------- Secciones de formulario ----------

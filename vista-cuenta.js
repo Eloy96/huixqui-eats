@@ -16,26 +16,57 @@ let pestana = "entrar";
 let logo = { dataUrl: "", file: null };
 let portada = { dataUrl: "", file: null };
 
-/** Caja de foto: el input real va invisible encima, la caja muestra la foto. */
-function campoFoto({ clave, etiqueta, ayuda, forma, actual }) {
+const META_FOTOS = {
+  logo: { clave: "logo", etiqueta: "Logo", ayuda: "Se ve completo, sin recortar", forma: "logo" },
+  portada: { clave: "portada", etiqueta: "Portada", ayuda: "Así se verá en el inicio", forma: "portada" },
+};
+
+/**
+ * Caja de foto.
+ *
+ * Dos cosas que importan aquí:
+ *
+ * 1. El botón "Quitar" va FUERA del <label>. Dentro, cualquier clic en él
+ *    también dispara el input de archivo: quitabas la foto y se te abría
+ *    el explorador.
+ * 2. La vista previa y el pie tienen su propio nodo (data-vista / data-pie).
+ *    Así se actualizan SOLOS, sin repintar el formulario. Repintar el
+ *    formulario para enseñar una miniatura borra todo lo que el usuario
+ *    ya escribió.
+ */
+function campoFoto({ clave, etiqueta, ayuda, forma }) {
   return html`
-    <label class="foto-subir">
-      <span>${etiqueta}</span>
-      <span class="foto-caja foto-caja--${forma}">
+    <div class="foto-subir">
+      <span class="foto-etiqueta">${etiqueta}</span>
+      <label class="foto-caja foto-caja--${forma}">
         <input type="file" accept="image/*" data-foto="${clave}" aria-label="${etiqueta}" />
-        ${actual
-          ? html`<img src="${urlSegura(actual)}" alt="" />`
-          : html`<span class="foto-vacia">
-              ${icono.mas()}
-              <strong>Subir ${etiqueta.toLowerCase()}</strong>
-              <span>${ayuda}</span>
-            </span>`}
-      </span>
-      <span class="foto-pie">
-        <span>${actual ? "Toca para cambiarla" : "JPG o PNG, máximo 5 MB"}</span>
-        ${actual ? html`<button class="boton boton--texto" data-quitar-foto="${clave}" type="button">Quitar</button>` : ""}
-      </span>
-    </label>
+        <span class="foto-vista" data-vista="${clave}">${vistaFoto(clave, etiqueta, ayuda)}</span>
+      </label>
+      <div class="foto-pie" data-pie="${clave}">${pieFoto(clave)}</div>
+    </div>
+  `;
+}
+
+function fotos() {
+  return { logo, portada };
+}
+
+function vistaFoto(clave, etiqueta, ayuda) {
+  const actual = fotos()[clave]?.dataUrl;
+  if (actual) return html`<img src="${urlSegura(actual)}" alt="Vista previa de ${etiqueta}" />`;
+  return html`<span class="foto-vacia">
+    ${icono.mas()}
+    <strong>Subir ${etiqueta.toLowerCase()}</strong>
+    <span>${ayuda}</span>
+  </span>`;
+}
+
+function pieFoto(clave) {
+  const actual = fotos()[clave]?.dataUrl;
+  if (!actual) return html`<span>JPG o PNG, máx. 5 MB</span>`;
+  return html`
+    <span>Toca la imagen para cambiarla</span>
+    <button class="boton boton--texto" data-quitar-foto="${clave}" type="button">Quitar</button>
   `;
 }
 
@@ -309,21 +340,9 @@ function formularioNegocio(panel, contenedor) {
             <h3>Fotos</h3>
             <small>opcional, pero duplican los contactos</small>
           </div>
-          <div class="campos-2" data-fotos>
-            ${campoFoto({
-              clave: "logo",
-              etiqueta: "Logo",
-              ayuda: "Se ve completo, sin recortar",
-              forma: "logo",
-              actual: logo.dataUrl,
-            })}
-            ${campoFoto({
-              clave: "portada",
-              etiqueta: "Portada",
-              ayuda: "Así se verá en el inicio",
-              forma: "portada",
-              actual: portada.dataUrl,
-            })}
+          <div class="fotos-fila">
+            ${campoFoto(META_FOTOS.logo)}
+            ${campoFoto(META_FOTOS.portada)}
           </div>
         </section>
 
@@ -335,7 +354,7 @@ function formularioNegocio(panel, contenedor) {
   );
 
   conectarUbicacion(panel);
-  conectarFotos(panel, () => formularioNegocio(panel, contenedor));
+  conectarFotos(panel, META_FOTOS);
 
   panel.querySelector("[data-form]").addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -373,31 +392,47 @@ function formularioNegocio(panel, contenedor) {
   });
 }
 
-/** Conecta las cajas de foto: leer, previsualizar, quitar. */
-function conectarFotos(raiz, repintar) {
-  const caja = { logo: () => logo, portada: () => portada };
-  const fijar = { logo: (v) => (logo = v), portada: (v) => (portada = v) };
+/**
+ * Conecta las cajas de foto.
+ *
+ * Por delegación: los listeners viven en la raíz, no en cada input. Así
+ * sobreviven aunque se repinte una caja, y no se acumulan duplicados si
+ * esto se llama dos veces.
+ */
+function conectarFotos(raiz, meta) {
+  const fijar = {
+    logo: (v) => (logo = v),
+    portada: (v) => (portada = v),
+  };
 
-  raiz.querySelectorAll("[data-foto]").forEach((input) => {
-    input.addEventListener("change", async (ev) => {
-      const clave = ev.target.dataset.foto;
-      try {
-        fijar[clave](await leerImagen(ev.target.files[0]));
-        repintar();
-      } catch (error) {
-        toast(error, "error");
-      }
-    });
+  delegar(raiz, "change", "[data-foto]", async (ev, input) => {
+    const clave = input.dataset.foto;
+    try {
+      fijar[clave](await leerImagen(ev.target.files[0]));
+    } catch (error) {
+      input.value = "";
+      toast(error, "error");
+      return;
+    }
+    refrescarCaja(raiz, clave, meta);
   });
 
-  raiz.querySelectorAll("[data-quitar-foto]").forEach((boton) => {
-    boton.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      fijar[boton.dataset.quitarFoto]({ dataUrl: "", file: null });
-      repintar();
-    });
+  delegar(raiz, "click", "[data-quitar-foto]", (ev, boton) => {
+    ev.preventDefault();
+    const clave = boton.dataset.quitarFoto;
+    fijar[clave]({ dataUrl: "", file: null });
+    const input = raiz.querySelector(`[data-foto="${clave}"]`);
+    if (input) input.value = "";
+    refrescarCaja(raiz, clave, meta);
   });
-  void caja;
+}
+
+/** Repinta la miniatura y su pie. NADA más. El resto del formulario ni se entera. */
+function refrescarCaja(raiz, clave, meta) {
+  const vista = raiz.querySelector(`[data-vista="${clave}"]`);
+  const pie = raiz.querySelector(`[data-pie="${clave}"]`);
+  if (vista) pintarEn(vista, vistaFoto(clave, meta[clave].etiqueta, meta[clave].ayuda));
+  if (pie) pintarEn(pie, pieFoto(clave));
 }
 
 // ---------- Ubicación ----------
