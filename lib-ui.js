@@ -37,7 +37,17 @@ export const icono = {
 
 let zonaToast = null;
 
+function textoDeError(valor) {
+  if (typeof valor === "string" && valor.trim() && valor !== "{}") return valor;
+  if (valor instanceof Error && valor.message) return textoDeError(valor.message);
+  if (valor && typeof valor === "object" && valor.message) return textoDeError(valor.message);
+  return "Algo falló y no llegó el motivo. Abre la consola del navegador para ver el detalle.";
+}
+
 export function toast(mensaje, tipo = "ok") {
+  // Defensa: si alguien pasa un Error o un objeto, sacamos algo legible
+  // en vez de pintar "{}" o "[object Object]" en la cara del usuario.
+  const texto = textoDeError(mensaje);
   if (!zonaToast) {
     zonaToast = document.createElement("div");
     zonaToast.className = "toast-zona";
@@ -47,7 +57,7 @@ export function toast(mensaje, tipo = "ok") {
   }
   const nodo = document.createElement("div");
   nodo.className = `toast${tipo === "error" ? " toast--error" : ""}`;
-  nodo.textContent = mensaje;
+  nodo.textContent = texto;
   zonaToast.appendChild(nodo);
   setTimeout(() => nodo.remove(), 4000);
 }

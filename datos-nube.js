@@ -41,7 +41,22 @@ function revisar({ data, error }) {
 
 /** Los errores de Supabase vienen en inglés. El pueblo no lee inglés. */
 function traducir(error) {
-  const mensaje = error?.message || "";
+  const mensaje = String(error?.message ?? "").trim();
+  const estado = Number(error?.status || error?.statusCode || 0);
+
+  // Un 500 de Auth llega con el cuerpo vacío: supabase-js pone "{}" como
+  // mensaje y eso es lo que acababa pintado en pantalla. Sin ayuda para
+  // nadie.
+  if (!mensaje || mensaje === "{}" || mensaje === "[object Object]") {
+    if (estado >= 500) {
+      return "Supabase falló al crear la cuenta (error 500). Casi siempre es el trigger de perfiles: corre 02-probar-registro.sql en el SQL Editor para ver el motivo real.";
+    }
+    return "Algo falló y el servidor no dijo qué. Revisa la consola del navegador.";
+  }
+
+  if (/Database error saving new user|unexpected_failure/i.test(mensaje)) {
+    return "Supabase no pudo guardar el usuario. Corre 02-probar-registro.sql para ver qué lo impide.";
+  }
   if (/Invalid API key|JWSError|apikey|No API key/i.test(mensaje)) {
     return "La llave de Supabase no sirve. Revísala en config.js contra Project Settings → API Keys.";
   }
@@ -55,7 +70,8 @@ function traducir(error) {
   if (/creditos_insuficientes/i.test(mensaje)) return "La tienda se quedó sin contactos disponibles.";
   if (/JWT|session/i.test(mensaje)) return "Tu sesión expiró. Vuelve a entrar.";
   if (/Failed to fetch|NetworkError/i.test(mensaje)) return "Sin conexión. Revisa tus datos móviles.";
-  return mensaje || "Algo falló. Inténtalo otra vez.";
+  if (estado >= 500) return `Supabase respondió con error ${estado}. ${mensaje}`;
+  return mensaje;
 }
 
 // ---------- Mapeos: la base habla snake_case, la app camelCase ----------
@@ -159,10 +175,27 @@ export const driverNube = {
     const usuario = data?.user;
     if (!usuario) return null;
 
-    const perfilFila = revisar(
+    let perfilFila = revisar(
       await cliente.from("profiles").select("*").eq("id", usuario.id).maybeSingle(),
     );
-    if (!perfilFila) return null;
+
+    // Red de seguridad: si el trigger no pudo crear el perfil, lo creamos
+    // aquí. Antes esto devolvía null y la sesión quedaba en el limbo: el
+    // usuario existía en Auth pero la app se comportaba como si no.
+    if (!perfilFila) {
+      perfilFila = revisar(
+        await cliente
+          .from("profiles")
+          .upsert({
+            id: usuario.id,
+            role: usuario.user_metadata?.role || "customer",
+            full_name: usuario.user_metadata?.full_name || "",
+            phone: usuario.user_metadata?.phone || "",
+          })
+          .select()
+          .single(),
+      );
+    }
 
     if (perfilFila.role === "store_owner") {
       const tienda = revisar(

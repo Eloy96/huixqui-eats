@@ -468,6 +468,149 @@
   }
 }
 
+/* ---------- Subir foto ----------
+   El <input type=file> nativo es feo y además miente: dice "Seleccionar
+   archivo" y no enseña lo que elegiste. Aquí el input real queda
+   invisible encima de una caja que SÍ muestra la foto. */
+
+.foto-subir {
+  display: grid;
+  gap: var(--e-2);
+}
+
+.foto-subir > span {
+  font-size: var(--t-sm);
+  font-weight: var(--peso-medio);
+  color: var(--tinta-80);
+}
+
+.foto-caja {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--linea-fuerte);
+  border-radius: var(--r-lg);
+  background: var(--superficie-2);
+  overflow: hidden;
+  transition: border-color var(--transicion), background var(--transicion);
+}
+
+.foto-caja:hover,
+.foto-caja:focus-within {
+  border-color: var(--verde-500);
+  background: var(--verde-100);
+}
+
+.foto-caja input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* El logo NO se recorta: se ve completo. Un logo cortado a la mitad
+   parece un error del negocio, no de la app. */
+.foto-caja--logo {
+  aspect-ratio: 1;
+}
+
+.foto-caja--logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: var(--e-3);
+  background: var(--superficie);
+}
+
+/* La portada sí se recorta: es un fondo, se ve igual que en la tarjeta
+   del inicio, así el negocio ve exactamente lo que verá el cliente. */
+.foto-caja--portada {
+  aspect-ratio: 16 / 9;
+}
+
+.foto-caja--portada img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.foto-vacia {
+  display: grid;
+  gap: var(--e-1);
+  justify-items: center;
+  padding: var(--e-4) var(--e-3);
+  text-align: center;
+  color: var(--tinta-60);
+  font-size: var(--t-xs);
+  pointer-events: none;
+}
+
+.foto-vacia strong {
+  font-size: var(--t-sm);
+  color: var(--tinta-80);
+}
+
+.foto-vacia svg {
+  width: 22px;
+  height: 22px;
+  color: var(--tinta-40);
+}
+
+.foto-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+  min-height: 24px;
+}
+
+/* ---------- Secciones de formulario ----------
+   Un formulario de 14 campos seguidos es un muro. Agrupado en bloques
+   con título se contesta sin pensar. */
+
+.bloque {
+  padding: var(--e-4) 0;
+  border-bottom: 1px solid var(--linea);
+}
+
+.bloque:last-of-type {
+  border-bottom: 0;
+}
+
+.bloque-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-2);
+  margin-bottom: var(--e-3);
+}
+
+.bloque-titulo h3 {
+  font-size: var(--t-md);
+  font-weight: var(--peso-fuerte);
+}
+
+.bloque-titulo small {
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+}
+
+.bloque-num {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--r-full);
+  display: grid;
+  place-items: center;
+  background: var(--verde-100);
+  color: var(--verde-700);
+  font-size: var(--t-2xs);
+  font-weight: var(--peso-fuerte);
+}
+
 /* ---------- Hoja inferior (bottom sheet) ---------- */
 
 .velo {

@@ -16,6 +16,29 @@ let pestana = "entrar";
 let logo = { dataUrl: "", file: null };
 let portada = { dataUrl: "", file: null };
 
+/** Caja de foto: el input real va invisible encima, la caja muestra la foto. */
+function campoFoto({ clave, etiqueta, ayuda, forma, actual }) {
+  return html`
+    <label class="foto-subir">
+      <span>${etiqueta}</span>
+      <span class="foto-caja foto-caja--${forma}">
+        <input type="file" accept="image/*" data-foto="${clave}" aria-label="${etiqueta}" />
+        ${actual
+          ? html`<img src="${urlSegura(actual)}" alt="" />`
+          : html`<span class="foto-vacia">
+              ${icono.mas()}
+              <strong>Subir ${etiqueta.toLowerCase()}</strong>
+              <span>${ayuda}</span>
+            </span>`}
+      </span>
+      <span class="foto-pie">
+        <span>${actual ? "Toca para cambiarla" : "JPG o PNG, máximo 5 MB"}</span>
+        ${actual ? html`<button class="boton boton--texto" data-quitar-foto="${clave}" type="button">Quitar</button>` : ""}
+      </span>
+    </label>
+  `;
+}
+
 export async function vistaCuenta(contenedor) {
   const sesion = repo.sesion();
   if (sesion) {
@@ -107,7 +130,7 @@ function formularioEntrar(panel, contenedor) {
       toast(`Hola de nuevo${sesion?.perfil?.name ? `, ${sesion.perfil.name}` : ""}.`);
       location.hash = sesion?.role === "store" ? "#/panel" : "#/";
     } catch (error) {
-      toast(error.message, "error");
+      toast(error, "error");
       boton.disabled = false;
     }
   });
@@ -122,7 +145,7 @@ function formularioEntrar(panel, contenedor) {
       await repo.recuperarPassword(correo);
       toast("Te mandamos un correo para crear una contraseña nueva.");
     } catch (error) {
-      toast(error.message, "error");
+      toast(error, "error");
     }
   });
 }
@@ -191,7 +214,7 @@ function formularioCliente(panel, contenedor) {
       toast("Cuenta creada. Ya puedes pedir.");
       location.hash = "#/";
     } catch (error) {
-      toast(error.message, "error");
+      toast(error, "error");
       boton.disabled = false;
     }
   });
@@ -202,77 +225,109 @@ function formularioNegocio(panel, contenedor) {
     panel,
     html`
       <form class="tarjeta" data-form novalidate>
-        <p style="font-size:var(--t-sm);color:var(--tinta-60);margin-bottom:var(--e-3)">
-          Registrar tu negocio es gratis. Solo pagas por cada contacto que te llega y, si quieres, por
-          aparecer arriba. Nunca cobramos comisión de tus ventas.
+        <p style="font-size:var(--t-sm);color:var(--tinta-60);margin-bottom:var(--e-2)">
+          Registrar tu negocio es gratis. Solo pagas por cada contacto que te llega y, si quieres,
+          por aparecer arriba. Nunca cobramos comisión de tus ventas.
         </p>
 
-        <div class="campos-2">
+        <section class="bloque">
+          <div class="bloque-titulo">
+            <span class="bloque-num">1</span>
+            <h3>Tu negocio</h3>
+          </div>
+          <div class="campos-2">
+            <label class="campo">
+              <span>Nombre del negocio</span>
+              <input name="name" placeholder="Tacos Don Luis" required />
+            </label>
+            <label class="campo">
+              <span>Categoría</span>
+              <select name="category">
+                ${CATEGORIAS.map((c) => html`<option value="${c}">${c}</option>`)}
+              </select>
+            </label>
+          </div>
           <label class="campo">
-            <span>Nombre del negocio</span>
-            <input name="name" placeholder="Tacos Don Luis" required />
+            <span>Descripción</span>
+            <textarea name="description" placeholder="Qué vendes y qué te hace distinto"></textarea>
+            <small>Esto es lo primero que lee el cliente. Sé concreto.</small>
+          </label>
+        </section>
+
+        <section class="bloque">
+          <div class="bloque-titulo">
+            <span class="bloque-num">2</span>
+            <h3>Cómo te contactan</h3>
+            <small>los pedidos llegan aquí</small>
+          </div>
+          <div class="campos-2">
+            <label class="campo">
+              <span>Quién atiende</span>
+              <input name="owner" placeholder="Tu nombre" required />
+            </label>
+            <label class="campo">
+              <span>WhatsApp del negocio</span>
+              <input name="phone" type="tel" inputmode="numeric" placeholder="10 dígitos" required />
+            </label>
+          </div>
+          <div class="campos-2">
+            <label class="campo">
+              <span>Correo</span>
+              <input name="email" type="email" autocomplete="email" required />
+            </label>
+            <label class="campo">
+              <span>Contraseña</span>
+              <input name="password" type="password" autocomplete="new-password" minlength="8" required />
+              <small>Mínimo 8 caracteres.</small>
+            </label>
+          </div>
+        </section>
+
+        <section class="bloque">
+          <div class="bloque-titulo">
+            <span class="bloque-num">3</span>
+            <h3>Dónde estás</h3>
+          </div>
+          <label class="campo">
+            <span>Dirección</span>
+            <input name="address" placeholder="Calle, número, referencia" required />
           </label>
           <label class="campo">
-            <span>Categoría</span>
-            <select name="category">
-              ${CATEGORIAS.map((c) => html`<option value="${c}">${c}</option>`)}
+            <span>Cómo entregas</span>
+            <select name="serviceModes">
+              <option value="both">Entrega a domicilio y recoger</option>
+              <option value="delivery">Solo entrega a domicilio</option>
+              <option value="pickup">Solo recoger en el negocio</option>
             </select>
           </label>
-        </div>
+          ${botonUbicacion()}
+        </section>
 
-        <div class="campos-2">
-          <label class="campo">
-            <span>Tu nombre</span>
-            <input name="owner" placeholder="Quién atiende" required />
-          </label>
-          <label class="campo">
-            <span>WhatsApp del negocio</span>
-            <input name="phone" type="tel" inputmode="numeric" placeholder="10 dígitos" required />
-          </label>
-        </div>
+        <section class="bloque">
+          <div class="bloque-titulo">
+            <span class="bloque-num">4</span>
+            <h3>Fotos</h3>
+            <small>opcional, pero duplican los contactos</small>
+          </div>
+          <div class="campos-2" data-fotos>
+            ${campoFoto({
+              clave: "logo",
+              etiqueta: "Logo",
+              ayuda: "Se ve completo, sin recortar",
+              forma: "logo",
+              actual: logo.dataUrl,
+            })}
+            ${campoFoto({
+              clave: "portada",
+              etiqueta: "Portada",
+              ayuda: "Así se verá en el inicio",
+              forma: "portada",
+              actual: portada.dataUrl,
+            })}
+          </div>
+        </section>
 
-        <label class="campo">
-          <span>Correo</span>
-          <input name="email" type="email" autocomplete="email" required />
-        </label>
-        <label class="campo">
-          <span>Contraseña</span>
-          <input name="password" type="password" autocomplete="new-password" minlength="8" required />
-        </label>
-
-        <label class="campo">
-          <span>Dirección</span>
-          <input name="address" placeholder="Calle, número, referencia" required />
-        </label>
-        ${botonUbicacion()}
-
-        <label class="campo">
-          <span>¿Cómo entregas?</span>
-          <select name="serviceModes">
-            <option value="both">Entrega a domicilio y recoger</option>
-            <option value="delivery">Solo entrega a domicilio</option>
-            <option value="pickup">Solo recoger en el negocio</option>
-          </select>
-        </label>
-
-        <label class="campo">
-          <span>Descripción</span>
-          <textarea name="description" placeholder="Qué vendes y qué te hace distinto"></textarea>
-        </label>
-
-        <div class="campos-2">
-          <label class="campo">
-            <span>Logo</span>
-            <input type="file" accept="image/*" data-logo />
-          </label>
-          <label class="campo">
-            <span>Foto de portada</span>
-            <input type="file" accept="image/*" data-portada />
-          </label>
-        </div>
-        <div data-previas style="display:flex;gap:var(--e-2)"></div>
-
-        <button class="boton boton--principal boton--ancho" type="submit" style="margin-top:var(--e-3)">
+        <button class="boton boton--principal boton--ancho" type="submit" style="margin-top:var(--e-4)">
           Registrar mi negocio
         </button>
       </form>
@@ -280,34 +335,7 @@ function formularioNegocio(panel, contenedor) {
   );
 
   conectarUbicacion(panel);
-
-  const previas = panel.querySelector("[data-previas]");
-  const pintaPrevias = () => {
-    pintarEn(
-      previas,
-      html`
-        ${logo.dataUrl ? html`<img class="previa" src="${urlSegura(logo.dataUrl)}" alt="Vista previa del logo" style="width:120px" />` : ""}
-        ${portada.dataUrl ? html`<img class="previa" src="${urlSegura(portada.dataUrl)}" alt="Vista previa de la portada" style="flex:1" />` : ""}
-      `,
-    );
-  };
-
-  panel.querySelector("[data-logo]").addEventListener("change", async (ev) => {
-    try {
-      logo = await leerImagen(ev.target.files[0]);
-      pintaPrevias();
-    } catch (error) {
-      toast(error.message, "error");
-    }
-  });
-  panel.querySelector("[data-portada]").addEventListener("change", async (ev) => {
-    try {
-      portada = await leerImagen(ev.target.files[0]);
-      pintaPrevias();
-    } catch (error) {
-      toast(error.message, "error");
-    }
-  });
+  conectarFotos(panel, () => formularioNegocio(panel, contenedor));
 
   panel.querySelector("[data-form]").addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -322,6 +350,7 @@ function formularioNegocio(panel, contenedor) {
     }
     const boton = ev.currentTarget.querySelector('[type="submit"]');
     boton.disabled = true;
+    boton.textContent = "Registrando...";
     try {
       await repo.registrarTienda({
         ...datos,
@@ -337,10 +366,38 @@ function formularioNegocio(panel, contenedor) {
       toast("Tu negocio ya está publicado.");
       location.hash = "#/panel";
     } catch (error) {
-      toast(error.message, "error");
+      toast(error, "error");
       boton.disabled = false;
+      boton.textContent = "Registrar mi negocio";
     }
   });
+}
+
+/** Conecta las cajas de foto: leer, previsualizar, quitar. */
+function conectarFotos(raiz, repintar) {
+  const caja = { logo: () => logo, portada: () => portada };
+  const fijar = { logo: (v) => (logo = v), portada: (v) => (portada = v) };
+
+  raiz.querySelectorAll("[data-foto]").forEach((input) => {
+    input.addEventListener("change", async (ev) => {
+      const clave = ev.target.dataset.foto;
+      try {
+        fijar[clave](await leerImagen(ev.target.files[0]));
+        repintar();
+      } catch (error) {
+        toast(error, "error");
+      }
+    });
+  });
+
+  raiz.querySelectorAll("[data-quitar-foto]").forEach((boton) => {
+    boton.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      fijar[boton.dataset.quitarFoto]({ dataUrl: "", file: null });
+      repintar();
+    });
+  });
+  void caja;
 }
 
 // ---------- Ubicación ----------
@@ -458,7 +515,7 @@ function pintarPerfil(contenedor, sesion) {
         await repo.actualizarPerfil({ ...datos, coords: estado.ubicacion });
         toast("Datos guardados.");
       } catch (error) {
-        toast(error.message, "error");
+        toast(error, "error");
       }
     });
   }
