@@ -57,6 +57,12 @@ function traducir(error) {
   if (/Database error saving new user|unexpected_failure/i.test(mensaje)) {
     return "Supabase no pudo guardar el usuario. Corre 02-probar-registro.sql para ver qué lo impide.";
   }
+  // 429: pegaste el límite anti-abuso de Supabase por intentar muchas veces
+  // seguidas. NO es un error de la app. Casi siempre es el tope de correos
+  // de confirmación (2 por hora en el plan gratis).
+  if (estado === 429 || /rate limit|too many|over_email_send/i.test(mensaje)) {
+    return "Demasiados intentos seguidos. Supabase te frena un rato (protección anti-abuso). Espera ~1 hora, o apaga 'Confirm email' en Authentication → Providers → Email para probar sin límite.";
+  }
   if (/Invalid API key|JWSError|apikey|No API key/i.test(mensaje)) {
     return "La llave de Supabase no sirve. Revísala en config.js contra Project Settings → API Keys.";
   }
