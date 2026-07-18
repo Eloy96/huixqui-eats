@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>PuebloPedidos · Pide a los negocios de tu pueblo</title>
+    <meta
+      name="description"
+      content="Encuentra los negocios de tu pueblo y manda tu pedido por WhatsApp. Sin comisiones sobre tu compra."
+    />
+    <meta name="theme-color" content="#ffffff" />
+
+    <!-- Para cuando alguien pega el link de una tienda en WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="PuebloPedidos" />
+    <meta property="og:description" content="Los negocios de tu pueblo, a un WhatsApp de distancia." />
+    <meta property="og:image" content="./tacos.png" />
+
+    <link rel="icon" href="./tacos.png" />
+    <link rel="stylesheet" href="./estilo-tokens.css" />
+    <link rel="stylesheet" href="./estilo-base.css" />
+    <link rel="stylesheet" href="./estilo-componentes.css" />
+    <link rel="stylesheet" href="./estilo-vistas.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
+  </head>
+  <body>
+    <a href="#contenido" class="solo-lectores">Saltar al contenido</a>
+
+    <div class="app">
+      <header class="header">
+        <div class="header-fila" id="header-fila"></div>
+      </header>
+      <div id="cinta"></div>
+      <nav class="nav-inferior" id="nav" aria-label="Navegación principal"></nav>
+      <main class="contenido" id="contenido" tabindex="-1"></main>
+    </div>
+
+    <noscript>
+      <p style="padding: 24px; text-align: center">
+        PuebloPedidos necesita JavaScript activado. Actívalo en tu navegador y vuelve a cargar.
+      </p>
+    </noscript>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
