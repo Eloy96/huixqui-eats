@@ -289,123 +289,147 @@ function hojaProducto(tienda, contenedor) {
     titulo: editando ? "Editar producto" : "Nuevo producto",
     cuerpo: html`
       <form data-form novalidate>
-        <label class="campo">
-          <span>Tipo</span>
-          <select name="type" data-tipo>
-            <option value="food" ${p.type === "food" || !p.type ? "selected" : ""}>Comida y bebida</option>
-            <option value="retail" ${p.type === "retail" ? "selected" : ""}>Producto</option>
-            <option value="service" ${p.type === "service" ? "selected" : ""}>Servicio</option>
-          </select>
-        </label>
-
-        <div class="campos-2">
+        <section class="bloque" style="padding-top:0">
+          <div class="bloque-titulo">
+            <span class="bloque-num">1</span>
+            <h3>Lo básico</h3>
+          </div>
           <label class="campo">
-            <span>Nombre</span>
-            <input name="title" value="${p.title || ""}" placeholder="Orden de pastor" required />
+            <span>¿Qué vendes?</span>
+            <select name="type" data-tipo>
+              <option value="food" ${p.type === "food" || !p.type ? "selected" : ""}>Comida o bebida</option>
+              <option value="retail" ${p.type === "retail" ? "selected" : ""}>Un producto (papelería, abarrotes...)</option>
+              <option value="service" ${p.type === "service" ? "selected" : ""}>Un servicio (plomería, clases...)</option>
+            </select>
+          </label>
+          <div class="campos-2">
+            <label class="campo">
+              <span>Nombre</span>
+              <input name="title" value="${p.title || ""}" placeholder="Orden de pastor" required />
+            </label>
+            <label class="campo">
+              <span>Precio (pesos)</span>
+              <input name="price" type="number" min="1" step="1" inputmode="numeric" value="${p.price || ""}" placeholder="68" required />
+            </label>
+          </div>
+          <label class="campo">
+            <span>Categoría</span>
+            <input name="productCategory" value="${p.productCategory || tienda.category}" list="cats" />
+            <datalist id="cats">${CATEGORIAS.map((c) => html`<option value="${c}"></option>`)}</datalist>
           </label>
           <label class="campo">
-            <span>Precio</span>
-            <input name="price" type="number" min="1" step="1" value="${p.price || ""}" required />
+            <span>Descripción</span>
+            <textarea name="description" placeholder="Qué lleva, para cuántos alcanza" required>${p.description || ""}</textarea>
+            <small>Es lo que el cliente lee antes de decidir. Sé concreto.</small>
           </label>
-        </div>
+        </section>
 
-        <label class="campo">
-          <span>Categoría</span>
-          <input name="productCategory" value="${p.productCategory || tienda.category}" list="cats" />
-          <datalist id="cats">${CATEGORIAS.map((c) => html`<option value="${c}"></option>`)}</datalist>
-        </label>
-
-        <label class="campo">
-          <span>Descripción</span>
-          <textarea name="description" placeholder="Qué lleva, para cuántos alcanza" required>${p.description || ""}</textarea>
-        </label>
-
-        <label class="campo">
-          <span>Foto</span>
-          <input type="file" accept="image/*" data-imagen />
-          <small>Si no subes foto, usamos una de la categoría.</small>
-        </label>
-        <div data-previa></div>
-
-        <label class="campo">
-          <span>Disponible para</span>
-          <select name="availability">
-            <option value="both" ${p.availability === "both" || !p.availability ? "selected" : ""}>Entrega y recoger</option>
-            <option value="delivery" ${p.availability === "delivery" ? "selected" : ""}>Solo entrega</option>
-            <option value="pickup" ${p.availability === "pickup" ? "selected" : ""}>Solo recoger</option>
-          </select>
-        </label>
-
-        <div class="campos-2">
+        <section class="bloque">
+          <div class="bloque-titulo">
+            <span class="bloque-num">2</span>
+            <h3>Foto</h3>
+            <small>los productos con foto venden más</small>
+          </div>
           <label class="campo">
-            <span>Descuento</span>
+            <input type="file" accept="image/*" data-imagen />
+            <small>Si no subes foto, usamos una genérica de la categoría.</small>
+          </label>
+          <div data-previa></div>
+        </section>
+
+        <section class="bloque">
+          <div class="bloque-titulo">
+            <span class="bloque-num">3</span>
+            <h3>Cómo se vende</h3>
+          </div>
+          <label class="campo">
+            <span>Disponible para</span>
+            <select name="availability">
+              <option value="both" ${p.availability === "both" || !p.availability ? "selected" : ""}>Entrega y recoger</option>
+              <option value="delivery" ${p.availability === "delivery" ? "selected" : ""}>Solo entrega</option>
+              <option value="pickup" ${p.availability === "pickup" ? "selected" : ""}>Solo recoger</option>
+            </select>
+          </label>
+          <label class="campo">
+            <span>¿Tiene descuento?</span>
             <select name="discountType" data-descuento>
-              <option value="none" ${p.discountType === "none" || !p.discountType ? "selected" : ""}>Sin descuento</option>
-              <option value="percent" ${p.discountType === "percent" ? "selected" : ""}>Porcentaje</option>
-              <option value="amount" ${p.discountType === "amount" ? "selected" : ""}>Monto fijo</option>
+              <option value="none" ${p.discountType === "none" || !p.discountType ? "selected" : ""}>No, precio normal</option>
+              <option value="percent" ${p.discountType === "percent" ? "selected" : ""}>Sí, un porcentaje (%)</option>
+              <option value="amount" ${p.discountType === "amount" ? "selected" : ""}>Sí, pesos de rebaja ($)</option>
             </select>
           </label>
           <label class="campo" data-descuento-valor hidden>
-            <span>Valor</span>
-            <input name="discountValue" type="number" min="0" step="1" value="${p.discountValue || 0}" />
+            <span data-descuento-etiqueta>¿De cuánto?</span>
+            <input name="discountValue" type="number" min="1" step="1" inputmode="numeric" value="${p.discountValue || ""}" placeholder="10" />
+            <small data-descuento-ayuda></small>
           </label>
-        </div>
+        </section>
 
-        <fieldset data-campos="food" style="border:0;padding:0;margin:0">
-          <label class="campo">
-            <span>Ingredientes</span>
-            <input name="ingredients" value="${p.ingredients || ""}" placeholder="Cerdo, piña, cilantro" />
-          </label>
-          <div class="campos-2">
-            <label class="campo">
-              <span>Alérgenos</span>
-              <input name="allergens" value="${p.allergens || ""}" placeholder="Gluten, lácteos" />
-            </label>
-            <label class="campo">
-              <span>Porción</span>
-              <input name="portion" value="${p.portion || ""}" placeholder="5 piezas" />
-            </label>
+        <section class="bloque" style="border-bottom:0">
+          <div class="bloque-titulo">
+            <span class="bloque-num">4</span>
+            <h3 data-titulo-detalles>Detalles</h3>
+            <small>opcional</small>
           </div>
-        </fieldset>
 
-        <fieldset data-campos="retail" style="border:0;padding:0;margin:0">
-          <div class="campos-2">
+          <fieldset data-campos="food" style="border:0;padding:0;margin:0">
             <label class="campo">
-              <span>Marca</span>
-              <input name="brand" value="${p.brand || ""}" />
+              <span>Ingredientes</span>
+              <input name="ingredients" value="${p.ingredients || ""}" placeholder="Cerdo, piña, cilantro" />
             </label>
+            <div class="campos-2">
+              <label class="campo">
+                <span>Alérgenos</span>
+                <input name="allergens" value="${p.allergens || ""}" placeholder="Gluten, lácteos" />
+              </label>
+              <label class="campo">
+                <span>Porción</span>
+                <input name="portion" value="${p.portion || ""}" placeholder="5 piezas" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset data-campos="retail" style="border:0;padding:0;margin:0">
+            <div class="campos-2">
+              <label class="campo">
+                <span>Marca</span>
+                <input name="brand" value="${p.brand || ""}" />
+              </label>
+              <label class="campo">
+                <span>Existencias</span>
+                <input name="stock" type="number" min="0" step="1" inputmode="numeric" value="${p.stock ?? ""}" />
+                <small>Si se acaba, el producto se marca solo como agotado.</small>
+              </label>
+            </div>
             <label class="campo">
-              <span>Existencias</span>
-              <input name="stock" type="number" min="0" step="1" value="${p.stock ?? ""}" />
+              <span>Especificaciones</span>
+              <input name="specs" value="${p.specs || ""}" placeholder="Medidas, color, material" />
             </label>
-          </div>
+          </fieldset>
+
+          <fieldset data-campos="service" style="border:0;padding:0;margin:0">
+            <div class="campos-2">
+              <label class="campo">
+                <span>Duración</span>
+                <input name="duration" value="${p.duration || ""}" placeholder="2 horas" />
+              </label>
+              <label class="campo">
+                <span>Zona de servicio</span>
+                <input name="serviceArea" value="${p.serviceArea || ""}" placeholder="Centro y colonias cercanas" />
+              </label>
+            </div>
+            <label class="campo">
+              <span>Requisitos</span>
+              <input name="requirements" value="${p.requirements || ""}" placeholder="Qué necesitas del cliente" />
+            </label>
+          </fieldset>
+
           <label class="campo">
-            <span>Especificaciones</span>
-            <input name="specs" value="${p.specs || ""}" placeholder="Medidas, color, material" />
+            <span>Opciones para el cliente</span>
+            <input name="options" value="${p.options || ""}" placeholder="Salsas, tamaños, colores" />
+            <small>El cliente las ve y te dice cuál quiere en la nota del pedido.</small>
           </label>
-        </fieldset>
-
-        <fieldset data-campos="service" style="border:0;padding:0;margin:0">
-          <div class="campos-2">
-            <label class="campo">
-              <span>Duración</span>
-              <input name="duration" value="${p.duration || ""}" placeholder="2 horas" />
-            </label>
-            <label class="campo">
-              <span>Zona de servicio</span>
-              <input name="serviceArea" value="${p.serviceArea || ""}" placeholder="Centro y colonias cercanas" />
-            </label>
-          </div>
-          <label class="campo">
-            <span>Requisitos</span>
-            <input name="requirements" value="${p.requirements || ""}" placeholder="Qué necesitas del cliente" />
-          </label>
-        </fieldset>
-
-        <label class="campo">
-          <span>Opciones</span>
-          <input name="options" value="${p.options || ""}" placeholder="Salsas, tamaños, colores" />
-        </label>
+        </section>
       </form>
     `,
     pie: html`<button class="boton boton--principal boton--ancho" data-guardar type="button">
@@ -429,10 +453,23 @@ function hojaProducto(tienda, contenedor) {
     form.querySelectorAll("[data-campos]").forEach((grupo) => {
       grupo.hidden = grupo.dataset.campos !== tipo;
     });
+    const titulos = { food: "Detalles del platillo", retail: "Detalles del producto", service: "Detalles del servicio" };
+    const titulo = form.querySelector("[data-titulo-detalles]");
+    if (titulo) titulo.textContent = titulos[tipo] || "Detalles";
   };
   const sincronizaDescuento = () => {
     const valor = form.querySelector("[data-descuento]").value;
-    form.querySelector("[data-descuento-valor]").hidden = valor === "none";
+    const campo = form.querySelector("[data-descuento-valor]");
+    campo.hidden = valor === "none";
+    if (valor === "percent") {
+      form.querySelector("[data-descuento-etiqueta]").textContent = "¿Qué porcentaje?";
+      form.querySelector("[data-descuento-ayuda]").textContent =
+        "Ej. 10 = el cliente paga 10% menos.";
+    } else if (valor === "amount") {
+      form.querySelector("[data-descuento-etiqueta]").textContent = "¿Cuántos pesos de rebaja?";
+      form.querySelector("[data-descuento-ayuda]").textContent =
+        "Ej. 15 = el precio baja $15.";
+    }
   };
   sincronizaTipo();
   sincronizaDescuento();
@@ -450,12 +487,16 @@ function hojaProducto(tienda, contenedor) {
   });
 
   nodo.querySelector("[data-guardar]").addEventListener("click", async (ev) => {
+    // ev.currentTarget deja de existir después de un await; si la subida
+    // fallaba, el catch tocaba null y reventaba ENCIMA del error real.
+    const boton = ev.currentTarget;
     const datos = Object.fromEntries(new FormData(form));
     if (!datos.title?.trim() || !datos.description?.trim() || !Number(datos.price)) {
       toast("Faltan nombre, descripción o precio.", "error");
       return;
     }
-    ev.currentTarget.disabled = true;
+    boton.disabled = true;
+    boton.textContent = "Guardando...";
     try {
       await repo.guardarProducto({
         id: editando?.id,
@@ -475,8 +516,9 @@ function hojaProducto(tienda, contenedor) {
       cerrar();
       vistaPanel(contenedor);
     } catch (error) {
-      toast(error.message, "error");
-      ev.currentTarget.disabled = false;
+      toast(error, "error");
+      boton.disabled = false;
+      boton.textContent = editando ? "Guardar cambios" : "Publicar producto";
     }
   });
 }

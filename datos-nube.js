@@ -30,7 +30,23 @@ async function subir(bucket, ruta, file) {
     cacheControl: "3600",
     upsert: true,
   });
-  if (error) throw error;
+  if (error) {
+    const msg = String(error.message || "");
+    if (/bucket.*not.*found/i.test(msg)) {
+      throw new Error(
+        `Falta el espacio de imágenes "${bucket}" en Supabase. Corre 04-storage.sql en el SQL Editor (o créalo en Storage → New bucket, público).`,
+      );
+    }
+    if (/row-level security|not authorized|403/i.test(msg)) {
+      throw new Error(
+        "Supabase rechazó la subida de la imagen por permisos. Corre 04-storage.sql para poner las reglas de Storage.",
+      );
+    }
+    if (/payload too large|maximum size|413/i.test(msg)) {
+      throw new Error("La imagen pesa demasiado para el servidor. Usa una más ligera.");
+    }
+    throw new Error(`No se pudo subir la imagen: ${msg}`);
+  }
   return ruta;
 }
 

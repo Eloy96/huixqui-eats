@@ -10,6 +10,14 @@
   box-sizing: border-box;
 }
 
+/* El atributo hidden pierde contra cualquier display en CSS (p. ej.
+   .campo { display: grid }). Esto lo vuelve absoluto: hidden = no se ve,
+   sin importar qué clase traiga el elemento. Sin esta regla, el campo de
+   descuento mostraba un 0 suelto aunque eligieras "Sin descuento". */
+[hidden] {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }
