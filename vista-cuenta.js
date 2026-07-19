@@ -16,6 +16,26 @@ let pestana = "entrar";
 let logo = { dataUrl: "", file: null };
 let portada = { dataUrl: "", file: null };
 
+// Candado global: mientras una petición de auth está en vuelo, ninguna otra
+// entra. Cinturón y tirantes junto con el `boton.disabled`, porque el 429 de
+// Supabase es caro y no queremos ni una petición de más.
+let enVuelo = false;
+
+async function unaVez(boton, textoOcupado, tarea) {
+  if (enVuelo) return;
+  enVuelo = true;
+  const textoOriginal = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = textoOcupado;
+  try {
+    await tarea();
+  } finally {
+    enVuelo = false;
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+}
+
 const META_FOTOS = {
   logo: { clave: "logo", etiqueta: "Logo", ayuda: "Se ve completo, sin recortar", forma: "logo" },
   portada: { clave: "portada", etiqueta: "Portada", ayuda: "Así se verá en el inicio", forma: "portada" },
@@ -84,6 +104,10 @@ export async function vistaCuenta(contenedor) {
 // ============================================================
 
 function pintarAuth(contenedor) {
+  // El cascarón (título + pestañas) se pinta UNA vez. Antes se repintaba
+  // completo en cada cambio de pestaña, y como el listener de pestañas se
+  // registraba en cada repintado, se apilaban: 6 clics = 6 listeners = al
+  // enviar el formulario salían 6 signups de golpe → 429 al instante.
   pintarEn(
     contenedor,
     html`
@@ -93,20 +117,29 @@ function pintarAuth(contenedor) {
       </div>
 
       <div class="pestanas" role="tablist">
-        <button class="pestana" role="tab" data-pestana="entrar" aria-selected="${pestana === "entrar"}">Entrar</button>
-        <button class="pestana" role="tab" data-pestana="cliente" aria-selected="${pestana === "cliente"}">Soy cliente</button>
-        <button class="pestana" role="tab" data-pestana="negocio" aria-selected="${pestana === "negocio"}">Tengo un negocio</button>
+        <button class="pestana" role="tab" data-pestana="entrar">Entrar</button>
+        <button class="pestana" role="tab" data-pestana="cliente">Soy cliente</button>
+        <button class="pestana" role="tab" data-pestana="negocio">Tengo un negocio</button>
       </div>
 
       <div data-panel></div>
     `,
   );
 
+  // Un solo listener, registrado una sola vez. Cambiar de pestaña solo
+  // repinta el panel de adentro, nunca el cascarón.
   delegar(contenedor, "click", "[data-pestana]", (_ev, boton) => {
     pestana = boton.dataset.pestana;
-    pintarAuth(contenedor);
+    pintarPestanaActiva(contenedor);
   });
 
+  pintarPestanaActiva(contenedor);
+}
+
+function pintarPestanaActiva(contenedor) {
+  contenedor.querySelectorAll("[data-pestana]").forEach((b) => {
+    b.setAttribute("aria-selected", b.dataset.pestana === pestana ? "true" : "false");
+  });
   const panel = contenedor.querySelector("[data-panel]");
   if (pestana === "entrar") formularioEntrar(panel, contenedor);
   else if (pestana === "cliente") formularioCliente(panel, contenedor);
@@ -142,7 +175,7 @@ function formularioEntrar(panel, contenedor) {
     `,
   );
 
-  panel.querySelector("[data-form]").addEventListener("submit", async (ev) => {
+  panel.querySelector("[data-form]").addEventListener("submit", (ev) => {
     ev.preventDefault();
     const datos = new FormData(ev.currentTarget);
     const correo = String(datos.get("correo") || "").trim();
@@ -151,19 +184,19 @@ function formularioEntrar(panel, contenedor) {
       return;
     }
     const boton = ev.currentTarget.querySelector('[type="submit"]');
-    boton.disabled = true;
-    try {
-      const sesion = await repo.entrar({
-        identificador: correo,
-        password: String(datos.get("password") || ""),
-        rol: correo.includes("@pueblopedidos.mx") ? "store" : "client",
-      });
-      toast(`Hola de nuevo${sesion?.perfil?.name ? `, ${sesion.perfil.name}` : ""}.`);
-      location.hash = sesion?.role === "store" ? "#/panel" : "#/";
-    } catch (error) {
-      toast(error, "error");
-      boton.disabled = false;
-    }
+    unaVez(boton, "Entrando...", async () => {
+      try {
+        const sesion = await repo.entrar({
+          identificador: correo,
+          password: String(datos.get("password") || ""),
+          rol: correo.includes("@pueblopedidos.mx") ? "store" : "client",
+        });
+        toast(`Hola de nuevo${sesion?.perfil?.name ? `, ${sesion.perfil.name}` : ""}.`);
+        location.hash = sesion?.role === "store" ? "#/panel" : "#/";
+      } catch (error) {
+        toast(error, "error");
+      }
+    });
   });
 
   panel.querySelector("[data-olvide]").addEventListener("click", async () => {
@@ -239,15 +272,15 @@ function formularioCliente(panel, contenedor) {
       return;
     }
     const boton = ev.currentTarget.querySelector('[type="submit"]');
-    boton.disabled = true;
-    try {
-      await repo.registrarCliente({ ...datos, coords: estado.ubicacion });
-      toast("Cuenta creada. Ya puedes pedir.");
-      location.hash = "#/";
-    } catch (error) {
-      toast(error, "error");
-      boton.disabled = false;
-    }
+    unaVez(boton, "Creando cuenta...", async () => {
+      try {
+        await repo.registrarCliente({ ...datos, coords: estado.ubicacion });
+        toast("Cuenta creada. Ya puedes pedir.");
+        location.hash = "#/";
+      } catch (error) {
+        toast(error, "error");
+      }
+    });
   });
 }
 
@@ -368,27 +401,25 @@ function formularioNegocio(panel, contenedor) {
       return;
     }
     const boton = ev.currentTarget.querySelector('[type="submit"]');
-    boton.disabled = true;
-    boton.textContent = "Registrando...";
-    try {
-      await repo.registrarTienda({
-        ...datos,
-        slug: slug(datos.name),
-        coords: estado.ubicacion,
-        image: logo.dataUrl,
-        cover: portada.dataUrl,
-        logoFile: logo.file,
-        coverFile: portada.file,
-      });
-      logo = { dataUrl: "", file: null };
-      portada = { dataUrl: "", file: null };
-      toast("Tu negocio ya está publicado.");
-      location.hash = "#/panel";
-    } catch (error) {
-      toast(error, "error");
-      boton.disabled = false;
-      boton.textContent = "Registrar mi negocio";
-    }
+    unaVez(boton, "Registrando...", async () => {
+      try {
+        await repo.registrarTienda({
+          ...datos,
+          slug: slug(datos.name),
+          coords: estado.ubicacion,
+          image: logo.dataUrl,
+          cover: portada.dataUrl,
+          logoFile: logo.file,
+          coverFile: portada.file,
+        });
+        logo = { dataUrl: "", file: null };
+        portada = { dataUrl: "", file: null };
+        toast("Tu negocio ya está publicado.");
+        location.hash = "#/panel";
+      } catch (error) {
+        toast(error, "error");
+      }
+    });
   });
 }
 
