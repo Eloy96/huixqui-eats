@@ -355,9 +355,18 @@ export const driverNube = {
   },
 
   async tienda(slugOId) {
-    const filas = revisar(
-      await cliente.from("stores").select("*").or(`slug.eq.${slugOId},id.eq.${slugOId}`).limit(1),
-    );
+    // La columna id es UUID. Si aquí llega un slug ("tacos-don-luis") y lo
+    // metemos en id.eq, Postgres rechaza la CONSULTA ENTERA por "invalid
+    // input syntax for type uuid" y la app decía "no existe ese negocio".
+    // Por eso el link compartido fallaba en un navegador limpio pero
+    // funcionaba en el del dueño (ahí la tienda ya estaba en caché y ni se
+    // consultaba). Solo comparamos contra id cuando DE VERDAD es un UUID.
+    const esUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOId);
+    const consulta = esUuid
+      ? cliente.from("stores").select("*").or(`slug.eq.${slugOId},id.eq.${slugOId}`)
+      : cliente.from("stores").select("*").eq("slug", slugOId);
+    const filas = revisar(await consulta.limit(1));
     return aTienda(filas?.[0]);
   },
 
@@ -439,17 +448,26 @@ export const driverNube = {
       availability_modes: aModos(producto.availability),
       is_active: producto.isActive !== false,
     };
+    // Si la foto no se puede subir (buckets sin crear, permisos), el
+    // producto se publica de todas formas y avisamos. Perder el formulario
+    // completo por una foto es castigar al negocio por un problema nuestro.
+    let avisoFoto = "";
     if (producto.imageFile) {
-      payload.image_path = await subir(
-        "productos",
-        `${producto.storeId}/${Date.now()}`,
-        producto.imageFile,
-      );
+      try {
+        payload.image_path = await subir(
+          "productos",
+          `${producto.storeId}/${Date.now()}`,
+          producto.imageFile,
+        );
+      } catch (errorFoto) {
+        avisoFoto = errorFoto.message;
+      }
     }
 
     const fila = producto.id
       ? revisar(await cliente.from("products").update(payload).eq("id", producto.id).select().single())
       : revisar(await cliente.from("products").insert(payload).select().single());
+    if (avisoFoto) fila.__avisoFoto = avisoFoto;
 
     revisar(
       await cliente
@@ -471,7 +489,9 @@ export const driverNube = {
         .single(),
     );
 
-    return aProducto(fila);
+    const resultado = aProducto(fila);
+    if (fila.__avisoFoto) resultado.avisoFoto = fila.__avisoFoto;
+    return resultado;
   },
 
   async borrarProducto(productoId) {
