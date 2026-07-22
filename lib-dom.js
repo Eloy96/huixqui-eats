@@ -83,26 +83,63 @@ export function delegar(raiz, evento, selector, manejador) {
   });
 }
 
-/** Lee un input file y devuelve { dataUrl, file } para previa + subida. */
-export function leerImagen(file) {
+/**
+ * Lee un input file y devuelve { dataUrl, file, ancho, alto, aviso }.
+ *
+ * Además de leerla, la MIDE. Decirle al negocio "sube 1200×675" no basta:
+ * la mitad va a subir la foto como le salga. Medirla y avisar cuando se va
+ * a ver mal es la diferencia entre un catálogo decente y uno borroso.
+ */
+export function leerImagen(file, requisitos = null) {
   return new Promise((resolver, rechazar) => {
     if (!file) {
       resolver({ dataUrl: "", file: null });
       return;
     }
     if (!file.type.startsWith("image/")) {
-      rechazar(new Error("El archivo debe ser una imagen."));
+      rechazar(new Error("El archivo debe ser una imagen (JPG, PNG o WEBP)."));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      rechazar(new Error("La imagen pesa más de 5 MB. Usa una más ligera."));
+      const mb = (file.size / 1048576).toFixed(1);
+      rechazar(new Error(`La imagen pesa ${mb} MB y el máximo son 5 MB. Usa una más ligera.`));
       return;
     }
     const lector = new FileReader();
-    lector.onload = () => resolver({ dataUrl: lector.result, file });
     lector.onerror = () => rechazar(new Error("No se pudo leer la imagen."));
+    lector.onload = () => {
+      const dataUrl = lector.result;
+      const img = new Image();
+      img.onload = () => {
+        resolver({
+          dataUrl,
+          file,
+          ancho: img.naturalWidth,
+          alto: img.naturalHeight,
+          aviso: revisarMedidas(img.naturalWidth, img.naturalHeight, requisitos),
+        });
+      };
+      // Si no se puede medir (formato raro), no bloqueamos: se sube igual.
+      img.onerror = () => resolver({ dataUrl, file, ancho: 0, alto: 0, aviso: "" });
+      img.src = dataUrl;
+    };
     lector.readAsDataURL(file);
   });
+}
+
+/** Devuelve un aviso en español, o "" si la imagen está bien. */
+function revisarMedidas(ancho, alto, req) {
+  if (!req || !ancho || !alto) return "";
+  if (ancho < req.minAncho || alto < req.minAlto) {
+    return `Se va a ver borrosa: tu imagen mide ${ancho}×${alto} y lo mínimo son ${req.minAncho}×${req.minAlto} px.`;
+  }
+  const proporcion = ancho / alto;
+  const objetivo = req.proporcion;
+  // 25% de tolerancia: más que eso y el recorte se come algo importante.
+  if (objetivo && Math.abs(proporcion - objetivo) / objetivo > 0.25) {
+    return req.avisoProporcion;
+  }
+  return "";
 }
 
 export function copiar(texto) {

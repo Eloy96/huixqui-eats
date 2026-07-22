@@ -259,3 +259,48 @@ export const PLANES_PROMO = [
   { dias: 3, precio: 89 },
   { dias: 7, precio: 169 },
 ];
+
+
+/**
+ * Medidas recomendadas de las imágenes.
+ *
+ * De dónde salen: la portada se muestra a 16:9 en las tarjetas del inicio
+ * y en el encabezado del perfil. 1200 px de ancho cubre pantallas de
+ * retina sin que el archivo se vuelva pesado — importa, porque el pueblo
+ * navega con datos móviles.
+ *
+ * El logo se muestra en cuadro y SIN recortar, así que cuadrado es lo que
+ * mejor aprovecha el espacio. PNG con fondo transparente se ve mejor.
+ */
+export const MEDIDAS_IMAGEN = {
+  logo: {
+    minAncho: 200,
+    minAlto: 200,
+    idealAncho: 400,
+    idealAlto: 400,
+    proporcion: 1,
+    texto: "Cuadrada, 400×400 px. PNG con fondo transparente se ve mejor.",
+    avisoProporcion:
+      "Tu logo no es cuadrado. No lo recortamos, pero se va a ver más chico de lo que podría.",
+  },
+  portada: {
+    minAncho: 600,
+    minAlto: 338,
+    idealAncho: 1200,
+    idealAlto: 675,
+    proporcion: 16 / 9,
+    texto: "Horizontal 16:9, 1200×675 px. Es la foto grande de tu tienda.",
+    avisoProporcion:
+      "Tu portada no es horizontal 16:9: se va a recortar arriba y abajo. Revisa la vista previa.",
+  },
+  producto: {
+    minAncho: 400,
+    minAlto: 400,
+    idealAncho: 800,
+    idealAlto: 800,
+    proporcion: 1,
+    texto: "Cuadrada, 800×800 px. Encuadra bien el producto, sin mucho fondo.",
+    avisoProporcion:
+      "La foto no es cuadrada: en la lista se recorta a cuadro. Revisa que no corte el producto.",
+  },
+};

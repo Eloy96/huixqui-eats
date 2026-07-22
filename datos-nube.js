@@ -90,6 +90,10 @@ function traducir(error) {
   if (/User already registered/i.test(mensaje)) return "Ese correo ya tiene cuenta. Inicia sesión.";
   if (/duplicate key/i.test(mensaje)) return "Ese nombre de tienda ya existe. Prueba con otro.";
   if (/creditos_insuficientes/i.test(mensaje)) return "La tienda se quedó sin contactos disponibles.";
+  if (/paquete_invalido|plan_invalido/i.test(mensaje)) return "Ese paquete ya no está disponible. Recarga la página.";
+  if (/demasiadas_recargas/i.test(mensaje)) return "Demasiadas recargas seguidas. Espera un momento.";
+  if (/limite_productos/i.test(mensaje)) return "Llegaste al máximo de 300 productos publicados.";
+  if (/textos_razonables|orders_razonable/i.test(mensaje)) return "Algún texto es demasiado largo. Acórtalo e inténtalo de nuevo.";
   if (/JWT|session/i.test(mensaje)) return "Tu sesión expiró. Vuelve a entrar.";
   if (/Failed to fetch|NetworkError/i.test(mensaje)) return "Sin conexión. Revisa tus datos móviles.";
   if (estado >= 500) return `Supabase respondió con error ${estado}. ${mensaje}`;
@@ -335,6 +339,27 @@ export const driverNube = {
     revisar(await cliente.auth.signOut());
   },
 
+  /** Deja constancia de que este usuario aceptó los documentos vigentes. */
+  async registrarAceptacion(version) {
+    const { data } = await cliente.auth.getUser();
+    const usuario = data?.user;
+    if (!usuario) return;
+    // Si esto falla no tumbamos el registro: el usuario ya se dio de alta y
+    // culparlo por un fallo nuestro de bitácora sería absurdo. Queda en
+    // consola para que se pueda revisar.
+    const { error } = await cliente.from("terms_acceptances").insert([
+      { user_id: usuario.id, doc: "terminos", version },
+      { user_id: usuario.id, doc: "privacidad", version },
+    ]);
+    if (error) console.warn("No se registró la aceptación de términos:", error.message);
+  },
+
+  async eliminarCuenta() {
+    const resultado = revisar(await cliente.rpc("eliminar_mi_cuenta"));
+    await cliente.auth.signOut();
+    return resultado;
+  },
+
   async recuperarPassword(correo) {
     revisar(
       await cliente.auth.resetPasswordForEmail(correo, {
@@ -498,23 +523,48 @@ export const driverNube = {
     revisar(await cliente.from("products").update({ is_active: false }).eq("id", productoId));
   },
 
-  /** Promoción cobrada: también la valida el servidor, no el navegador. */
-  async promocionar(productoId, hasta, costo) {
+  /**
+   * El catálogo de precios vive en el SERVIDOR (tablas packages y
+   * promo_plans). Si no responde, no inventamos precios: mejor no mostrar
+   * nada que mostrar uno que el servidor va a ignorar.
+   */
+  async catalogoPrecios() {
+    const [paquetes, planes] = await Promise.all([
+      cliente.from("packages").select("*").eq("active", true).order("sort_order"),
+      cliente.from("promo_plans").select("*").eq("active", true).order("sort_order"),
+    ]);
+    return {
+      paquetes: (revisar(paquetes) || []).map((f) => ({
+        id: f.id,
+        contactos: f.contacts,
+        precio: Number(f.price),
+        etiqueta: f.label,
+        mejor: f.best,
+      })),
+      planes: (revisar(planes) || []).map((f) => ({
+        id: f.id,
+        dias: f.days,
+        precio: Number(f.price),
+        etiqueta: f.label,
+      })),
+    };
+  },
+
+  /** Solo mandamos QUÉ plan. Cuánto cuesta lo decide el servidor. */
+  async promocionar(productoId, planId) {
     return revisar(
       await cliente.rpc("promocionar_producto", {
         p_product_id: productoId,
-        p_hasta: hasta,
-        p_costo: costo,
+        p_plan_id: planId,
       }),
     );
   },
 
-  async comprarCreditos(tiendaId, contactos, precio) {
+  async comprarCreditos(tiendaId, paqueteId) {
     return revisar(
       await cliente.rpc("comprar_creditos", {
         p_store_id: tiendaId,
-        p_contactos: contactos,
-        p_precio: precio,
+        p_paquete_id: paqueteId,
       }),
     );
   },

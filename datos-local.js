@@ -9,7 +9,7 @@
 // es una demo y no hay servidor. Por eso el modo demo se anuncia con una
 // cinta amarilla arriba y NO debe usarse para cobrar de verdad.
 
-import { TIENDAS_DEMO, PRODUCTOS_DEMO, PRECIO_CONTACTO } from "./datos-semillas.js";
+import { TIENDAS_DEMO, PRODUCTOS_DEMO, PRECIO_CONTACTO, PAQUETES, PLANES_PROMO } from "./datos-semillas.js";
 
 const LLAVE = "pueblopedidos-v10";
 
@@ -117,6 +117,34 @@ export const driverLocal = {
     guardar();
   },
 
+  async registrarAceptacion(version) {
+    if (!db.session) return;
+    db.acceptances = db.acceptances || [];
+    db.acceptances.push({ id: db.session.id, version, at: new Date().toISOString() });
+    guardar();
+  },
+
+  async eliminarCuenta() {
+    const s = db.session;
+    if (!s) throw new Error("No hay sesión.");
+    if (s.role === "store") {
+      db.products = db.products.filter((p) => p.storeId !== s.id);
+      db.stores = db.stores.filter((t) => t.id !== s.id);
+    } else {
+      db.clients = db.clients.filter((c) => c.id !== s.id);
+    }
+    db.orders.forEach((o) => {
+      if (o.clientId === s.id) {
+        o.clientId = null;
+        o.address = null;
+        o.reference = null;
+      }
+    });
+    db.session = null;
+    guardar();
+    return { eliminado: true, tenia_tienda: s.role === "store" };
+  },
+
   // ---------- Lecturas ----------
 
   async tiendas() {
@@ -173,21 +201,37 @@ export const driverLocal = {
     guardar();
   },
 
-  async promocionar(productoId, hasta, costo) {
+  /** Mismo contrato que la nube: aquí el catálogo son las semillas. */
+  async catalogoPrecios() {
+    return {
+      paquetes: PAQUETES.map((p) => ({ ...p, id: `p${p.contactos}` })),
+      planes: PLANES_PROMO.map((p) => ({ ...p, id: `d${p.dias}` })),
+    };
+  },
+
+  async promocionar(productoId, planId) {
     const producto = db.products.find((p) => p.id === productoId);
     if (!producto) throw new Error("No encontramos el producto.");
-    producto.featuredUntil = hasta;
+    const plan = PLANES_PROMO.find((p) => `d${p.dias}` === planId);
+    if (!plan) throw new Error("Ese plan no existe.");
+    const desde = Math.max(
+      producto.featuredUntil ? new Date(producto.featuredUntil).getTime() : 0,
+      Date.now(),
+    );
+    producto.featuredUntil = new Date(desde + plan.dias * 86400000).toISOString();
     const tienda = db.stores.find((t) => t.id === producto.storeId);
-    if (tienda) tienda.marketingSpend = Number(tienda.marketingSpend || 0) + costo;
+    if (tienda) tienda.marketingSpend = Number(tienda.marketingSpend || 0) + plan.precio;
     guardar();
     return producto;
   },
 
-  async comprarCreditos(tiendaId, contactos, precio) {
+  async comprarCreditos(tiendaId, paqueteId) {
     const tienda = db.stores.find((t) => t.id === tiendaId);
     if (!tienda) throw new Error("No encontramos la tienda.");
-    tienda.credits = Number(tienda.credits || 0) + contactos;
-    tienda.creditSpend = Number(tienda.creditSpend || 0) + precio;
+    const paquete = PAQUETES.find((p) => `p${p.contactos}` === paqueteId);
+    if (!paquete) throw new Error("Ese paquete no existe.");
+    tienda.credits = Number(tienda.credits || 0) + paquete.contactos;
+    tienda.creditSpend = Number(tienda.creditSpend || 0) + paquete.precio;
     guardar();
     return tienda;
   },

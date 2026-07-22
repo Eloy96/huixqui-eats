@@ -8,7 +8,7 @@
 import { html, pintarEn, delegar, leerImagen, urlSegura, copiar } from "./lib-dom.js";
 import { icono, toast, vacio, abrirHoja, esqueletoLista } from "./lib-ui.js";
 import * as repo from "./datos-repo.js";
-import { CATEGORIAS, PAQUETES, PLANES_PROMO, imagenPorCategoria } from "./datos-semillas.js";
+import { CATEGORIAS, imagenPorCategoria, MEDIDAS_IMAGEN } from "./datos-semillas.js";
 import {
   dinero,
   fechaHora,
@@ -18,7 +18,6 @@ import {
   estaPromocionado,
   etiquetaModo,
   etiquetaTipo,
-  enDias,
   csv,
   descargar,
 } from "./lib-formato.js";
@@ -332,9 +331,10 @@ function hojaProducto(tienda, contenedor) {
           </div>
           <label class="campo">
             <input type="file" accept="image/*" data-imagen />
-            <small>Si no subes foto, usamos una genérica de la categoría.</small>
+            <small>${MEDIDAS_IMAGEN.producto.texto} Máx. 5 MB. Si no subes foto, usamos una genérica de la categoría.</small>
           </label>
           <div data-previa></div>
+          <div data-aviso-foto></div>
         </section>
 
         <section class="bloque">
@@ -440,11 +440,20 @@ function hojaProducto(tienda, contenedor) {
   const form = nodo.querySelector("[data-form]");
   const previa = nodo.querySelector("[data-previa]");
 
+  const avisoFoto = nodo.querySelector("[data-aviso-foto]");
   const pintaPrevia = () => {
     pintarEn(
       previa,
-      imagen.dataUrl ? html`<img class="previa" src="${urlSegura(imagen.dataUrl)}" alt="Vista previa" />` : "",
+      imagen.dataUrl
+        ? html`<img class="previa" src="${urlSegura(imagen.dataUrl)}" alt="Vista previa" style="aspect-ratio:1" />
+            <small style="display:block;color:var(--tinta-60);font-size:var(--t-xs)">
+              ${imagen.ancho ? `${imagen.ancho}×${imagen.alto} px` : ""}
+            </small>`
+        : "",
     );
+    if (avisoFoto) {
+      pintarEn(avisoFoto, imagen.aviso ? html`<p class="foto-aviso">${imagen.aviso}</p>` : "");
+    }
   };
   pintaPrevia();
 
@@ -479,10 +488,11 @@ function hojaProducto(tienda, contenedor) {
 
   form.querySelector("[data-imagen]").addEventListener("change", async (ev) => {
     try {
-      imagen = await leerImagen(ev.target.files[0]);
+      imagen = await leerImagen(ev.target.files[0], MEDIDAS_IMAGEN.producto);
       pintaPrevia();
     } catch (error) {
-      toast(error.message, "error");
+      ev.target.value = "";
+      toast(error, "error");
     }
   });
 
@@ -581,8 +591,25 @@ function pintarContactos({ panel, tienda, leads, contenedor }) {
 
 // ---------- Promoción y recargas ----------
 
-function pintarPromocion({ panel, tienda, productos, contenedor }) {
-  const promocionados = productos.filter(estaPromocionado);
+async function pintarPromocion({ panel, tienda, productos, contenedor }) {
+  const promocionados = productos.filter((p) => estaPromocionado(p));
+
+  // Los precios los manda el servidor. Si no llegan, no inventamos: sin
+  // catálogo no se puede cobrar, y mostrar un precio falso sería peor.
+  let precios;
+  try {
+    precios = await repo.catalogoPrecios();
+  } catch (error) {
+    pintarEn(
+      panel,
+      vacio({
+        titulo: "No pudimos cargar los precios",
+        texto: `${error.message} Si acabas de instalar, corre 05-precios-y-seguridad.sql en Supabase.`,
+        accion: html`<button class="boton boton--contorno" onclick="location.reload()" type="button">Reintentar</button>`,
+      }),
+    );
+    return;
+  }
 
   pintarEn(
     panel,
@@ -594,9 +621,9 @@ function pintarPromocion({ panel, tienda, productos, contenedor }) {
           nunca cobramos porcentaje de tu venta.
         </p>
         <div class="paquetes">
-          ${PAQUETES.map(
+          ${precios.paquetes.map(
             (paquete) => html`
-              <button class="paquete ${paquete.mejor ? "paquete--mejor" : ""}" data-recarga="${paquete.contactos}" type="button">
+              <button class="paquete ${paquete.mejor ? "paquete--mejor" : ""}" data-recarga="${paquete.id}" type="button">
                 <strong>+${paquete.contactos}</strong>
                 <small>${dinero(paquete.precio)}</small>
                 ${paquete.mejor ? html`<div class="sello sello--promo" style="margin-top:4px">Popular</div>` : ""}
@@ -613,37 +640,25 @@ function pintarPromocion({ panel, tienda, productos, contenedor }) {
             <p>Tu producto sale en el carrusel del inicio</p>
           </div>
         </div>
-        <div class="paquetes" style="grid-template-columns:1fr 1fr">
-          ${PLANES_PROMO.map(
-            (plan) => html`
-              <div class="paquete">
-                <strong>${plan.dias} días</strong>
-                <small>${dinero(plan.precio)} por producto</small>
-              </div>
-            `,
-          )}
-        </div>
 
-        <div style="margin-top:var(--e-4)">
-          ${promocionados.length
-            ? html`
-                <h3 style="margin-bottom:var(--e-2)">Activos ahora</h3>
-                ${promocionados.map(
-                  (producto) => html`
-                    <div class="envio-fila">
-                      <div class="envio-fila-info">
-                        <strong>${producto.title}</strong>
-                        <small>Hasta el ${fechaCorta(producto.featuredUntil)}</small>
-                      </div>
-                      <span class="sello sello--promo">Arriba</span>
+        ${promocionados.length
+          ? html`
+              <h3 style="margin:var(--e-3) 0 var(--e-2);font-size:var(--t-md)">Activos ahora</h3>
+              ${promocionados.map(
+                (producto) => html`
+                  <div class="envio-fila envio-fila--enviado">
+                    <div class="envio-fila-info">
+                      <strong>${producto.title}</strong>
+                      <small>Hasta el ${fechaCorta(producto.featuredUntil)}</small>
                     </div>
-                  `,
-                )}
-              `
-            : ""}
-        </div>
+                    <span class="sello sello--promo">Arriba</span>
+                  </div>
+                `,
+              )}
+            `
+          : ""}
 
-        <h3 style="margin:var(--e-4) 0 var(--e-2)">Promocionar un producto</h3>
+        <h3 style="margin:var(--e-4) 0 var(--e-2);font-size:var(--t-md)">Promocionar un producto</h3>
         ${productos.length
           ? html`
               <div class="menu-lista">
@@ -655,16 +670,16 @@ function pintarPromocion({ panel, tienda, productos, contenedor }) {
                         <small>${dinero(precioFinal(producto))}</small>
                       </div>
                       <div style="display:flex;gap:var(--e-1)">
-                        ${PLANES_PROMO.map(
+                        ${precios.planes.map(
                           (plan) => html`
                             <button
                               class="boton boton--contorno boton--chico"
                               data-promo="${producto.id}"
-                              data-dias="${plan.dias}"
-                              data-precio="${plan.precio}"
+                              data-plan="${plan.id}"
                               type="button"
+                              title="${plan.dias} días por ${dinero(plan.precio)}"
                             >
-                              ${plan.dias} d
+                              ${plan.dias} d · ${dinero(plan.precio)}
                             </button>
                           `,
                         )}
@@ -684,30 +699,33 @@ function pintarPromocion({ panel, tienda, productos, contenedor }) {
   );
 
   delegar(panel, "click", "[data-recarga]", async (_ev, boton) => {
-    const contactos = Number(boton.dataset.recarga);
-    const paquete = PAQUETES.find((p) => p.contactos === contactos);
-    if (!confirm(`¿Recargar ${contactos} contactos por ${dinero(paquete.precio)}?`)) return;
+    const paquete = precios.paquetes.find((p) => p.id === boton.dataset.recarga);
+    if (!paquete) return;
+    if (!confirm(`¿Recargar ${paquete.contactos} contactos por ${dinero(paquete.precio)}?`)) return;
+    boton.disabled = true;
     try {
-      await repo.comprarCreditos(contactos, paquete.precio);
-      toast(`Listo: +${contactos} contactos.`);
+      await repo.comprarCreditos(paquete.id);
+      toast(`Listo: +${paquete.contactos} contactos.`);
       vistaPanel(contenedor);
     } catch (error) {
-      toast(error.message, "error");
+      toast(error, "error");
+      boton.disabled = false;
     }
   });
 
   delegar(panel, "click", "[data-promo]", async (_ev, boton) => {
     const producto = productos.find((p) => p.id === boton.dataset.promo);
-    const dias = Number(boton.dataset.dias);
-    const precio = Number(boton.dataset.precio);
-    if (!producto) return;
-    if (!confirm(`¿Promocionar “${producto.title}” ${dias} días por ${dinero(precio)}?`)) return;
+    const plan = precios.planes.find((p) => p.id === boton.dataset.plan);
+    if (!producto || !plan) return;
+    if (!confirm(`¿Promocionar "${producto.title}" ${plan.dias} días por ${dinero(plan.precio)}?`)) return;
+    boton.disabled = true;
     try {
-      await repo.promocionar(producto, enDias(dias), precio);
+      await repo.promocionar(producto, plan.id);
       toast("Tu producto ya aparece arriba.");
       vistaPanel(contenedor);
     } catch (error) {
-      toast(error.message, "error");
+      toast(error, "error");
+      boton.disabled = false;
     }
   });
 }

@@ -19,6 +19,7 @@ const cache = {
   tiendas: null,
   productosPorTienda: new Map(),
   sesion: null,
+  precios: null,
 };
 
 export function alCambiar(fn) {
@@ -113,6 +114,19 @@ export async function salir() {
   return refrescarSesion();
 }
 
+export async function registrarAceptacion(version) {
+  if (driver.registrarAceptacion) await driver.registrarAceptacion(version);
+}
+
+export async function eliminarCuenta() {
+  if (!cache.sesion) throw new Error("No hay sesión activa.");
+  const resultado = await driver.eliminarCuenta();
+  invalidar();
+  cache.sesion = null;
+  avisar("sesion");
+  return resultado;
+}
+
 export async function recuperarPassword(correo) {
   if (!driver.recuperarPassword) {
     throw new Error("La recuperación de contraseña necesita el modo nube activo.");
@@ -176,17 +190,23 @@ export async function borrarProducto(producto) {
   avisar("productos");
 }
 
-export async function promocionar(producto, hasta, costo) {
-  await driver.promocionar(producto.id, hasta, costo);
+/** El catálogo de precios lo dicta el servidor; aquí solo se cachea. */
+export async function catalogoPrecios() {
+  if (!cache.precios) cache.precios = await driver.catalogoPrecios();
+  return cache.precios;
+}
+
+export async function promocionar(producto, planId) {
+  await driver.promocionar(producto.id, planId);
   cache.productosPorTienda.delete(producto.storeId);
   await refrescarSesion();
   avisar("productos");
 }
 
-export async function comprarCreditos(contactos, precio) {
+export async function comprarCreditos(paqueteId) {
   const actual = cache.sesion;
   if (actual?.role !== "store") throw new Error("Solo una tienda puede comprar contactos.");
-  await driver.comprarCreditos(actual.id, contactos, precio);
+  await driver.comprarCreditos(actual.id, paqueteId);
   invalidar();
   return refrescarSesion();
 }
