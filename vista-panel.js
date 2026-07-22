@@ -498,7 +498,7 @@ function hojaProducto(tienda, contenedor) {
     boton.disabled = true;
     boton.textContent = "Guardando...";
     try {
-      await repo.guardarProducto({
+      const guardado = await repo.guardarProducto({
         id: editando?.id,
         storeId: tienda.id,
         ...datos,
@@ -511,6 +511,9 @@ function hojaProducto(tienda, contenedor) {
         isActive: true,
       });
       toast(editando ? "Producto actualizado." : "Producto publicado.");
+      if (guardado?.avisoFoto) {
+        toast(`El producto quedó, pero la foto no: ${guardado.avisoFoto}`, "error");
+      }
       editando = null;
       imagen = { dataUrl: "", file: null };
       cerrar();
