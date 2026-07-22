@@ -7,7 +7,8 @@ import { icono, esqueletoCarrusel, vacio } from "./lib-ui.js";
 import { estado, fijar } from "./estado.js";
 import * as repo from "./datos-repo.js";
 import { CATEGORIAS } from "./datos-semillas.js";
-import { estaAbierta, distanciaKm, estaPromocionado } from "./lib-formato.js";
+import { estaAbierta, distanciaKm, etiquetaDistancia, estaPromocionado } from "./lib-formato.js";
+import { abrirSelectorUbicacion } from "./vista-ubicacion.js";
 import { tarjetaTienda, filaMenu, abrirProducto } from "./vista-piezas.js";
 
 export async function vistaInicio(contenedor) {
@@ -41,6 +42,8 @@ export async function vistaInicio(contenedor) {
         />
       </div>
 
+      <div class="orden-barra" data-zona="orden"></div>
+
       <section class="seccion" data-zona="promos"></section>
       <section class="seccion" data-zona="categorias"></section>
       <section class="seccion" data-zona="tiendas">
@@ -65,6 +68,22 @@ export async function vistaInicio(contenedor) {
     pintarCategorias(contenedor);
   });
 
+  delegar(contenedor, "click", "[data-orden]", (_ev, boton) => {
+    const quiereCercania = boton.dataset.orden === "cerca";
+    // Pedir "más cercanos" sin ubicación no puede fallar en silencio:
+    // abrimos el selector y al volver se aplica solo.
+    if (quiereCercania && !estado.ubicacion) {
+      abrirSelectorUbicacion(() => {
+        if (estado.ubicacion) fijar({ ordenCercania: true });
+        vistaInicio(contenedor);
+      });
+      return;
+    }
+    fijar({ ordenCercania: quiereCercania });
+    pintarOrden(contenedor);
+    pintarTiendas(contenedor);
+  });
+
   await cargar(contenedor);
 }
 
@@ -85,6 +104,7 @@ async function cargar(contenedor) {
     );
     return;
   }
+  pintarOrden(contenedor);
   pintarPromos(contenedor);
   pintarCategorias(contenedor);
   pintarTiendas(contenedor);
@@ -100,15 +120,50 @@ function tiendaDisponible(tienda) {
   return tienda.serviceModes === "both" || tienda.serviceModes === modo;
 }
 
-/** El orden del home: abiertas primero, luego más cerca, luego promocionadas. */
+/**
+ * Abiertas siempre primero: un negocio cerrado a 100 m no le sirve a nadie
+ * que tiene hambre ahora. Dentro de las abiertas, el usuario elige entre
+ * cercanía y orden alfabético.
+ */
 function ordenar(a, b) {
   const abiertaA = estaAbierta(a) ? 0 : 1;
   const abiertaB = estaAbierta(b) ? 0 : 1;
   if (abiertaA !== abiertaB) return abiertaA - abiertaB;
-  const kmA = distanciaKm(estado.ubicacion, a.coords);
-  const kmB = distanciaKm(estado.ubicacion, b.coords);
-  if (kmA !== null && kmB !== null && Math.abs(kmA - kmB) > 0.05) return kmA - kmB;
+
+  if (estado.ordenCercania && estado.ubicacion) {
+    const kmA = distanciaKm(estado.ubicacion, a.coords);
+    const kmB = distanciaKm(estado.ubicacion, b.coords);
+    // Los que no tienen coordenadas van al final, no al principio.
+    if (kmA === null && kmB !== null) return 1;
+    if (kmB === null && kmA !== null) return -1;
+    if (kmA !== null && kmB !== null && Math.abs(kmA - kmB) > 0.05) return kmA - kmB;
+  }
   return String(a.name).localeCompare(String(b.name), "es");
+}
+
+function pintarOrden(contenedor) {
+  const zona = contenedor.querySelector('[data-zona="orden"]');
+  if (!zona) return;
+  const conUbicacion = Boolean(estado.ubicacion);
+  const cercania = conUbicacion && estado.ordenCercania;
+
+  pintarEn(
+    zona,
+    html`
+      <span class="orden-etiqueta">Ordenar por</span>
+      <div class="orden-opciones" role="group" aria-label="Ordenar negocios">
+        <button class="chip" type="button" data-orden="cerca" aria-pressed="${cercania}">
+          ${icono.cercania()} Más cercanos
+        </button>
+        <button class="chip" type="button" data-orden="nombre" aria-pressed="${!cercania}">
+          Nombre
+        </button>
+      </div>
+      ${!conUbicacion
+        ? html`<span class="orden-nota">Activa tu ubicación para ver los más cercanos</span>`
+        : ""}
+    `,
+  );
 }
 
 function pintarPromos(contenedor) {
@@ -175,6 +230,14 @@ function pintarCategorias(contenedor) {
   );
 }
 
+/** "· el más cerca a 400 m" — solo si de verdad hay con qué medirlo. */
+function cercaTexto(abiertas) {
+  if (!estado.ubicacion || !estado.ordenCercania || !abiertas.length) return "";
+  const km = distanciaKm(estado.ubicacion, abiertas[0].coords);
+  if (km === null) return "";
+  return ` · el más cerca a ${etiquetaDistancia(km)}`;
+}
+
 function pintarTiendas(contenedor) {
   const lista = datos.tiendas
     .filter(tiendaDisponible)
@@ -216,7 +279,10 @@ function pintarTiendas(contenedor) {
       <div class="seccion-cabeza">
         <div>
           <h2>Negocios del pueblo</h2>
-          <p>${abiertas.length} abierto${abiertas.length === 1 ? "" : "s"} ahora · ${estado.modoPedido.toLowerCase()}</p>
+          <p>
+            ${abiertas.length} abierto${abiertas.length === 1 ? "" : "s"} ahora ·
+            ${estado.modoPedido.toLowerCase()}${cercaTexto(abiertas)}
+          </p>
         </div>
       </div>
       <div class="lista-tiendas">

@@ -580,6 +580,18 @@
   color: var(--tinta-40);
 }
 
+.foto-aviso {
+  flex-basis: 100%;
+  margin-top: var(--e-1);
+  padding: var(--e-1) var(--e-2);
+  border-left: 3px solid var(--alerta-500);
+  background: var(--alerta-100);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  color: var(--maiz-600);
+  font-size: var(--t-xs);
+  line-height: 1.4;
+}
+
 .foto-pie {
   display: flex;
   align-items: center;
@@ -908,4 +920,87 @@
 .metrica--alerta {
   border-color: var(--alerta-500);
   background: var(--alerta-100);
+}
+
+
+/* ---------- Bloque de ubicación ---------- */
+
+.ubicacion-bloque {
+  padding: var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-md);
+  background: var(--superficie-2);
+  margin-bottom: var(--e-3);
+}
+
+.ubicacion-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.ubicacion-acciones .boton--contorno svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ubicacion-link {
+  margin-top: var(--e-3);
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--linea);
+  display: grid;
+  gap: var(--e-2);
+  justify-items: start;
+}
+
+.ubicacion-estado {
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  margin-top: var(--e-2);
+  min-height: 16px;
+}
+
+.ubicacion-estado:empty {
+  margin-top: 0;
+  min-height: 0;
+}
+
+.ubicacion-estado--listo {
+  color: var(--ok-500);
+  font-weight: var(--peso-medio);
+}
+
+.ubicacion-estado--error {
+  color: var(--error-500);
+}
+
+.ubicacion-estado--aviso {
+  color: var(--maiz-600);
+}
+
+.ubicacion-estado--ok {
+  color: var(--tinta-60);
+}
+
+/* Destello verde cuando la dirección se llenó sola: sin esto el usuario
+   no nota que algo cambió más abajo en el formulario. */
+.campo-autollenado {
+  animation: destello 1.5s ease-out;
+}
+
+@keyframes destello {
+  0% {
+    background: var(--verde-100);
+    border-color: var(--verde-500);
+  }
+  100% {
+    background: var(--superficie);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campo-autollenado {
+    animation: none;
+  }
 }

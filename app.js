@@ -16,6 +16,8 @@ import { vistaPedidos } from "./vista-pedidos.js";
 import { vistaCuenta } from "./vista-cuenta.js";
 import { vistaPanel } from "./vista-panel.js";
 import { vistaAdmin } from "./vista-admin.js";
+import { vistaPrivacidad, vistaTerminos } from "./vista-legal.js";
+import { abrirSelectorUbicacion } from "./vista-ubicacion.js";
 
 const contenido = $("#contenido");
 
@@ -29,6 +31,8 @@ router.definir("/pedidos", vistaPedidos);
 router.definir("/cuenta", vistaCuenta);
 router.definir("/panel", vistaPanel);
 router.definir("/operador", vistaAdmin);
+router.definir("/privacidad", vistaPrivacidad);
+router.definir("/terminos", vistaTerminos);
 
 router.alNavegar(async ({ ruta, params, manejador }) => {
   cerrarHoja();
@@ -106,11 +110,11 @@ function pintarNav(rutaActual = router.rutaActual()) {
 
 function pintarCabecera() {
   const sesion = repo.sesion();
-  const etiqueta = estado.ubicacion
-    ? "Cerca de ti"
-    : sesion?.role === "client" && sesion.perfil.address
-      ? sesion.perfil.address
-      : "Todo el pueblo";
+  const etiqueta =
+    estado.etiquetaUbicacion ||
+    (estado.ubicacion ? "Cerca de ti" : "") ||
+    (sesion?.role === "client" && sesion.perfil.address) ||
+    "Todo el pueblo";
 
   pintarEn(
     $("#header-fila"),
@@ -132,8 +136,29 @@ function pintarCabecera() {
   );
 
   $("[data-ubicacion]").addEventListener("click", () => {
-    location.hash = "#/cuenta";
+    // Abre el selector de dirección. Antes esto empujaba a otra pantalla,
+    // que no es lo que promete un botón que dice "Entregar en".
+    abrirSelectorUbicacion(() => {
+      pintarCabecera();
+      // Si estamos en el inicio, se repinta para reordenar por cercanía.
+      if (router.rutaActual() === "/") vistaInicio(contenido);
+    });
   });
+}
+
+function pintarPie() {
+  const zona = $("#pie");
+  if (!zona) return;
+  pintarEn(
+    zona,
+    html`
+      <footer class="pie">
+        <span>PuebloPedidos · los negocios de tu pueblo</span>
+        <a href="#/terminos">Términos y Condiciones</a>
+        <a href="#/privacidad">Aviso de Privacidad</a>
+      </footer>
+    `,
+  );
 }
 
 function pintarCintaDemo() {
@@ -206,6 +231,7 @@ async function arrancar() {
   }
   pintarCabecera();
   pintarCintaDemo();
+  pintarPie();
   pintarNav();
   router.iniciar();
   pintarBarraCarrito();

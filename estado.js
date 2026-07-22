@@ -11,7 +11,9 @@ const inicial = {
   categoria: "Todos",
   busqueda: "",
   carrito: [], // [{lineaId, productoId, storeId, qty, nota, precio, titulo, imagen}]
-  ubicacion: null, // {lat, lng, etiqueta}
+  ubicacion: null, // {lat, lng}
+  etiquetaUbicacion: "", // lo que se ve en el header: "Centro", "Cerca de ti"
+  ordenCercania: true, // el home ordena por distancia cuando hay ubicación
   envios: [], // cola de WhatsApp tras confirmar
 };
 
@@ -36,6 +38,8 @@ function guardar() {
         modoPedido: estado.modoPedido,
         carrito: estado.carrito,
         ubicacion: estado.ubicacion,
+        etiquetaUbicacion: estado.etiquetaUbicacion,
+        ordenCercania: estado.ordenCercania,
       }),
     );
   } catch (error) {

@@ -27,6 +27,10 @@ export const icono = {
   copiar: () => trazo(`<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>`),
   mas: () => trazo(`<path d="M12 5v14M5 12h14"/>`),
   basura: () => trazo(`<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>`),
+  cercania: () =>
+    trazo(`<path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>`),
+  mapa: () =>
+    trazo(`<path d="m9 4-6 3v13l6-3 6 3 6-3V4l-6 3z"/><path d="M9 4v13M15 7v13"/>`),
   estrella: () =>
     raw(
       `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>`,

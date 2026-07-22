@@ -28,6 +28,40 @@
   box-shadow: var(--s-1);
 }
 
+/* ---------- Barra de orden ---------- */
+
+.orden-barra {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin-top: var(--e-3);
+}
+
+.orden-etiqueta {
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: var(--peso-medio);
+}
+
+.orden-opciones {
+  display: flex;
+  gap: var(--e-2);
+}
+
+.orden-opciones .chip svg {
+  width: 15px;
+  height: 15px;
+}
+
+.orden-nota {
+  flex-basis: 100%;
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+}
+
 /* ---------- Home ---------- */
 
 .home-cabeza {
@@ -76,9 +110,13 @@
   position: relative;
 }
 
+/* 16:9, igual que la tarjeta del inicio. Antes el hero era 16:7 y la
+   tarjeta 16:9: la misma portada se recortaba distinto en cada lugar, así
+   que la vista previa que veía el negocio no correspondía a nada. */
 .tienda-hero img {
   width: 100%;
-  aspect-ratio: 16 / 7;
+  aspect-ratio: 16 / 9;
+  max-height: 320px;
   object-fit: cover;
 }
 
@@ -410,4 +448,185 @@
   gap: var(--e-3);
   margin-top: var(--e-3);
   flex-wrap: wrap;
+}
+
+
+/* ---------- Documentos legales ----------
+   Ancho de lectura corto (65 caracteres) y renglón alto: nadie lee un
+   aviso de privacidad a todo lo ancho de la pantalla. */
+
+.documento {
+  max-width: 65ch;
+  margin: 0 auto;
+  padding-bottom: var(--e-8);
+}
+
+.documento-entrada {
+  margin-top: var(--e-2);
+  color: var(--tinta-60);
+  font-size: var(--t-md);
+}
+
+.documento-version {
+  margin-top: var(--e-1);
+  font-size: var(--t-xs);
+  color: var(--tinta-40);
+}
+
+.documento-pendiente {
+  margin-top: var(--e-4);
+  padding: var(--e-3);
+  border-left: 4px solid var(--alerta-500);
+  background: var(--alerta-100);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  color: var(--maiz-600);
+  font-size: var(--t-sm);
+}
+
+.documento-pendiente p {
+  margin-top: var(--e-1);
+}
+
+.documento-pendiente code {
+  font-family: var(--fuente-num);
+  font-size: 0.9em;
+}
+
+.documento-seccion {
+  margin-top: var(--e-6);
+}
+
+.documento-seccion h2 {
+  font-size: var(--t-lg);
+  margin-bottom: var(--e-2);
+}
+
+.documento-seccion p {
+  margin-bottom: var(--e-2);
+  line-height: 1.65;
+  color: var(--tinta-80);
+}
+
+.documento-lista {
+  display: grid;
+  gap: var(--e-2);
+  margin-top: var(--e-2);
+}
+
+.documento-lista li {
+  position: relative;
+  padding-left: var(--e-4);
+  line-height: 1.6;
+  color: var(--tinta-80);
+}
+
+.documento-lista li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--verde-300);
+}
+
+.documento-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin-top: var(--e-8);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--linea);
+}
+
+/* ---------- Pie del sitio ---------- */
+
+.pie {
+  margin-top: var(--e-10);
+  padding: var(--e-4) 0 var(--e-6);
+  border-top: 1px solid var(--linea);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2) var(--e-4);
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+}
+
+.pie a {
+  color: var(--tinta-60);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pie a:hover {
+  color: var(--verde-500);
+}
+
+/* ---------- Casilla de aceptación ---------- */
+
+.acepto {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-2);
+  padding: var(--e-3);
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--r-md);
+  background: var(--superficie-2);
+  cursor: pointer;
+  margin-top: var(--e-3);
+}
+
+.acepto input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin-top: 1px;
+  flex: none;
+  accent-color: var(--verde-500);
+  cursor: pointer;
+}
+
+.acepto span {
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--tinta-80);
+}
+
+.acepto a {
+  color: var(--verde-500);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.acepto--error {
+  border-color: var(--error-500);
+  background: var(--error-100);
+}
+
+/* ---------- Zona de peligro (baja de cuenta) ---------- */
+
+.peligro {
+  margin-top: var(--e-8);
+  padding: var(--e-4);
+  border: 1px solid var(--error-500);
+  border-radius: var(--r-lg);
+  background: var(--superficie);
+}
+
+.peligro h2 {
+  font-size: var(--t-md);
+  color: var(--error-500);
+  margin-bottom: var(--e-1);
+}
+
+.peligro p {
+  font-size: var(--t-sm);
+  color: var(--tinta-60);
+  margin-bottom: var(--e-3);
+  line-height: 1.5;
 }
