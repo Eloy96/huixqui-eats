@@ -62,16 +62,37 @@ function normalizar(texto) {
     .toLowerCase();
 }
 
+/**
+ * Cuántos productos tiene cada tienda.
+ *
+ * La tarjeta recibe `conteo` con default 0, y esta vista nunca se lo
+ * pasaba: TODAS las tiendas decían "0 productos" aunque tuvieran menú.
+ * Un negocio que aparece vacío en la búsqueda es un negocio que no
+ * vende.
+ */
+function conteoPorTienda() {
+  const mapa = new Map();
+  catalogo.forEach((p) => {
+    mapa.set(p.storeId, (mapa.get(p.storeId) || 0) + 1);
+  });
+  return mapa;
+}
+
 function pintarResultados(contenedor) {
   const zona = contenedor.querySelector("[data-zona]");
   const q = normalizar(estado.busqueda).trim();
+  const conteos = conteoPorTienda();
 
   if (!q) {
     pintarEn(
       zona,
       html`
-        <div class="seccion-cabeza"><h2>Categorías</h2></div>
-        <div class="lista-tiendas">${tiendas.slice(0, 6).map((t) => tarjetaTienda(t, { fila: true }))}</div>
+        <div class="seccion-cabeza"><h2>Negocios del pueblo</h2></div>
+        <div class="lista-tiendas">
+          ${tiendas
+            .slice(0, 6)
+            .map((t) => tarjetaTienda(t, { fila: true, conteo: conteos.get(t.id) || 0 }))}
+        </div>
       `,
     );
     return;
@@ -108,7 +129,9 @@ function pintarResultados(contenedor) {
               <p>${tiendasEncontradas.length}</p>
             </div>
             <div class="lista-tiendas" style="margin-bottom:var(--e-6)">
-              ${tiendasEncontradas.map((t) => tarjetaTienda(t, { fila: true }))}
+              ${tiendasEncontradas.map((t) =>
+                tarjetaTienda(t, { fila: true, conteo: conteos.get(t.id) || 0 }),
+              )}
             </div>
           `
         : ""}

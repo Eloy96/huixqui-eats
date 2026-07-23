@@ -89,6 +89,43 @@ export async function vistaPanel(contenedor) {
 
 // ---------- Resumen ----------
 
+/**
+ * Banner según el estado de pago de la tienda. "" si está todo al día.
+ *
+ * Esta función se perdió una vez al reescribir el archivo y tumbó el
+ * panel entero. Ahora hay una prueba que carga el panel con cada estado
+ * de suscripción para que no vuelva a pasar en silencio.
+ */
+function avisoSuscripcion(tienda) {
+  const dias = tienda.subscribedUntil
+    ? Math.ceil((new Date(tienda.subscribedUntil) - Date.now()) / 86400000)
+    : null;
+
+  if (tienda.subStatus === "suspendida") {
+    return html`<div class="banner banner--error">
+      Tu tienda está suspendida y no aparece en el directorio. Contáctanos para reactivarla.
+    </div>`;
+  }
+  if (tienda.subStatus === "vencida" || (dias !== null && dias <= 0)) {
+    return html`<div class="banner banner--error">
+      <strong>Tu tienda no está visible.</strong> Tu plan venció. En cuanto registres tu pago
+      vuelve a aparecer tal como estaba.
+    </div>`;
+  }
+  if (tienda.subStatus === "prueba") {
+    return html`<div class="banner banner--info">
+      Estás en tu <strong>prueba gratis</strong>: te ${dias === 1 ? "queda" : "quedan"} ${dias}
+      día${dias === 1 ? "" : "s"}. Después son $99 al mes para seguir apareciendo.
+    </div>`;
+  }
+  if (dias !== null && dias <= 5) {
+    return html`<div class="banner banner--aviso">
+      Tu plan vence en ${dias} día${dias === 1 ? "" : "s"}. Renueva para no dejar de aparecer.
+    </div>`;
+  }
+  return "";
+}
+
 function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor }) {
   const cobrados = leads.filter((l) => l.billable).length;
   const conversion = cobrados ? Math.round((pedidos.length / cobrados) * 100) : 0;

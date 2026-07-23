@@ -105,9 +105,9 @@ export function filaMenu(producto, { tienda } = {}) {
       type="button"
       ${agotado ? "disabled" : ""}
     >
-      <div>
+      <div class="menu-fila-texto">
         <h3>${producto.title}</h3>
-        <p>${producto.description}</p>
+        <p class="menu-fila-desc">${producto.description}</p>
         <div class="menu-fila-etiquetas">
           ${estaPromocionado(producto) ? html`<span class="sello sello--promo">Promocionado</span>` : ""}
           ${selloDescuento(producto)}

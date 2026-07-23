@@ -407,16 +407,36 @@
   width: 100%;
 }
 
-/* ---------- Fila de producto (patrón de menú, no de grid) ---------- */
+/* ---------- Producto en el menú ----------
+   En un teléfono va como fila (foto chica a la derecha, texto a la
+   izquierda): es el patrón de una carta de restaurante y aprovecha el
+   ancho.
+
+   En pantalla grande esa misma fila estirada a 1100px dejaba un desierto
+   de espacio muerto con la foto perdida en la esquina. A partir de 700px
+   pasa a rejilla: cuadros más chicos, varios por renglón, sin huecos. */
 
 .menu-lista {
   display: grid;
   gap: var(--e-2);
 }
 
+@media (min-width: 700px) {
+  .menu-lista {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--e-3);
+  }
+}
+
+@media (min-width: 1000px) {
+  .menu-lista {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .menu-fila {
   display: grid;
-  grid-template-columns: 1fr 96px;
+  grid-template-columns: 1fr 88px;
   gap: var(--e-3);
   width: 100%;
   padding: var(--e-3);
@@ -425,7 +445,22 @@
   border-radius: var(--r-lg);
   text-align: left;
   align-items: start;
-  transition: border-color var(--transicion);
+  box-shadow: var(--s-0);
+  transition:
+    border-color var(--transicion),
+    box-shadow var(--transicion),
+    transform var(--transicion);
+}
+
+@media (hover: hover) {
+  .menu-fila:hover {
+    border-color: var(--linea-fuerte);
+    box-shadow: var(--s-1);
+  }
+}
+
+.menu-fila:active {
+  transform: scale(0.99);
 }
 
 .menu-fila:hover {
@@ -451,10 +486,25 @@
 }
 
 .menu-fila-foto {
-  width: 96px;
-  height: 96px;
+  width: 88px;
+  height: 88px;
   border-radius: var(--r-md);
   object-fit: cover;
+  background: var(--superficie-2);
+}
+
+/* La descripción no debe empujar la tarjeta a cualquier alto: dos
+   renglones y corta. Así todas las tarjetas del renglón miden igual y
+   la rejilla se ve pareja. */
+.menu-fila-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--t-sm);
+  color: var(--tinta-60);
+  line-height: var(--alto-compacto);
+  margin-top: 3px;
 }
 
 .menu-fila-etiquetas {
@@ -1535,4 +1585,24 @@
   color: var(--verde-700);
   font-weight: var(--peso-medio);
   font-variant-numeric: tabular-nums;
+}
+
+/* El texto de la tarjeta se estira para empujar el precio al fondo: así
+   los precios quedan a la misma altura en todo el renglón. */
+.menu-fila-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.menu-fila-texto .precio,
+.menu-fila-texto .precio-final {
+  margin-top: auto;
+  padding-top: var(--e-2);
+}
+
+.menu-fila h3 {
+  font-size: var(--t-md);
+  line-height: var(--alto-compacto);
 }
