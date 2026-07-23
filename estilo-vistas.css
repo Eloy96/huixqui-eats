@@ -427,6 +427,123 @@
   border-radius: var(--r-md);
   border: 1px solid var(--linea);
   margin-bottom: var(--e-2);
+  background: var(--superficie-2);
+}
+
+/* La foto dentro de la hoja de producto.
+   El tope de altura importa: en escritorio, una imagen a 4/3 sobre una
+   hoja de 900px de ancho se comía la pantalla entera y empujaba el
+   nombre, el precio y el botón fuera de la vista. */
+.previa--hoja {
+  aspect-ratio: 4 / 3;
+  max-height: 260px;
+  object-fit: cover;
+}
+
+/* Cuando ni la foto ni su respaldo cargan, la etiqueta rota del navegador
+   deja un hueco enorme. Esto lo deja como un bloque discreto. */
+.img-sin-foto {
+  object-fit: contain;
+  background: var(--superficie-2);
+  min-height: 80px;
+  max-height: 120px;
+  aspect-ratio: auto;
+}
+
+/* ---------- Hoja de producto ---------- */
+
+.hoja-titulo {
+  margin-top: var(--e-3);
+  font-size: var(--t-xl);
+  line-height: 1.25;
+}
+
+.hoja-descripcion {
+  color: var(--tinta-60);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  margin-top: var(--e-1);
+}
+
+/* Precio y tienda en una fila propia.
+   Antes iban sueltos en el flujo del texto y competían por el ancho: el
+   precio se quedaba pegado a la izquierda y el nombre de la tienda se
+   partía en un renglón por palabra ("Café / de / olla"). */
+.hoja-precio-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2) var(--e-3);
+  margin-top: var(--e-3);
+  padding-bottom: var(--e-3);
+  border-bottom: 1px solid var(--linea);
+}
+
+.hoja-tienda {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  font-size: var(--t-sm);
+  font-weight: var(--peso-medio);
+  color: var(--verde-500);
+  min-height: var(--toque);
+  min-width: 0;
+}
+
+.hoja-tienda svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* nowrap: el nombre no se parte palabra por palabra. Si no cabe, se
+   recorta con puntos suspensivos, que se lee mucho mejor. */
+.hoja-tienda span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ficha de datos del producto (ingredientes, alérgenos, porción...).
+   En pantalla ancha van en dos columnas; en móvil, una. Antes eran una
+   sola columna siempre y la ficha quedaba larguísima y apretada. */
+.ficha-datos {
+  margin-top: var(--e-4);
+  padding: var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-md);
+  background: var(--superficie-2);
+  display: grid;
+  gap: var(--e-3);
+}
+
+@media (min-width: 520px) {
+  .ficha-datos {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--e-3) var(--e-4);
+  }
+}
+
+.ficha-dato {
+  min-width: 0;
+}
+
+.ficha-dato dt {
+  font-size: var(--t-2xs);
+  color: var(--tinta-60);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: var(--peso-medio);
+  margin-bottom: 2px;
+}
+
+.ficha-dato dd {
+  margin: 0;
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--tinta-80);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Auth ---------- */

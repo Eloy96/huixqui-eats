@@ -12,13 +12,24 @@
   justify-content: center;
   gap: var(--e-2);
   min-height: var(--toque);
-  padding: 0 var(--e-4);
+  padding: 0 var(--e-5);
   border-radius: var(--r-full);
+  font-family: var(--fuente-display);
   font-size: var(--t-md);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-fuerte);
+  font-stretch: 96%;
+  letter-spacing: -0.005em;
   border: 1px solid transparent;
-  transition: transform var(--transicion), background var(--transicion);
+  /* La transición NO incluye box-shadow por accidente: la sombra
+     cambia junto con el fondo para que el botón se sienta como una
+     pieza física que se hunde al presionarla. */
+  transition:
+    transform var(--transicion),
+    background var(--transicion),
+    box-shadow var(--transicion),
+    border-color var(--transicion);
   text-align: center;
+  white-space: nowrap;
 }
 
 .boton:active {
@@ -33,15 +44,27 @@
 .boton--principal {
   background: var(--verde-500);
   color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    var(--s-1);
 }
 
 .boton--principal:hover {
   background: var(--verde-700);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    var(--s-2);
+}
+
+/* Se hunde al presionar: el gesto se siente, no solo se ve. */
+.boton--principal:active {
+  transform: translateY(1px);
+  box-shadow: var(--s-0);
 }
 
 .boton--wa {
   background: var(--wa-500);
-  color: #06301b;
+  color: var(--verde-900);
   font-weight: var(--peso-fuerte);
 }
 
@@ -122,14 +145,17 @@
 .sello {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px var(--e-2);
+  gap: 5px;
+  padding: 3px var(--e-2);
   border-radius: var(--r-sm);
+  font-family: var(--fuente-display);
   font-size: var(--t-2xs);
   font-weight: var(--peso-fuerte);
+  font-stretch: 95%;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 1.6;
+  letter-spacing: 0.05em;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .sello--promo {
@@ -142,10 +168,70 @@
   color: var(--tomate-600);
 }
 
+/* ── El indicador de estado: el elemento de firma de la app ──
+   En una app de ciudad el problema es elegir entre cincuenta
+   opciones. En un pueblo hay ocho negocios y la única pregunta que
+   importa es "¿está abierto AHORITA?". Por eso este indicador no es
+   un chip más entre otros: tiene lenguaje propio y es lo primero
+   que se lee en cada tarjeta.
+
+   El punto late despacio —dos segundos por ciclo, sin brincos— para
+   decir "esto es en vivo, no una etiqueta pegada". Se apaga solo si
+   el sistema pide menos movimiento.                              */
 .sello--abierto {
-  background: var(--ok-100);
-  color: var(--ok-500);
+  background: var(--superficie);
+  color: var(--verde-700);
   text-transform: none;
+  letter-spacing: 0;
+  padding-left: var(--e-2);
+  box-shadow:
+    inset 0 0 0 1px var(--verde-300),
+    var(--s-0);
+}
+
+.sello--abierto::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--verde-500);
+  flex: none;
+  animation: latido 2s ease-in-out infinite;
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(10, 125, 75, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(10, 125, 75, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sello--abierto::before {
+    animation: none;
+  }
+}
+
+/* Cerrado: no grita, pero tampoco se esconde. El negocio sigue ahí,
+   solo que ahora no. */
+.sello--cerrado {
+  background: var(--superficie-2);
+  color: var(--tinta-60);
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: inset 0 0 0 1px var(--linea-fuerte);
+}
+
+.sello--cerrado::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tinta-40);
+  flex: none;
 }
 
 .sello--cerrado {
@@ -221,11 +307,24 @@
   background: var(--superficie);
   border: 1px solid var(--linea);
   display: block;
-  transition: transform var(--transicion);
+  box-shadow: var(--s-0);
+  transition:
+    transform var(--transicion),
+    box-shadow var(--transicion),
+    border-color var(--transicion);
+}
+
+@media (hover: hover) {
+  .tienda-tarjeta:hover {
+    border-color: var(--linea-fuerte);
+    box-shadow: var(--s-2);
+    transform: translateY(-2px);
+  }
 }
 
 .tienda-tarjeta:active {
   transform: scale(0.985);
+  box-shadow: var(--s-0);
 }
 
 .tienda-portada {
@@ -240,10 +339,25 @@
   object-fit: cover;
 }
 
+/* El sello de estado va SOBRE la foto, arriba a la izquierda: es lo
+   primero que cae el ojo y lo primero que la gente necesita saber. */
 .tienda-portada .sello {
   position: absolute;
   top: var(--e-2);
   left: var(--e-2);
+  backdrop-filter: blur(8px);
+}
+
+/* Degradado sutil al pie de la foto: separa la imagen del nombre sin
+   meter una línea dura, y salva los casos donde la foto es clara y
+   el sello se perdía encima. */
+.tienda-portada::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 40%;
+  background: linear-gradient(to top, rgba(16, 26, 20, 0.18), transparent);
+  pointer-events: none;
 }
 
 .tienda-cerrada img {
@@ -255,21 +369,32 @@
   padding: var(--e-3);
 }
 
+/* El nombre en la letra de rótulo. Condensada, así "Taquería y
+   Cenaduría Don Luis" cabe donde antes se cortaba a la mitad. */
 .tienda-cuerpo h3 {
+  font-family: var(--fuente-display);
+  font-size: var(--t-lg);
   font-weight: var(--peso-fuerte);
+  font-stretch: 90%;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* Los datos: distancia, tiempo, modo. Números tabulares para que
+   "800 m" y "1.2 km" se alineen entre tarjetas. */
 .tienda-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--e-1) var(--e-2);
-  margin-top: var(--e-1);
+  margin-top: 5px;
   font-size: var(--t-sm);
+  line-height: var(--alto-compacto);
   color: var(--tinta-60);
+  font-variant-numeric: tabular-nums;
 }
 
 .tienda-meta .punto::before {
@@ -408,6 +533,8 @@
 }
 
 .campo > span {
+  font-family: var(--fuente-display);
+  font-stretch: 97%;
   font-size: var(--t-sm);
   font-weight: var(--peso-medio);
   color: var(--tinta-80);
@@ -423,12 +550,30 @@
 .campo textarea {
   width: 100%;
   min-height: var(--toque);
-  padding: var(--e-2) var(--e-3);
+  padding: 10px var(--e-3);
   border: 1px solid var(--linea-fuerte);
   border-radius: var(--r-md);
   background: var(--superficie);
-  /* 16px reales: menos de eso, iOS hace zoom al enfocar. */
-  font-size: 16px;
+  font-size: var(--t-md);
+  color: var(--tinta);
+  transition:
+    border-color var(--transicion),
+    box-shadow var(--transicion);
+}
+
+/* El foco no solo cambia el borde: agrega un halo suave del color de
+   marca. Sobre una pantalla al sol, un borde de 1px no se ve. */
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  outline: none;
+  border-color: var(--verde-500);
+  box-shadow: 0 0 0 3px var(--verde-100);
+}
+
+.campo input::placeholder,
+.campo textarea::placeholder {
+  color: var(--tinta-40);
 }
 
 .campo textarea {

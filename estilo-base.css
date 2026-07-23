@@ -46,24 +46,49 @@ figure {
   margin: 0;
 }
 
+/* Los títulos van en la display, condensada.
+   Es la letra de los rótulos de tienda: aprovecha el ancho de una
+   pantalla de teléfono sin encogerse, que es justo el problema que
+   teníamos con nombres largos partiéndose en tres renglones. */
+h1,
+h2,
+h3 {
+  font-family: var(--fuente-display);
+  font-stretch: 92%;
+  line-height: var(--alto-apretado);
+  text-wrap: balance;
+}
+
 h1 {
   font-size: var(--t-2xl);
-  font-weight: var(--peso-fuerte);
-  line-height: var(--alto-apretado);
+  font-weight: var(--peso-negro);
   letter-spacing: -0.02em;
 }
 
 h2 {
   font-size: var(--t-xl);
   font-weight: var(--peso-fuerte);
-  line-height: var(--alto-apretado);
   letter-spacing: -0.015em;
 }
 
 h3 {
   font-size: var(--t-lg);
-  font-weight: var(--peso-medio);
-  line-height: 1.3;
+  font-weight: var(--peso-fuerte);
+  letter-spacing: -0.01em;
+  line-height: var(--alto-compacto);
+}
+
+/* Cifras: alineadas en columna como una cuenta de mercado.
+   Sin esto, $9 y $128 bailan y comparar precios cuesta trabajo. */
+.cifra,
+.precio,
+.precio-final,
+.metrica strong,
+[data-cantidad] {
+  font-family: var(--fuente-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
 }
 
 img {
@@ -138,10 +163,21 @@ a {
   position: sticky;
   top: 0;
   z-index: var(--z-nav);
-  background: var(--superficie);
+  /* Traslúcido con desenfoque: el contenido se ve pasar por debajo,
+     que da sensación de capa física. En navegadores sin soporte cae
+     al blanco sólido de la línea de abajo. */
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
   color: var(--tinta);
   border-bottom: 1px solid var(--linea);
   padding-top: var(--safe-t);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .header {
+    background: var(--superficie);
+  }
 }
 
 .header-fila {
@@ -217,15 +253,21 @@ a {
 }
 
 .marca-sello {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
   background: var(--verde-500);
   color: #fff;
   display: grid;
   place-items: center;
-  font-weight: var(--peso-fuerte);
-  font-size: var(--t-md);
+  font-family: var(--fuente-display);
+  font-weight: var(--peso-negro);
+  font-stretch: 88%;
+  font-size: var(--t-sm);
+  letter-spacing: 0.02em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    var(--s-1);
 }
 
 .header-acciones {
@@ -292,8 +334,13 @@ a {
   height: 22px;
 }
 
+.nav-item {
+  transition: color var(--transicion);
+}
+
 .nav-item[aria-current="page"] {
   color: var(--verde-500);
+  font-weight: var(--peso-fuerte);
 }
 
 .nav-item[aria-current="page"]::before {
