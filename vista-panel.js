@@ -701,6 +701,9 @@ function hojaProducto(tienda, contenedor) {
       if (guardado?.avisoFoto) {
         toast(`El producto quedó, pero la foto no: ${guardado.avisoFoto}`, "error");
       }
+      if (guardado?.avisoExtras) {
+        toast(guardado.avisoExtras, "error");
+      }
       editando = null;
       imagen = { dataUrl: "", file: null };
       cerrar();

@@ -93,6 +93,42 @@ function revisar({ data, error }) {
 }
 
 /** Los errores de Supabase vienen en inglés. El pueblo no lee inglés. */
+/**
+ * Qué script crea cada cosa.
+ *
+ * Sin esto, cualquier pieza faltante mandaba a correr 01-esquema.sql, que
+ * es el script grande y no arregla nada si lo que falta es de otro. Decir
+ * el archivo exacto ahorra media hora de dar vueltas.
+ */
+const SCRIPT_POR_COLUMNA = {
+  extras: "08-opciones-producto.sql",
+  removable_items: "08-opciones-producto.sql",
+  plan: "07-suscripciones.sql",
+  sub_status: "07-suscripciones.sql",
+  subscribed_until: "07-suscripciones.sql",
+};
+
+const SCRIPT_POR_TABLA = {
+  packages: "05-precios-y-seguridad.sql",
+  promo_plans: "05-precios-y-seguridad.sql",
+  payments: "05-precios-y-seguridad.sql",
+  terms_acceptances: "06-legal.sql",
+};
+
+function scriptDeColumna(columna) {
+  const script = SCRIPT_POR_COLUMNA[columna];
+  return script
+    ? `Falta correr ${script} en el SQL Editor de Supabase.`
+    : "La base no tiene una columna que la app espera. Revisa qué script SQL te falta.";
+}
+
+function scriptDeTabla(tabla) {
+  const script = SCRIPT_POR_TABLA[tabla];
+  return script
+    ? `Falta correr ${script} en el SQL Editor de Supabase.`
+    : "Faltan tablas. Corre 01-esquema.sql en el SQL Editor.";
+}
+
 function traducir(error) {
   const mensaje = String(error?.message ?? "").trim();
   const estado = Number(error?.status || error?.statusCode || 0);
@@ -119,8 +155,21 @@ function traducir(error) {
   if (/Invalid API key|JWSError|apikey|No API key/i.test(mensaje)) {
     return "La llave de Supabase no sirve. Revísala en config.js contra Project Settings → API Keys.";
   }
-  if (/relation .* does not exist|schema cache/i.test(mensaje)) {
-    return "Faltan las tablas. Corre 01-esquema.sql en el SQL Editor.";
+  // Falta una COLUMNA (no la tabla). PostgREST dice "Could not find the
+  // 'extras' column of 'products' in the schema cache". Antes esto caía
+  // en el mismo saco que "falta la tabla" y mandaba a correr
+  // 01-esquema.sql, que no arregla nada y encima da miedo. Ahora se dice
+  // qué falta y cuál script lo crea.
+  const columnaFaltante = mensaje.match(/find the '([a-z_]+)' column/i);
+  if (columnaFaltante) {
+    return `${scriptDeColumna(columnaFaltante[1])} (falta la columna "${columnaFaltante[1]}")`;
+  }
+  if (/relation .* does not exist/i.test(mensaje)) {
+    const tabla = mensaje.match(/relation "([a-z_.]+)"/i)?.[1]?.replace("public.", "");
+    return `${scriptDeTabla(tabla)}${tabla ? ` (falta la tabla "${tabla}")` : ""}`;
+  }
+  if (/schema cache/i.test(mensaje)) {
+    return "La base no tiene algo que la app espera. Revisa qué script SQL te falta correr.";
   }
   if (/Invalid login credentials/i.test(mensaje)) return "Correo o contraseña incorrectos.";
   if (/Email not confirmed/i.test(mensaje)) return "Falta confirmar tu correo. Revisa tu bandeja.";
@@ -189,6 +238,7 @@ function aProducto(fila) {
     discountType: fila.discount_type || "none",
     discountValue: Number(fila.discount_value || 0),
     availability: deModos(fila.availability_modes),
+    quitables: Array.isArray(fila.removable_items) ? fila.removable_items : [],
     featuredUntil: fila.featured_until || "",
     isActive: fila.is_active !== false,
     ingredients: detalle.ingredients || "",
@@ -201,7 +251,6 @@ function aProducto(fila) {
     serviceArea: detalle.service_area || "",
     requirements: detalle.requirements || "",
     options: detalle.options || "",
-    quitables: Array.isArray(fila.removable_items) ? fila.removable_items : [],
     extras: Array.isArray(fila.extras) ? fila.extras : [],
     remoto: true,
   };
@@ -551,6 +600,11 @@ export const driverNube = {
       discount_value: producto.discountValue,
       availability_modes: aModos(producto.availability),
       is_active: producto.isActive !== false,
+      // Van en products, no en product_details: ahí las crea
+      // 08-opciones-producto.sql. Estuvieron en la tabla equivocada y por
+      // eso nunca se guardaban ni disparaban el aviso.
+      removable_items: Array.isArray(producto.quitables) ? producto.quitables : [],
+      extras: Array.isArray(producto.extras) ? producto.extras : [],
     };
     // Si la foto no se puede subir (buckets sin crear, permisos), el
     // producto se publica de todas formas y avisamos. Perder el formulario
@@ -568,9 +622,34 @@ export const driverNube = {
       }
     }
 
-    const fila = producto.id
-      ? revisar(await cliente.from("products").update(payload).eq("id", producto.id).select().single())
-      : revisar(await cliente.from("products").insert(payload).select().single());
+    // Si las columnas de extras todavía no existen (08 sin correr), el
+    // producto se guarda igual SIN esa parte y se avisa. Perder todo el
+    // formulario por una función opcional es castigar al negocio por una
+    // configuración pendiente que ni siquiera es suya.
+    let fila;
+    let avisoExtras = "";
+    const guardar = async (cuerpo) =>
+      producto.id
+        ? revisar(await cliente.from("products").update(cuerpo).eq("id", producto.id).select().single())
+        : revisar(await cliente.from("products").insert(cuerpo).select().single());
+
+    try {
+      fila = await guardar(payload);
+    } catch (error) {
+      // Se revisa el mensaje CRUDO y el ya traducido: revisar() traduce
+      // antes de lanzar, así que buscar solo el texto de Postgres no
+      // encontraba nada y el reintento nunca ocurría.
+      const msg = error.message || "";
+      const sinColumna =
+        /find the '(extras|removable_items)' column/i.test(msg) ||
+        /08-opciones-producto/.test(msg) ||
+        /columna "(extras|removable_items)"/i.test(msg);
+      if (!sinColumna) throw error;
+      const { extras: _e, removable_items: _r, ...sinOpciones } = payload;
+      fila = await guardar(sinOpciones);
+      avisoExtras =
+        "El producto se guardó, pero los extras e ingredientes no: falta correr 08-opciones-producto.sql en Supabase.";
+    }
     if (avisoFoto) fila.__avisoFoto = avisoFoto;
 
     revisar(
@@ -588,8 +667,6 @@ export const driverNube = {
           service_area: producto.serviceArea || null,
           requirements: producto.requirements || null,
           options: producto.options || null,
-      removable_items: Array.isArray(producto.quitables) ? producto.quitables : [],
-      extras: Array.isArray(producto.extras) ? producto.extras : [],
         })
         .select()
         .single(),
@@ -597,6 +674,7 @@ export const driverNube = {
 
     const resultado = aProducto(fila);
     if (fila.__avisoFoto) resultado.avisoFoto = fila.__avisoFoto;
+    if (avisoExtras) resultado.avisoExtras = avisoExtras;
     return resultado;
   },
 
