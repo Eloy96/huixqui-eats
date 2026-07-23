@@ -25,10 +25,35 @@ function urlPublica(bucket, ruta) {
   return cliente.storage.from(bucket).getPublicUrl(ruta).data.publicUrl;
 }
 
+/**
+ * Extensión correcta según el tipo real del archivo.
+ *
+ * Por qué importa: Supabase Storage decide el Content-Type por la
+ * extensión del objeto. Si el nombre no la trae, sirve el archivo como
+ * binario genérico y el navegador NO lo dibuja: la foto sube sin error y
+ * luego aparece rota. Nos pasó exactamente eso.
+ */
+function extensionDe(file) {
+  const porTipo = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/avif": "avif",
+  };
+  const porNombre = String(file?.name || "").match(/\.([a-z0-9]{2,5})$/i);
+  return porTipo[file?.type] || (porNombre ? porNombre[1].toLowerCase() : "jpg");
+}
+
 async function subir(bucket, ruta, file) {
-  const { error } = await cliente.storage.from(bucket).upload(ruta, file, {
+  // La ruta llega SIN extensión; se la ponemos aquí para que no se nos
+  // olvide en ninguna de las tres subidas (logo, portada, producto).
+  const rutaFinal = /\.[a-z0-9]{2,5}$/i.test(ruta) ? ruta : `${ruta}.${extensionDe(file)}`;
+  const { error } = await cliente.storage.from(bucket).upload(rutaFinal, file, {
     cacheControl: "3600",
     upsert: true,
+    contentType: file?.type || "image/jpeg",
   });
   if (error) {
     const msg = String(error.message || "");
@@ -47,7 +72,7 @@ async function subir(bucket, ruta, file) {
     }
     throw new Error(`No se pudo subir la imagen: ${msg}`);
   }
-  return ruta;
+  return rutaFinal;
 }
 
 function revisar({ data, error }) {
@@ -91,6 +116,9 @@ function traducir(error) {
   if (/duplicate key/i.test(mensaje)) return "Ese nombre de tienda ya existe. Prueba con otro.";
   if (/creditos_insuficientes/i.test(mensaje)) return "La tienda se quedó sin contactos disponibles.";
   if (/paquete_invalido|plan_invalido/i.test(mensaje)) return "Ese paquete ya no está disponible. Recarga la página.";
+  if (/categoria_ocupada/i.test(mensaje)) return "Ya hay un destacado en esa categoría. Espera a que se libere o elige el plan Presencia.";
+  if (/solo_operador/i.test(mensaje)) return "Solo el operador puede hacer esto.";
+  if (/meses_invalido/i.test(mensaje)) return "El número de meses no es válido.";
   if (/demasiadas_recargas/i.test(mensaje)) return "Demasiadas recargas seguidas. Espera un momento.";
   if (/limite_productos/i.test(mensaje)) return "Llegaste al máximo de 300 productos publicados.";
   if (/textos_razonables|orders_razonable/i.test(mensaje)) return "Algún texto es demasiado largo. Acórtalo e inténtalo de nuevo.";
@@ -122,6 +150,9 @@ function aTienda(fila) {
     prepMinutes: fila.prep_minutes || 15,
     credits: Number(fila.credits || 0),
     marketingSpend: Number(fila.marketing_spend || 0),
+    plan: fila.plan || "presencia",
+    subStatus: fila.sub_status || "prueba",
+    subscribedUntil: fila.subscribed_until,
     creditSpend: Number(fila.credit_spend || 0),
     status: fila.status || "active",
     remoto: true,
@@ -352,6 +383,37 @@ export const driverNube = {
       { user_id: usuario.id, doc: "privacidad", version },
     ]);
     if (error) console.warn("No se registró la aceptación de términos:", error.message);
+  },
+
+  // ---- Suscripciones (operador) ----
+  async tableroSuscripciones() {
+    return revisar(await cliente.rpc("tablero_suscripciones")) || [];
+  },
+  async activarSuscripcion(tiendaId, plan, meses, referencia) {
+    return revisar(
+      await cliente.rpc("activar_suscripcion", {
+        p_store_id: tiendaId,
+        p_plan: plan,
+        p_meses: meses,
+        p_referencia: referencia || null,
+      }),
+    );
+  },
+  async suspenderTienda(tiendaId, suspender) {
+    return revisar(
+      await cliente.rpc("suspender_tienda", { p_store_id: tiendaId, p_suspender: suspender }),
+    );
+  },
+  async barrerVencidas() {
+    return revisar(await cliente.rpc("barrer_vencidas"));
+  },
+  async categoriaDestacadaLibre(categoria, exceptoId) {
+    return revisar(
+      await cliente.rpc("categoria_destacada_libre", {
+        p_categoria: categoria,
+        p_excepto: exceptoId || null,
+      }),
+    );
   },
 
   async eliminarCuenta() {

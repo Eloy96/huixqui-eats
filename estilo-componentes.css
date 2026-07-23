@@ -1141,3 +1141,44 @@
   color: var(--tinta-60);
   line-height: 1.5;
 }
+
+
+/* ---------- Mapa ---------- */
+
+.mapa-caja {
+  margin-top: var(--e-3);
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--linea);
+}
+
+/* Alto fijo: sin esto Leaflet monta un mapa de 0 px y no se ve nada.
+   240px es suficiente para ubicarse en un pueblo sin comerse la pantalla
+   de un teléfono. */
+.mapa-lienzo {
+  height: 240px;
+  width: 100%;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid var(--linea-fuerte);
+  background: var(--superficie-2);
+  z-index: 0;
+}
+
+.mapa-ayuda {
+  margin-top: var(--e-2);
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+  line-height: 1.5;
+}
+
+/* Leaflet pone sus controles en z-index alto y se montan encima de
+   nuestras hojas y del header. Los bajamos a su caja. */
+.mapa-lienzo .leaflet-pane,
+.mapa-lienzo .leaflet-top,
+.mapa-lienzo .leaflet-bottom {
+  z-index: 1;
+}
+
+.mapa-lienzo .leaflet-control-attribution {
+  font-size: 9px;
+}

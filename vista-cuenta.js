@@ -13,6 +13,7 @@ import { CATEGORIAS, MEDIDAS_IMAGEN } from "./datos-semillas.js";
 import { correoValido, telefonoValido, slug } from "./lib-formato.js";
 import { VERSION_LEGAL } from "./legal-textos.js";
 import { ubicacionActual, direccionDesdeCoords, coordsDesdeLink, linkMapa } from "./lib-ubicacion.js";
+import { montarMapa, CENTRO_POR_DEFECTO } from "./lib-mapa.js";
 
 let pestana = "entrar";
 let logo = { dataUrl: "", file: null };
@@ -653,9 +654,20 @@ function bloqueUbicacion({ paraTienda = false } = {}) {
         <button class="boton boton--contorno boton--chico" data-ubicar type="button">
           ${icono.cercania()} Usar mi ubicación
         </button>
+        <button class="boton boton--contorno boton--chico" data-abrir-mapa type="button">
+          ${icono.mapa()} Ver en el mapa
+        </button>
         <button class="boton boton--texto" data-abrir-link type="button">
           o pegar link de Google Maps
         </button>
+      </div>
+
+      <div class="mapa-caja" data-zona-mapa hidden>
+        <div class="mapa-lienzo" data-mapa></div>
+        <p class="mapa-ayuda">
+          Toca el mapa o arrastra el pin hasta ${paraTienda ? "la entrada de tu local" : "tu puerta"}.
+          Cuanto más exacto, mejor te encuentran.
+        </p>
       </div>
 
       <div class="ubicacion-link" data-zona-link hidden>
@@ -707,6 +719,7 @@ function conectarUbicacion(panel, alUbicar) {
         "listo",
       );
     }
+    if (mapa) mapa.centrar({ lat, lng });
     const ver = document.createElement("a");
     ver.className = "boton boton--texto";
     ver.href = linkMapa(lat, lng);
@@ -734,6 +747,45 @@ function conectarUbicacion(panel, alUbicar) {
     } finally {
       boton.disabled = false;
       pintarEn(boton, html`${icono.cercania()} Usar mi ubicación`);
+    }
+  });
+
+  // El mapa se monta la PRIMERA vez que se abre, no al cargar la página:
+  // así nadie descarga Leaflet si no lo va a usar.
+  let mapa = null;
+  const zonaMapa = bloque.querySelector("[data-zona-mapa]");
+  const botonMapa = bloque.querySelector("[data-abrir-mapa]");
+
+  botonMapa.addEventListener("click", async () => {
+    if (!zonaMapa.hidden) {
+      zonaMapa.hidden = true;
+      pintarEn(botonMapa, html`${icono.mapa()} Ver en el mapa`);
+      return;
+    }
+    zonaMapa.hidden = false;
+    pintarEn(botonMapa, html`${icono.mapa()} Ocultar mapa`);
+    if (mapa) return;
+
+    botonMapa.disabled = true;
+    decir("Cargando el mapa...", "ok");
+    try {
+      const inicio = estado.ubicacion || CENTRO_POR_DEFECTO;
+      mapa = await montarMapa(bloque.querySelector("[data-mapa]"), inicio, async (coords) => {
+        // Mover el pin fija la ubicación y busca la calle, igual que el GPS.
+        await fijarPunto(coords.lat, coords.lng, "mapa");
+      });
+      decir(
+        estado.ubicacion
+          ? "Arrastra el pin si no quedó en el punto exacto."
+          : "Toca el mapa donde estás para poner el pin.",
+        "ok",
+      );
+    } catch (error) {
+      zonaMapa.hidden = true;
+      pintarEn(botonMapa, html`${icono.mapa()} Ver en el mapa`);
+      decir(error.message, "error");
+    } finally {
+      botonMapa.disabled = false;
     }
   });
 
