@@ -64,7 +64,19 @@ async function subir(bucket, ruta, file) {
     }
     if (/row-level security|not authorized|403/i.test(msg)) {
       throw new Error(
-        "Supabase rechazó la subida de la imagen por permisos. Corre 04-storage.sql para poner las reglas de Storage.",
+        "Supabase rechazó la subida por permisos. Corre 04-storage.sql para poner las reglas de Storage.",
+      );
+    }
+    if (/mime|content.?type/i.test(msg)) {
+      throw new Error(
+        `Ese tipo de imagen no está permitido en el bucket "${bucket}". Usa JPG, PNG o WEBP. (${msg})`,
+      );
+    }
+    // Cualquier otro caso: el mensaje crudo de Supabase vale más que una
+    // suposición mía. Sin él, un 400 es indistinguible de otro.
+    if (msg) {
+      throw new Error(
+        `No se pudo subir la imagen. Supabase respondió: "${msg}". Corre 04b-diagnostico-storage.sql para ver qué falta.`,
       );
     }
     if (/payload too large|maximum size|413/i.test(msg)) {
@@ -116,6 +128,9 @@ function traducir(error) {
   if (/duplicate key/i.test(mensaje)) return "Ese nombre de tienda ya existe. Prueba con otro.";
   if (/creditos_insuficientes/i.test(mensaje)) return "La tienda se quedó sin contactos disponibles.";
   if (/paquete_invalido|plan_invalido/i.test(mensaje)) return "Ese paquete ya no está disponible. Recarga la página.";
+  if (/extra_sin_nombre/i.test(mensaje)) return "Un extra se quedó sin nombre. Escríbelo o quítalo.";
+  if (/extra_precio_invalido/i.test(mensaje)) return "Revisa el precio de los extras: debe ser un número de 0 en adelante.";
+  if (/extra_nombre_largo|quitable_invalido/i.test(mensaje)) return "Algún nombre de extra o ingrediente es demasiado largo.";
   if (/categoria_ocupada/i.test(mensaje)) return "Ya hay un destacado en esa categoría. Espera a que se libere o elige el plan Presencia.";
   if (/solo_operador/i.test(mensaje)) return "Solo el operador puede hacer esto.";
   if (/meses_invalido/i.test(mensaje)) return "El número de meses no es válido.";
@@ -186,6 +201,8 @@ function aProducto(fila) {
     serviceArea: detalle.service_area || "",
     requirements: detalle.requirements || "",
     options: detalle.options || "",
+    quitables: Array.isArray(fila.removable_items) ? fila.removable_items : [],
+    extras: Array.isArray(fila.extras) ? fila.extras : [],
     remoto: true,
   };
 }
@@ -571,6 +588,8 @@ export const driverNube = {
           service_area: producto.serviceArea || null,
           requirements: producto.requirements || null,
           options: producto.options || null,
+      removable_items: Array.isArray(producto.quitables) ? producto.quitables : [],
+      extras: Array.isArray(producto.extras) ? producto.extras : [],
         })
         .select()
         .single(),

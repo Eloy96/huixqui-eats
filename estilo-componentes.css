@@ -1327,3 +1327,212 @@
 .mapa-lienzo .leaflet-control-attribution {
   font-size: 9px;
 }
+
+/* ---------- Opciones del producto (lado tienda) ---------- */
+
+.opciones-grupo {
+  margin-top: var(--e-4);
+}
+
+.opciones-grupo h4 {
+  margin: 0 0 var(--e-1);
+  font-family: var(--fuente-display);
+  font-size: var(--t-md);
+  font-weight: var(--peso-fuerte);
+  font-stretch: 95%;
+  color: var(--tinta);
+}
+
+.opciones-ayuda {
+  margin: 0 0 var(--e-2);
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+  line-height: var(--alto-compacto);
+}
+
+.opciones-vacio {
+  margin: 0 0 var(--e-2);
+  font-size: var(--t-sm);
+  color: var(--tinta-40);
+}
+
+.opcion-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  margin-bottom: var(--e-2);
+}
+
+.opcion-nombre {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--toque);
+  padding: 0 var(--e-3);
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--r-md);
+  background: var(--superficie);
+  font-size: var(--t-sm);
+}
+
+.opcion-nombre:focus {
+  outline: none;
+  border-color: var(--verde-500);
+  box-shadow: 0 0 0 3px var(--verde-100);
+}
+
+/* El signo de peso vive DENTRO del campo: así se entiende que el número
+   es dinero sin tener que poner una etiqueta arriba. */
+.opcion-precio {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: var(--e-2);
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--r-md);
+  background: var(--superficie);
+  width: 96px;
+  flex: none;
+}
+
+.opcion-precio span {
+  color: var(--tinta-60);
+  font-size: var(--t-sm);
+}
+
+.opcion-precio input {
+  width: 100%;
+  min-height: var(--toque);
+  border: 0;
+  background: transparent;
+  font-family: var(--fuente-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-sm);
+  padding: 0 var(--e-2) 0 0;
+}
+
+.opcion-precio input:focus {
+  outline: none;
+}
+
+.opcion-precio:focus-within {
+  border-color: var(--verde-500);
+  box-shadow: 0 0 0 3px var(--verde-100);
+}
+
+@media (max-width: 420px) {
+  .opcion-fila--extra {
+    flex-wrap: wrap;
+  }
+
+  .opcion-fila--extra .opcion-nombre {
+    flex-basis: 100%;
+  }
+}
+
+/* ---------- Opciones del producto (lado cliente) ---------- */
+
+.opciones-cliente {
+  border: 1px solid var(--linea);
+  border-radius: var(--r-md);
+  background: var(--superficie-2);
+  padding: var(--e-3);
+  margin-top: var(--e-4);
+}
+
+.opciones-cliente legend {
+  padding: 0 var(--e-2);
+  font-family: var(--fuente-display);
+  font-size: var(--t-2xs);
+  font-weight: var(--peso-fuerte);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-60);
+}
+
+.opciones-cliente-ayuda {
+  margin: 0 0 var(--e-2);
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+}
+
+/* Toda la fila es zona de toque, no solo el cuadrito. */
+.opcion-check {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-height: var(--toque);
+  padding: 0 var(--e-1);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: var(--t-md);
+  transition: background var(--transicion);
+}
+
+.opcion-check:active {
+  background: var(--superficie);
+}
+
+.opcion-check input {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--verde-500);
+  cursor: pointer;
+}
+
+.opcion-check span {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Desmarcado en "Lleva" = lo estás quitando. El tachado lo dice sin
+   palabras. */
+.opcion-check input:not(:checked) + span {
+  color: var(--tinta-40);
+  text-decoration: line-through;
+}
+
+/* En extras es al revés: desmarcado es lo normal, no hay tachado. */
+.opcion-check--extra input:not(:checked) + span {
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.opcion-precio-etiqueta {
+  font-family: var(--fuente-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-sm);
+  font-weight: var(--peso-fuerte);
+  color: var(--verde-700);
+  flex: none;
+}
+
+/* ---------- La configuración, ya en el carrito ---------- */
+
+.carrito-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1);
+  margin-top: 5px;
+}
+
+.carrito-sin,
+.carrito-extra {
+  font-size: var(--t-xs);
+  padding: 2px var(--e-2);
+  border-radius: var(--r-sm);
+  line-height: 1.5;
+}
+
+.carrito-sin {
+  background: var(--superficie-2);
+  color: var(--tinta-60);
+  text-decoration: line-through;
+}
+
+.carrito-extra {
+  background: var(--verde-100);
+  color: var(--verde-700);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}

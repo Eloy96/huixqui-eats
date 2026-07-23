@@ -60,11 +60,23 @@ export function fijar(parche) {
 
 // ---------- Carrito ----------
 
-export function agregarAlCarrito({ producto, cantidad = 1, nota = "", precio }) {
-  // Mismo producto + misma nota = suma cantidad. Nota distinta = línea nueva,
-  // porque "sin cebolla" y "con todo" son dos platos distintos en la cocina.
+export function agregarAlCarrito({
+  producto,
+  cantidad = 1,
+  nota = "",
+  precio,
+  sinQue = [],
+  extras = [],
+}) {
+  // Mismo producto + misma nota + misma configuración = suma cantidad.
+  // Cualquier diferencia es línea nueva, porque "sin cebolla" y "con
+  // todo" son dos platos distintos en la cocina.
+  const firma = `${nota.trim()}|${[...sinQue].sort().join(",")}|${extras
+    .map((e) => e.nombre)
+    .sort()
+    .join(",")}`;
   const igual = estado.carrito.find(
-    (l) => l.productoId === producto.id && l.nota === nota.trim(),
+    (l) => l.productoId === producto.id && l.firma === firma,
   );
   if (igual) {
     igual.qty += cantidad;
@@ -78,6 +90,9 @@ export function agregarAlCarrito({ producto, cantidad = 1, nota = "", precio }) 
       precio,
       qty: cantidad,
       nota: nota.trim(),
+      sinQue: [...sinQue],
+      extras: extras.map((e) => ({ ...e })),
+      firma,
     });
   }
   fijar({ carrito: estado.carrito });

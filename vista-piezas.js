@@ -1,6 +1,6 @@
 // Piezas de dominio compartidas entre vistas. Devuelven HTML seguro.
 
-import { html, urlSegura } from "./lib-dom.js";
+import { html, urlSegura, pintarEn, delegar } from "./lib-dom.js";
 import { icono, abrirHoja, toast } from "./lib-ui.js";
 import {
   dinero,
@@ -15,6 +15,7 @@ import {
   etiquetaDistancia,
   tiempoEstimado,
 } from "./lib-formato.js";
+import { imagenPorCategoria } from "./datos-semillas.js";
 import { estado, agregarAlCarrito } from "./estado.js";
 
 export function precioHtml(producto) {
@@ -69,8 +70,17 @@ export function tarjetaTienda(tienda, { fila = false, conteo = 0 } = {}) {
       href="#/tienda/${tienda.slug || tienda.id}"
     >
       <div class="tienda-portada">
-        <img src="${urlSegura(tienda.cover || tienda.image)}" alt="" loading="lazy" decoding="async" />
+        <img
+          src="${urlSegura(tienda.cover || tienda.image)}"
+          data-respaldo="${urlSegura(imagenPorCategoria(tienda.category))}"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
         ${sello}
+        ${tienda.plan === "destacado"
+          ? html`<span class="sello sello--destacado">${icono.estrella()} Destacado</span>`
+          : ""}
       </div>
       <div class="tienda-cuerpo">
         <h3>${tienda.name}</h3>
@@ -106,7 +116,14 @@ export function filaMenu(producto, { tienda } = {}) {
         </div>
         ${precioHtml(producto)}
       </div>
-      <img class="menu-fila-foto" src="${urlSegura(producto.image)}" alt="" loading="lazy" decoding="async" />
+      <img
+        class="menu-fila-foto"
+        src="${urlSegura(producto.image)}"
+        data-respaldo="${urlSegura(imagenPorCategoria(producto.productCategory))}"
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
     </button>
   `;
 }
@@ -131,16 +148,68 @@ function detalleTipo(producto) {
   if (producto.options) filas.push(["Opciones", producto.options]);
   if (!filas.length) return "";
   return html`
-    <dl class="tarjeta" style="margin-top:var(--e-3);display:grid;gap:var(--e-2)">
+    <dl class="ficha-datos">
       ${filas.map(
         ([clave, valor]) => html`
-          <div>
-            <dt style="font-size:var(--t-xs);color:var(--tinta-60);text-transform:uppercase;letter-spacing:.06em">${clave}</dt>
-            <dd style="margin:0;font-size:var(--t-sm)">${valor}</dd>
+          <div class="ficha-dato">
+            <dt>${clave}</dt>
+            <dd>${valor}</dd>
           </div>
         `,
       )}
     </dl>
+  `;
+}
+
+/**
+ * Ingredientes que el cliente puede quitar.
+ *
+ * Vienen marcados: el platillo LOS LLEVA. Desmarcar es pedir "sin
+ * cebolla". Al revés (marcar para agregar) confundía: la gente no sabía
+ * si estaba pidiendo con o sin.
+ */
+function bloqueQuitables(producto) {
+  const lista = Array.isArray(producto.quitables) ? producto.quitables : [];
+  if (!lista.length) return "";
+  return html`
+    <fieldset class="opciones-cliente">
+      <legend>Lleva</legend>
+      <p class="opciones-cliente-ayuda">Desmarca lo que no quieras.</p>
+      ${lista.map(
+        (nombre, i) => html`
+          <label class="opcion-check">
+            <input type="checkbox" data-quitable="${nombre}" id="q${i}" checked />
+            <span>${nombre}</span>
+          </label>
+        `,
+      )}
+    </fieldset>
+  `;
+}
+
+/** Extras que cuestan y suman al total. */
+function bloqueExtras(producto) {
+  const lista = (Array.isArray(producto.extras) ? producto.extras : []).filter((e) => e?.nombre);
+  if (!lista.length) return "";
+  return html`
+    <fieldset class="opciones-cliente">
+      <legend>Agregar extra</legend>
+      <p class="opciones-cliente-ayuda">Se suma a tu total.</p>
+      ${lista.map(
+        (extra, i) => html`
+          <label class="opcion-check opcion-check--extra">
+            <input
+              type="checkbox"
+              data-extra="${extra.nombre}"
+              data-precio="${extra.precio || 0}"
+              id="e${i}"
+            />
+            <span>${extra.nombre}</span>
+            <strong class="opcion-precio-etiqueta">+${dinero(extra.precio || 0)}</strong>
+          </label>
+        `,
+      )}
+    </fieldset>
   `;
 }
 
@@ -155,9 +224,9 @@ export function abrirProducto(producto, tienda) {
     cuerpo: html`
       <img
         src="${urlSegura(producto.image)}"
-        alt=""
-        class="previa"
-        style="aspect-ratio:4/3"
+        data-respaldo="${urlSegura(imagenPorCategoria(producto.productCategory))}"
+        alt="${producto.title}"
+        class="previa previa--hoja"
         decoding="async"
       />
       <div class="menu-fila-etiquetas">
@@ -166,25 +235,35 @@ export function abrirProducto(producto, tienda) {
         ${estaPromocionado(producto) ? html`<span class="sello sello--promo">Promocionado</span>` : ""}
         ${selloDescuento(producto)}
       </div>
-      <h2 style="margin-top:var(--e-3)">${producto.title}</h2>
-      <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-top:var(--e-1)">${producto.description}</p>
-      ${precioHtml(producto)}
-      <a
-        href="#/tienda/${tienda.slug || tienda.id}"
-        style="display:inline-flex;gap:var(--e-2);align-items:center;margin-top:var(--e-2);font-size:var(--t-sm);color:var(--verde-700);font-weight:var(--peso-medio)"
-      >
-        ${icono.tienda()} ${tienda.name}
-      </a>
+      <h2 class="hoja-titulo">${producto.title}</h2>
+      <p class="hoja-descripcion">${producto.description}</p>
+
+      <!-- Precio y tienda en su propia fila: antes iban en el flujo de
+           texto y se peleaban el ancho, así que el nombre de la tienda se
+           partía en un renglón por palabra. -->
+      <div class="hoja-precio-fila">
+        ${precioHtml(producto)}
+        <a class="hoja-tienda" href="#/tienda/${tienda.slug || tienda.id}">
+          ${icono.tienda()}
+          <span>${tienda.name}</span>
+        </a>
+      </div>
       ${detalleTipo(producto)}
       ${abierta
         ? ""
         : html`<p class="campo-error" style="margin-top:var(--e-3)">
             ${tienda.name} está cerrado ahora. Puedes agregarlo y enviar el pedido cuando abra.
           </p>`}
+      ${bloqueQuitables(producto)}
+      ${bloqueExtras(producto)}
+
       <label class="campo" style="margin-top:var(--e-4)">
-        <span>¿Alguna indicación para la cocina?</span>
-        <textarea data-nota placeholder="Ej. sin cebolla, salsa aparte, bien cocida"></textarea>
-        <small>La tienda lo recibe tal cual en el WhatsApp.</small>
+        <span>Comentario para la cocina</span>
+        <textarea data-nota placeholder="Ej. bien dorado, salsa aparte" maxlength="200"></textarea>
+        <small>
+          Solo indicaciones sobre <strong>este</strong> producto. Si quieres pedir algo más,
+          agrégalo desde el menú: lo que escribas aquí no se cobra ni se prepara aparte.
+        </small>
       </label>
     `,
     pie: html`
@@ -216,12 +295,41 @@ export function abrirProducto(producto, tienda) {
     cantidad = Math.min(50, cantidad + 1);
     pinta();
   });
+  /** Lo que el cliente desmarcó de "Lleva". */
+  const leerSinQue = () =>
+    [...nodo.querySelectorAll("[data-quitable]")]
+      .filter((c) => !c.checked)
+      .map((c) => c.dataset.quitable);
+
+  /** Los extras que marcó, con su precio. */
+  const leerExtras = () =>
+    [...nodo.querySelectorAll("[data-extra]:checked")].map((c) => ({
+      nombre: c.dataset.extra,
+      precio: Number(c.dataset.precio) || 0,
+    }));
+
+  const precioConExtras = () =>
+    final + leerExtras().reduce((suma, e) => suma + e.precio, 0);
+
+  /** El botón muestra siempre lo que se va a cobrar de verdad. */
+  const refrescarTotal = () => {
+    const boton = nodo.querySelector("[data-agregar]");
+    if (boton) pintarEn(boton, html`Agregar · ${dinero(precioConExtras() * cantidad)}`);
+  };
+
+  // Marcar un extra cambia el total al instante: nadie debe descubrir el
+  // cargo hasta el carrito.
+  delegar(nodo, "change", "[data-extra]", refrescarTotal);
+  refrescarTotal();
+
   nodo.querySelector("[data-agregar]").addEventListener("click", () => {
     agregarAlCarrito({
       producto,
       cantidad,
       nota: nodo.querySelector("[data-nota]").value,
-      precio: final,
+      precio: precioConExtras(),
+      sinQue: leerSinQue(),
+      extras: leerExtras(),
     });
     cerrar();
     toast(`${producto.title} agregado al carrito.`);

@@ -81,6 +81,7 @@ export async function vistaCarrito(contenedor) {
                     <div>
                       <strong>${linea.titulo}</strong>
                       <small>${dinero(linea.precio)} c/u</small>
+                      ${detalleLinea(linea)}
                       ${linea.nota ? html`<div class="carrito-nota">${linea.nota}</div>` : ""}
                     </div>
                     <div style="display:grid;gap:var(--e-2);justify-items:end">
@@ -249,7 +250,17 @@ export async function vistaCarrito(contenedor) {
 
 function mensaje({ tienda, lineas, total, nombre, telefono, direccion, referencia, modo }) {
   const detalle = lineas
-    .map((l) => `• ${l.qty} x ${l.titulo}${l.nota ? ` (${l.nota})` : ""} — ${dinero(l.qty * l.precio)}`)
+    .map((l) => {
+      // El negocio necesita leerlo de un vistazo en su teléfono, sin
+      // adivinar: cada cambio en su propio renglón, con sangría.
+      const partes = [`• ${l.qty} x ${l.titulo} — ${dinero(l.qty * l.precio)}`];
+      const sinQue = Array.isArray(l.sinQue) ? l.sinQue : [];
+      const extras = Array.isArray(l.extras) ? l.extras : [];
+      if (sinQue.length) partes.push(`   SIN: ${sinQue.join(", ")}`);
+      extras.forEach((e) => partes.push(`   + ${e.nombre} (${dinero(e.precio || 0)})`));
+      if (l.nota) partes.push(`   Nota: ${l.nota}`);
+      return partes.join("\n");
+    })
     .join("\n");
   return [
     `Hola ${tienda?.name || ""}, hice un pedido en PuebloPedidos.`,

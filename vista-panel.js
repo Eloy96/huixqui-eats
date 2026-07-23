@@ -94,28 +94,14 @@ function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor })
   const conversion = cobrados ? Math.round((pedidos.length / cobrados) * 100) : 0;
   const ventas = pedidos.reduce((s, p) => s + Number(p.total || 0), 0);
   const enlace = `${location.origin}${location.pathname}#/tienda/${tienda.slug || tienda.id}`;
-  const pocosContactos = Number(tienda.credits) <= 5;
 
   pintarEn(
     panel,
     html`
-      ${pocosContactos
-        ? html`
-            <div class="tarjeta" style="border-color:var(--alerta-500);background:var(--alerta-100);margin-bottom:var(--e-3)">
-              <strong>Te quedan ${tienda.credits} contactos</strong>
-              <p style="font-size:var(--t-sm);margin-top:var(--e-1)">
-                Cuando lleguen a cero, los pedidos te siguen llegando pero dejamos de avisarte.
-                Recarga para no perder ninguno.
-              </p>
-              <button class="boton boton--principal boton--chico" data-tab="promocion" type="button" style="margin-top:var(--e-2)">
-                Recargar contactos
-              </button>
-            </div>
-          `
-        : ""}
+      ${avisoSuscripcion(tienda)}
 
       <div class="metricas">
-        <div class="metrica ${pocosContactos ? "metrica--alerta" : ""}">
+        <div class="metrica">
           <span>Contactos</span>
           <strong>${tienda.credits}</strong>
           <small>disponibles</small>
@@ -424,11 +410,38 @@ function hojaProducto(tienda, contenedor) {
             </label>
           </fieldset>
 
-          <label class="campo">
-            <span>Opciones para el cliente</span>
-            <input name="options" value="${p.options || ""}" placeholder="Salsas, tamaños, colores" />
-            <small>El cliente las ve y te dice cuál quiere en la nota del pedido.</small>
-          </label>
+        </section>
+
+        <section class="bloque" style="border-bottom:0">
+          <div class="bloque-titulo">
+            <span class="bloque-num">5</span>
+            <h3>Qué puede cambiar el cliente</h3>
+            <small>opcional</small>
+          </div>
+
+          <div class="opciones-grupo">
+            <h4>Ingredientes que puede quitar</h4>
+            <p class="opciones-ayuda">
+              Lo que el platillo ya lleva y alguien puede pedir sin: cilantro, cebolla, salsa.
+              No cambia el precio.
+            </p>
+            <div data-quitables></div>
+            <button class="boton boton--contorno boton--chico" data-agregar-quitable type="button">
+              ${icono.mas()} Agregar ingrediente
+            </button>
+          </div>
+
+          <div class="opciones-grupo">
+            <h4>Extras que cuestan</h4>
+            <p class="opciones-ayuda">
+              Lo que se agrega y se cobra aparte: queso $10, doble carne $25.
+              Se suma al total del pedido.
+            </p>
+            <div data-extras></div>
+            <button class="boton boton--contorno boton--chico" data-agregar-extra type="button">
+              ${icono.mas()} Agregar extra
+            </button>
+          </div>
         </section>
       </form>
     `,
@@ -466,6 +479,128 @@ function hojaProducto(tienda, contenedor) {
     const titulo = form.querySelector("[data-titulo-detalles]");
     if (titulo) titulo.textContent = titulos[tipo] || "Detalles";
   };
+  // ── Listas de quitables y extras ──
+  // Se manejan en memoria y se repintan solas. Cada fila tiene su
+  // botón de quitar; el estado vive aquí, no en el DOM, para que
+  // repintar no pierda lo escrito.
+  let quitables = Array.isArray(editando?.quitables) ? [...editando.quitables] : [];
+  let extras = Array.isArray(editando?.extras)
+    ? editando.extras.map((e) => ({ ...e }))
+    : [];
+
+  const pintarQuitables = () => {
+    const zona = form.querySelector("[data-quitables]");
+    if (!zona) return;
+    pintarEn(
+      zona,
+      quitables.length
+        ? html`${quitables.map(
+            (nombre, i) => html`
+              <div class="opcion-fila">
+                <input
+                  class="opcion-nombre"
+                  value="${nombre}"
+                  data-quitable-idx="${i}"
+                  placeholder="Cebolla"
+                  maxlength="60"
+                  aria-label="Ingrediente ${i + 1}"
+                />
+                <button class="boton boton--texto" data-quitar-quitable="${i}" type="button" aria-label="Quitar">
+                  Quitar
+                </button>
+              </div>
+            `,
+          )}`
+        : html`<p class="opciones-vacio">Ninguno todavía.</p>`,
+    );
+  };
+
+  const pintarExtras = () => {
+    const zona = form.querySelector("[data-extras]");
+    if (!zona) return;
+    pintarEn(
+      zona,
+      extras.length
+        ? html`${extras.map(
+            (extra, i) => html`
+              <div class="opcion-fila opcion-fila--extra">
+                <input
+                  class="opcion-nombre"
+                  value="${extra.nombre || ""}"
+                  data-extra-nombre="${i}"
+                  placeholder="Queso"
+                  maxlength="60"
+                  aria-label="Nombre del extra ${i + 1}"
+                />
+                <div class="opcion-precio">
+                  <span>$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    value="${extra.precio ?? ""}"
+                    data-extra-precio="${i}"
+                    placeholder="10"
+                    aria-label="Precio del extra ${i + 1}"
+                  />
+                </div>
+                <button class="boton boton--texto" data-quitar-extra="${i}" type="button" aria-label="Quitar">
+                  Quitar
+                </button>
+              </div>
+            `,
+          )}`
+        : html`<p class="opciones-vacio">Ninguno todavía.</p>`,
+    );
+  };
+
+  // Se lee del DOM al vuelo: así lo escrito nunca se pierde al repintar.
+  const leerListas = () => {
+    form.querySelectorAll("[data-quitable-idx]").forEach((input) => {
+      quitables[Number(input.dataset.quitableIdx)] = input.value.trim();
+    });
+    form.querySelectorAll("[data-extra-nombre]").forEach((input) => {
+      const i = Number(input.dataset.extraNombre);
+      extras[i] = extras[i] || {};
+      extras[i].nombre = input.value.trim();
+    });
+    form.querySelectorAll("[data-extra-precio]").forEach((input) => {
+      const i = Number(input.dataset.extraPrecio);
+      extras[i] = extras[i] || {};
+      extras[i].precio = Number(input.value) || 0;
+    });
+  };
+
+  nodo.querySelector("[data-agregar-quitable]")?.addEventListener("click", () => {
+    leerListas();
+    quitables.push("");
+    pintarQuitables();
+    form.querySelector(`[data-quitable-idx="${quitables.length - 1}"]`)?.focus();
+  });
+
+  nodo.querySelector("[data-agregar-extra]")?.addEventListener("click", () => {
+    leerListas();
+    extras.push({ nombre: "", precio: 0 });
+    pintarExtras();
+    form.querySelector(`[data-extra-nombre="${extras.length - 1}"]`)?.focus();
+  });
+
+  delegar(nodo, "click", "[data-quitar-quitable]", (_ev, boton) => {
+    leerListas();
+    quitables.splice(Number(boton.dataset.quitarQuitable), 1);
+    pintarQuitables();
+  });
+
+  delegar(nodo, "click", "[data-quitar-extra]", (_ev, boton) => {
+    leerListas();
+    extras.splice(Number(boton.dataset.quitarExtra), 1);
+    pintarExtras();
+  });
+
+  pintarQuitables();
+  pintarExtras();
+
   const sincronizaDescuento = () => {
     const valor = form.querySelector("[data-descuento]").value;
     const campo = form.querySelector("[data-descuento-valor]");
@@ -508,7 +643,12 @@ function hojaProducto(tienda, contenedor) {
     boton.disabled = true;
     boton.textContent = "Guardando...";
     try {
+      leerListas();
       const guardado = await repo.guardarProducto({
+        quitables: quitables.map((q) => q.trim()).filter(Boolean),
+        extras: extras
+          .filter((e) => e.nombre?.trim())
+          .map((e) => ({ nombre: e.nombre.trim(), precio: Math.max(0, Number(e.precio) || 0) })),
         id: editando?.id,
         storeId: tienda.id,
         ...datos,

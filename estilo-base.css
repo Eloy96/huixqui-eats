@@ -97,6 +97,30 @@ img {
   background: var(--superficie-2);
 }
 
+/* Los iconos vienen con viewBox pero SIN width/height: sin esta regla
+   crecen hasta llenar lo que los contenga. En el perfil, el icono de
+   tienda dentro de un botón ancho se volvía un cartel de pantalla
+   completa. Tamaño base aquí; los casos especiales lo ajustan después. */
+svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Los iconos dentro de un botón siguen su texto. */
+.boton svg {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+/* Excepción: lo que de verdad debe escalar (mapas, ilustraciones). */
+svg.svg-libre {
+  width: auto;
+  height: auto;
+}
+
 button,
 input,
 select,
