@@ -83,14 +83,20 @@ const NAV = [
 
 function pintarNav(rutaActual = router.rutaActual()) {
   const sesion = repo.sesion();
-  const items = sesion?.role === "store"
-    ? [
-        { ruta: "/", texto: "Inicio", icono: "inicio" },
-        { ruta: "/panel", texto: "Mi panel", icono: "tienda" },
-        { ruta: "/buscar", texto: "Buscar", icono: "buscar" },
-        { ruta: "/cuenta", texto: "Cuenta", icono: "cuenta" },
-      ]
-    : NAV;
+  // "Pedidos" solo tiene sentido con sesión: sin cuenta no hay historial
+  // que mostrar, y una pestaña que siempre lleva a una pantalla vacía
+  // gasta espacio en la barra de un teléfono.
+  const items =
+    sesion?.role === "store"
+      ? [
+          { ruta: "/", texto: "Inicio", icono: "inicio" },
+          { ruta: "/panel", texto: "Mi panel", icono: "tienda" },
+          { ruta: "/buscar", texto: "Buscar", icono: "buscar" },
+          { ruta: "/cuenta", texto: "Cuenta", icono: "cuenta" },
+        ]
+      : sesion
+        ? NAV
+        : NAV.filter((i) => i.ruta !== "/pedidos");
 
   pintarEn(
     $("#nav"),
@@ -123,13 +129,16 @@ function pintarCabecera() {
         <span class="marca-sello" aria-hidden="true">PP</span>
         <span class="solo-lectores">PuebloPedidos</span>
       </a>
-      <button class="header-direccion" data-ubicacion type="button">
-        <span>Entregar en</span>
+      <button class="header-direccion" data-ubicacion type="button" title="${etiqueta}">
+        <span>${estado.modoPedido === "Recoger" ? "Recoger cerca de" : "Entregar en"}</span>
         <strong>${etiqueta}</strong>
       </button>
       <div class="header-acciones">
         ${sesion
-          ? html`<a class="header-boton" href="#/cuenta" aria-label="Mi cuenta">${icono.cuenta()}</a>`
+          ? html`<a class="header-cuenta" href="#/cuenta" aria-label="Mi cuenta">
+              ${icono.cuenta()}
+              <span class="header-cuenta-nombre">${nombreCorto(sesion)}</span>
+            </a>`
           : html`<a class="boton boton--chico boton--principal" href="#/cuenta">Entrar</a>`}
       </div>
     `,
@@ -144,6 +153,21 @@ function pintarCabecera() {
       if (router.rutaActual() === "/") vistaInicio(contenido);
     });
   });
+}
+
+/**
+ * El nombre que va junto al icono de perfil.
+ *
+ * Corto a propósito: en un teléfono compite con la dirección por el mismo
+ * renglón. "Tacos Don Luis" cabe; "Taquería y Cenaduría Don Luis" no, así
+ * que se toma la primera palabra larga.
+ */
+function nombreCorto(sesion) {
+  const nombre = String(sesion?.perfil?.name || "").trim();
+  if (!nombre) return sesion?.role === "store" ? "Mi negocio" : "Mi cuenta";
+  if (nombre.length <= 14) return nombre;
+  const primera = nombre.split(/\s+/)[0];
+  return primera.length <= 14 ? primera : `${nombre.slice(0, 12)}…`;
 }
 
 function pintarPie() {

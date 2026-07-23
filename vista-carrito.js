@@ -175,6 +175,19 @@ export async function vistaCarrito(contenedor) {
       toast("Escribe tu nombre y un WhatsApp de 10 dígitos.", "error");
       return;
     }
+
+    // El candado: no se manda un pedido a un negocio cerrado. Antes salía
+    // el WhatsApp igual y el cliente se quedaba esperando una respuesta
+    // que llegaba al día siguiente.
+    const cerradas = lista.filter((g) => g.tienda && !estaAbierta(g.tienda));
+    if (cerradas.length) {
+      const nombres = cerradas.map((g) => g.tienda.name).join(", ");
+      toast(
+        `${nombres} ${cerradas.length === 1 ? "está cerrado" : "están cerrados"} ahora. Quítalo del carrito o espera a que abra.`,
+        "error",
+      );
+      return;
+    }
     if (entrega && !direccion) {
       toast("Falta la dirección de entrega.", "error");
       return;

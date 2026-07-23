@@ -1004,3 +1004,140 @@
     animation: none;
   }
 }
+
+
+/* ---------- Sello de destacado ---------- */
+.sello--destacado {
+  background: var(--maiz-500);
+  color: var(--verde-900);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: var(--peso-fuerte);
+}
+
+.sello--destacado svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ---------- Banners de estado ---------- */
+.banner {
+  padding: var(--e-3);
+  border-radius: var(--r-md);
+  margin-bottom: var(--e-3);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  border-left: 4px solid;
+}
+
+.banner--info {
+  background: var(--verde-100);
+  border-color: var(--verde-500);
+  color: var(--verde-900);
+}
+
+.banner--aviso {
+  background: var(--alerta-100);
+  border-color: var(--alerta-500);
+  color: var(--maiz-600);
+}
+
+.banner--error {
+  background: var(--error-100);
+  border-color: var(--error-500);
+  color: var(--error-500);
+}
+
+.banner-accion {
+  display: inline-block;
+  margin-top: var(--e-2);
+  font-weight: var(--peso-medio);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: inherit;
+}
+
+/* ---------- Acciones del tablero de suscripciones ---------- */
+.acciones-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1);
+  align-items: center;
+}
+
+
+/* ---------- Horario de atención ---------- */
+
+.horario-bloque {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.dias-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.dias-fieldset legend {
+  font-size: var(--t-sm);
+  font-weight: var(--peso-medio);
+  color: var(--tinta-80);
+  padding: 0;
+  margin-bottom: var(--e-2);
+}
+
+.dias-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1);
+}
+
+/* Chips en vez de checkboxes sueltos: el área táctil es el chip completo,
+   que en un teléfono importa más que el cuadrito. */
+.dia-chip {
+  position: relative;
+  cursor: pointer;
+}
+
+.dia-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.dia-chip span {
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  min-height: var(--toque);
+  padding: 0 var(--e-2);
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--r-full);
+  background: var(--superficie);
+  font-size: var(--t-sm);
+  color: var(--tinta-80);
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.dia-chip input:checked + span {
+  background: var(--verde-500);
+  border-color: var(--verde-500);
+  color: #fff;
+  font-weight: var(--peso-medio);
+}
+
+.dia-chip input:focus-visible + span {
+  outline: 2px solid var(--verde-500);
+  outline-offset: 2px;
+}
+
+.horario-nota {
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+  line-height: 1.5;
+}

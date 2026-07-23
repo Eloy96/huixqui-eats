@@ -126,9 +126,18 @@ function tiendaDisponible(tienda) {
  * cercanía y orden alfabético.
  */
 function ordenar(a, b) {
+  // Abiertas primero, SIEMPRE. Un destacado cerrado arriba no le sirve a
+  // nadie: el cliente no puede pedirle, y el negocio quema su lugar pagado
+  // en un momento en que no puede vender.
   const abiertaA = estaAbierta(a) ? 0 : 1;
   const abiertaB = estaAbierta(b) ? 0 : 1;
   if (abiertaA !== abiertaB) return abiertaA - abiertaB;
+
+  // Ya dentro de las abiertas, el destacado (plan $200) va primero: es
+  // exactamente lo que paga.
+  const destA = a.plan === "destacado" ? 0 : 1;
+  const destB = b.plan === "destacado" ? 0 : 1;
+  if (destA !== destB) return destA - destB;
 
   if (estado.ordenCercania && estado.ubicacion) {
     const kmA = distanciaKm(estado.ubicacion, a.coords);
@@ -239,12 +248,8 @@ function cercaTexto(abiertas) {
 }
 
 function pintarTiendas(contenedor) {
-  const lista = datos.tiendas
-    .filter(tiendaDisponible)
-    .filter((t) => estado.categoria === "Todos" || t.category === estado.categoria)
-    .sort(ordenar);
-
   const zona = contenedor.querySelector('[data-zona="tiendas"]');
+
   const conteos = new Map(
     datos.tiendas.map((t) => [
       t.id,
@@ -252,21 +257,57 @@ function pintarTiendas(contenedor) {
     ]),
   );
 
+  const lista = datos.tiendas
+    .filter(tiendaDisponible)
+    // Y además que TENGA algo que vender en este modo. Antes bastaba con
+    // que el negocio dijera "entrega y recoger": si todos sus productos
+    // eran "solo recoger", en modo Entrega aparecía vacío y el cliente se
+    // metía a una tienda sin nada. Prometer algo que no se puede cumplir
+    // es peor que no aparecer.
+    .filter((t) => conteos.get(t.id) > 0)
+    .filter((t) => estado.categoria === "Todos" || t.category === estado.categoria)
+    .sort(ordenar);
+
+  // Cuántas quedaron fuera solo por el modo: sirve para explicárselo al
+  // cliente en vez de dejarlo con una pantalla vacía sin motivo.
+  const ocultasPorModo = datos.tiendas.filter(
+    (t) =>
+      (estado.categoria === "Todos" || t.category === estado.categoria) &&
+      !lista.includes(t) &&
+      datos.productos.some((p) => p.storeId === t.id),
+  ).length;
+
   if (!lista.length) {
     pintarEn(
       zona,
       html`
         <div class="seccion-cabeza"><h2>Negocios del pueblo</h2></div>
-        ${vacio({
-          titulo: "Nada por aquí todavía",
-          texto:
-            estado.categoria === "Todos"
-              ? `Ningún negocio ofrece ${estado.modoPedido.toLowerCase()} por ahora. Prueba el otro modo.`
-              : `No hay negocios de ${estado.categoria} con ${estado.modoPedido.toLowerCase()}.`,
-          accion: html`<button class="boton boton--contorno" data-categoria="Todos" type="button">Ver todo</button>`,
-        })}
+        ${ocultasPorModo > 0
+          ? vacio({
+              titulo: `Nadie ofrece ${estado.modoPedido.toLowerCase()} ahora`,
+              texto: `Hay ${ocultasPorModo} negocio${ocultasPorModo === 1 ? "" : "s"} disponible${ocultasPorModo === 1 ? "" : "s"} con el otro modo.`,
+              accion: html`<button class="boton boton--principal" data-cambiar-modo type="button">
+                Ver los de ${estado.modoPedido === "Entrega" ? "recoger" : "entrega"}
+              </button>`,
+            })
+          : vacio({
+              titulo: "Nada por aquí todavía",
+              texto:
+                estado.categoria === "Todos"
+                  ? "Todavía no hay negocios publicados."
+                  : `No hay negocios de ${estado.categoria} con ${estado.modoPedido.toLowerCase()}.`,
+              accion: html`<button class="boton boton--contorno" data-categoria="Todos" type="button">Ver todo</button>`,
+            })}
       `,
     );
+    // El botón de cambiar de modo, si se pintó.
+    const cambiar = zona.querySelector("[data-cambiar-modo]");
+    if (cambiar) {
+      cambiar.addEventListener("click", () => {
+        fijar({ modoPedido: estado.modoPedido === "Entrega" ? "Recoger" : "Entrega" });
+        vistaInicio(contenedor);
+      });
+    }
     return;
   }
 

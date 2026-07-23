@@ -436,6 +436,14 @@ function formularioNegocio(panel, contenedor) {
         <section class="bloque">
           <div class="bloque-titulo">
             <span class="bloque-num">4</span>
+            <h3>Tu horario</h3>
+          </div>
+          ${bloqueHorario()}
+        </section>
+
+        <section class="bloque">
+          <div class="bloque-titulo">
+            <span class="bloque-num">5</span>
             <h3>Fotos</h3>
             <small>opcional, pero duplican los contactos</small>
           </div>
@@ -474,12 +482,18 @@ function formularioNegocio(panel, contenedor) {
       toast("Revisa el correo y usa una contraseña de 8 caracteres o más.", "error");
       return;
     }
+    const horario = leerHorario(ev.currentTarget);
+    if (horario.error) {
+      toast(horario.error, "error");
+      return;
+    }
     if (!validaAcepto(ev.currentTarget)) return;
     const boton = ev.currentTarget.querySelector('[type="submit"]');
     unaVez(boton, "Registrando...", async () => {
       try {
         await repo.registrarTienda({
           ...datos,
+          schedule: horario.schedule,
           slug: slug(datos.name),
           coords: estado.ubicacion,
           image: logo.dataUrl,
@@ -556,6 +570,82 @@ function refrescarCaja(raiz, clave, meta) {
  * El campo de dirección se llena solo, pero queda editable: el geocoding
  * acierta la calle, casi nunca el número ni la referencia.
  */
+const DIAS = [
+  { n: 1, corto: "Lun" },
+  { n: 2, corto: "Mar" },
+  { n: 3, corto: "Mié" },
+  { n: 4, corto: "Jue" },
+  { n: 5, corto: "Vie" },
+  { n: 6, corto: "Sáb" },
+  { n: 0, corto: "Dom" },
+];
+
+/**
+ * Horario de atención.
+ *
+ * Es obligatorio y por una razón concreta: sin horario la app daba por
+ * abierta a toda tienda nueva, así que un cliente podía mandar un pedido a
+ * las 3 de la mañana y el negocio quedaba mal sin saber por qué.
+ *
+ * Se pide simple —un rango y los días que abre— porque pedir dos turnos
+ * por día en el registro espanta. El negocio puede afinarlo después en su
+ * panel.
+ */
+function bloqueHorario(horarioActual = null) {
+  const abre = horarioActual?.abre || "09:00";
+  const cierra = horarioActual?.cierra || "20:00";
+  const dias = horarioActual?.dias || [1, 2, 3, 4, 5, 6];
+
+  return html`
+    <div class="horario-bloque">
+      <div class="campos-2">
+        <label class="campo">
+          <span>Abre a las</span>
+          <input type="time" name="abre" value="${abre}" required />
+        </label>
+        <label class="campo">
+          <span>Cierra a las</span>
+          <input type="time" name="cierra" value="${cierra}" required />
+        </label>
+      </div>
+
+      <fieldset class="dias-fieldset">
+        <legend>Días que abres</legend>
+        <div class="dias-lista">
+          ${DIAS.map(
+            (d) => html`
+              <label class="dia-chip">
+                <input type="checkbox" name="dia" value="${d.n}" ${dias.includes(d.n) ? "checked" : ""} />
+                <span>${d.corto}</span>
+              </label>
+            `,
+          )}
+        </div>
+      </fieldset>
+      <small class="horario-nota">
+        Fuera de este horario tu tienda sale como <strong>Cerrada</strong> y no se pueden
+        enviar pedidos. Puedes cambiarlo cuando quieras.
+      </small>
+    </div>
+  `;
+}
+
+/** Convierte lo que llenó el formulario al formato que usa la app. */
+function leerHorario(form) {
+  const abre = form.querySelector('[name="abre"]')?.value || "";
+  const cierra = form.querySelector('[name="cierra"]')?.value || "";
+  const dias = [...form.querySelectorAll('[name="dia"]:checked')].map((c) => Number(c.value));
+  if (!abre || !cierra) return { error: "Falta la hora de apertura o de cierre." };
+  if (!dias.length) return { error: "Marca al menos un día de la semana." };
+  if (abre === cierra) return { error: "La hora de apertura y la de cierre no pueden ser iguales." };
+
+  const schedule = {};
+  DIAS.forEach((d) => {
+    schedule[d.n] = dias.includes(d.n) ? [[abre, cierra]] : [];
+  });
+  return { schedule, abre, cierra, dias };
+}
+
 function bloqueUbicacion({ paraTienda = false } = {}) {
   return html`
     <div class="ubicacion-bloque" data-ubicacion-bloque>
