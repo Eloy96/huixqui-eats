@@ -118,6 +118,48 @@ export async function registrarAceptacion(version) {
   if (driver.registrarAceptacion) await driver.registrarAceptacion(version);
 }
 
+export async function configCobro() {
+  return driver.configCobro ? driver.configCobro() : {};
+}
+export async function reportarPago(datos) {
+  const r = await driver.reportarPago(datos);
+  invalidar();
+  return r;
+}
+export async function misPagos() {
+  return driver.misPagos ? driver.misPagos() : [];
+}
+export async function colaPagos() {
+  return driver.colaPagos ? driver.colaPagos() : [];
+}
+export async function verificarPago(id, aprobar, motivo) {
+  const r = await driver.verificarPago(id, aprobar, motivo);
+  invalidar();
+  return r;
+}
+
+export async function tableroSuscripciones() {
+  return driver.tableroSuscripciones ? driver.tableroSuscripciones() : [];
+}
+export async function activarSuscripcion(tiendaId, plan, meses, referencia) {
+  const r = await driver.activarSuscripcion(tiendaId, plan, meses, referencia);
+  invalidar();
+  return r;
+}
+export async function suspenderTienda(tiendaId, suspender) {
+  const r = await driver.suspenderTienda(tiendaId, suspender);
+  invalidar();
+  return r;
+}
+export async function barrerVencidas() {
+  const n = await driver.barrerVencidas();
+  invalidar();
+  return n;
+}
+export async function categoriaDestacadaLibre(categoria, exceptoId) {
+  return driver.categoriaDestacadaLibre(categoria, exceptoId);
+}
+
 export async function eliminarCuenta() {
   if (!cache.sesion) throw new Error("No hay sesión activa.");
   const resultado = await driver.eliminarCuenta();

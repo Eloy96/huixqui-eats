@@ -59,6 +59,9 @@ export const driverLocal = {
   async sesion() {
     if (!db.session) return null;
     const { role, id: quien } = db.session;
+    if (role === "admin") {
+      return { role: "admin", id: quien, perfil: { name: "Operador" } };
+    }
     const perfil =
       role === "store"
         ? db.stores.find((t) => t.id === quien)
@@ -72,6 +75,13 @@ export const driverLocal = {
   },
 
   async entrar({ identificador, rol }) {
+    // En el demo, el operador entra con una clave fija para poder ver el
+    // panel sin backend. En la nube el rol admin lo da Supabase.
+    if (rol === "admin") {
+      db.session = { role: "admin", id: "operador-demo" };
+      guardar();
+      return { role: "admin", id: "operador-demo", perfil: { name: "Operador" } };
+    }
     const lista = rol === "store" ? db.stores : db.clients;
     const buscado = String(identificador || "").trim().toLowerCase();
     const perfil = lista.find(
@@ -122,6 +132,105 @@ export const driverLocal = {
     db.acceptances = db.acceptances || [];
     db.acceptances.push({ id: db.session.id, version, at: new Date().toISOString() });
     guardar();
+  },
+
+  async configCobro() {
+    return {
+      clipLink: "", banco: "Demo", clabe: "000000000000000000",
+      titular: "Modo demo", aceptaEfectivo: true,
+      instrucciones: "En el demo los pagos no son reales.",
+      whatsappSoporte: "",
+    };
+  },
+  async reportarPago({ plan, meses, metodo, referencia, nota }) {
+    db.pagos = db.pagos || [];
+    const monto = (plan === "destacado" ? 200 : 99) * meses;
+    const sol = {
+      id: `pr-${Date.now()}`, plan, meses, monto, metodo,
+      referencia: referencia || null, nota: nota || null,
+      estado: "por_verificar", creado_en: new Date().toISOString(),
+      store_id: db.session?.id,
+    };
+    db.pagos.push(sol);
+    guardar();
+    return sol;
+  },
+  async misPagos() {
+    return (db.pagos || []).filter((x) => x.store_id === db.session?.id);
+  },
+  async colaPagos() {
+    return (db.pagos || []).map((r) => ({
+      ...r,
+      negocio: db.stores.find((s) => s.id === r.store_id)?.name || "—",
+      categoria: db.stores.find((s) => s.id === r.store_id)?.category || "",
+      categoria_libre: true,
+    }));
+  },
+  async verificarPago(id, aprobar, motivo) {
+    const sol = (db.pagos || []).find((x) => x.id === id);
+    if (!sol) throw new Error("No encontramos ese reporte de pago.");
+    sol.estado = aprobar ? "verificado" : "rechazado";
+    sol.motivo_rechazo = aprobar ? null : motivo || null;
+    if (aprobar) await this.activarSuscripcion(sol.store_id, sol.plan, sol.meses, sol.referencia);
+    guardar();
+    return { aprobado: aprobar, plan: sol.plan, destacado: sol.plan === "destacado" };
+  },
+
+  async tableroSuscripciones() {
+    const ahora = Date.now();
+    return db.stores.map((s) => ({
+      store_id: s.id,
+      nombre: s.name,
+      categoria: s.category,
+      plan: s.plan || "presencia",
+      estado: s.subStatus || "prueba",
+      vence: s.subscribedUntil || null,
+      dias_restantes: s.subscribedUntil
+        ? Math.max(0, Math.round((new Date(s.subscribedUntil) - ahora) / 86400000))
+        : 30,
+    }));
+  },
+  async activarSuscripcion(tiendaId, plan, meses, referencia) {
+    const s = db.stores.find((x) => x.id === tiendaId);
+    if (!s) throw new Error("No encontramos la tienda.");
+    if (plan === "destacado") {
+      const ocupada = db.stores.some(
+        (o) => o.id !== tiendaId && o.plan === "destacado" &&
+          (o.category || "").toLowerCase() === (s.category || "").toLowerCase() &&
+          o.subscribedUntil && new Date(o.subscribedUntil) > new Date() && o.subStatus !== "suspendida",
+      );
+      if (ocupada) throw new Error("categoria_ocupada");
+    }
+    const base = Math.max(s.subscribedUntil ? new Date(s.subscribedUntil).getTime() : 0, Date.now());
+    s.plan = plan;
+    s.subStatus = "activa";
+    s.subscribedUntil = new Date(base + meses * 30 * 86400000).toISOString();
+    guardar();
+    return s;
+  },
+  async suspenderTienda(tiendaId, suspender) {
+    const s = db.stores.find((x) => x.id === tiendaId);
+    if (!s) throw new Error("No encontramos la tienda.");
+    s.subStatus = suspender ? "suspendida"
+      : (s.subscribedUntil && new Date(s.subscribedUntil) > new Date() ? "activa" : "vencida");
+    guardar();
+    return s;
+  },
+  async barrerVencidas() {
+    let n = 0;
+    db.stores.forEach((s) => {
+      if (["activa", "prueba"].includes(s.subStatus) && s.subscribedUntil &&
+          new Date(s.subscribedUntil) <= new Date()) { s.subStatus = "vencida"; n++; }
+    });
+    guardar();
+    return n;
+  },
+  async categoriaDestacadaLibre(categoria, exceptoId) {
+    return !db.stores.some(
+      (o) => o.id !== exceptoId && o.plan === "destacado" &&
+        (o.category || "").toLowerCase() === (categoria || "").toLowerCase() &&
+        o.subscribedUntil && new Date(o.subscribedUntil) > new Date() && o.subStatus !== "suspendida",
+    );
   },
 
   async eliminarCuenta() {

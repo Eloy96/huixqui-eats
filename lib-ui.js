@@ -27,6 +27,7 @@ export const icono = {
   copiar: () => trazo(`<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>`),
   mas: () => trazo(`<path d="M12 5v14M5 12h14"/>`),
   basura: () => trazo(`<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>`),
+  check: () => trazo(`<path d="m4 12.5 5 5L20 6.5"/>`),
   cercania: () =>
     trazo(`<path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>`),
   mapa: () =>

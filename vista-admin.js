@@ -4,10 +4,10 @@
 // resumen_plataforma, que solo responde a un perfil con role='admin'.
 // La ruta escondida no es seguridad; la seguridad está en la base.
 
-import { html, pintarEn } from "./lib-dom.js";
+import { html, pintarEn, delegar } from "./lib-dom.js";
 import { vacio, esqueletoLista, toast } from "./lib-ui.js";
 import * as repo from "./datos-repo.js";
-import { dinero, csv, descargar, fechaHora } from "./lib-formato.js";
+import { dinero, csv, descargar, fechaHora, fechaCorta } from "./lib-formato.js";
 
 export async function vistaAdmin(contenedor) {
   pintarEn(contenedor, html`<h1>Operación</h1><div style="margin-top:var(--e-4)">${esqueletoLista(2)}</div>`);
@@ -67,49 +67,572 @@ export async function vistaAdmin(contenedor) {
       <section style="margin-top:var(--e-6)">
         <div class="seccion-cabeza">
           <div>
-            <h2>Negocios</h2>
-            <p>Ordenados por saldo de contactos</p>
+            <h2>Pagos por verificar</h2>
+            <p>Compara con tu estado de cuenta antes de confirmar</p>
           </div>
-          <button class="boton boton--texto" data-csv type="button">Descargar CSV</button>
         </div>
-        <div class="tabla-envoltura">
-          <table class="tabla">
-            <thead>
-              <tr><th>Negocio</th><th>Categoría</th><th>Contactos</th><th>Gasto</th></tr>
-            </thead>
-            <tbody>
-              ${tiendas
-                .slice()
-                .sort((a, b) => Number(a.credits) - Number(b.credits))
-                .map(
-                  (t) => html`
-                    <tr>
-                      <td>
-                        <a href="#/tienda/${t.slug || t.id}" style="color:var(--verde-700);font-weight:var(--peso-medio)">
-                          ${t.name}
-                        </a>
-                      </td>
-                      <td>${t.category}</td>
-                      <td style="${Number(t.credits) <= 5 ? "color:var(--error-500);font-weight:var(--peso-fuerte)" : ""}">
-                        ${t.credits}
-                      </td>
-                      <td>${dinero(Number(t.creditSpend || 0) + Number(t.marketingSpend || 0))}</td>
-                    </tr>
-                  `,
-                )}
-            </tbody>
-          </table>
+        <div data-cola></div>
+      </section>
+
+      <section style="margin-top:var(--e-6)">
+        <div class="seccion-cabeza">
+          <div>
+            <h2>Suscripciones</h2>
+            <p>Las que están por vencer salen primero</p>
+          </div>
+          <div style="display:flex;gap:var(--e-2)">
+            <button class="boton boton--contorno boton--chico" data-barrer type="button">Actualizar estados</button>
+            <button class="boton boton--texto" data-csv type="button">CSV</button>
+          </div>
         </div>
+        <div data-tablero></div>
       </section>
     `,
   );
 
-  contenedor.querySelector("[data-csv]").addEventListener("click", () => {
-    const filas = [["negocio", "categoria", "contactos", "gasto_recargas", "gasto_promos", "whatsapp"]];
-    tiendas.forEach((t) =>
-      filas.push([t.name, t.category, t.credits, t.creditSpend || 0, t.marketingSpend || 0, t.phone]),
+  const pintarTablero = async () => {
+    const zona = contenedor.querySelector("[data-tablero]");
+    const filas = await repo.tableroSuscripciones();
+    if (!filas.length) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">Aún no hay negocios registrados.</p>`);
+      return;
+    }
+    pintarEn(
+      zona,
+      html`
+        <div class="tabla-envoltura">
+          <table class="tabla">
+            <thead>
+              <tr><th>Negocio</th><th>Plan</th><th>Estado</th><th>Vence</th><th>Activar pago</th></tr>
+            </thead>
+            <tbody>
+              ${filas.map(
+                (f) => html`
+                  <tr>
+                    <td>
+                      <a href="#/tienda/${f.store_id}" style="color:var(--verde-500);font-weight:var(--peso-medio)">${f.nombre}</a>
+                      <small style="display:block;color:var(--tinta-60)">${f.categoria}</small>
+                    </td>
+                    <td>${f.plan === "destacado" ? "Destacado" : "Presencia"}</td>
+                    <td>${selloEstado(f.estado)}</td>
+                    <td>
+                      ${f.vence ? fechaCorta(f.vence) : "—"}
+                      ${["activa", "prueba"].includes(f.estado)
+                        ? html`<small style="display:block;color:var(--tinta-60)">${f.dias_restantes} días</small>`
+                        : ""}
+                    </td>
+                    <td>
+                      <div class="acciones-sub">
+                        <button class="boton boton--contorno boton--chico" data-activar="${f.store_id}" data-plan="presencia" type="button">
+                          $99 Presencia
+                        </button>
+                        <button class="boton boton--contorno boton--chico" data-activar="${f.store_id}" data-plan="destacado" type="button">
+                          $200 Destacado
+                        </button>
+                        ${f.estado === "suspendida"
+                          ? html`<button class="boton boton--texto" data-reactivar="${f.store_id}" type="button">Quitar suspensión</button>`
+                          : html`<button class="boton boton--texto" data-suspender="${f.store_id}" type="button">Suspender</button>`}
+                      </div>
+                    </td>
+                  </tr>
+                `,
+              )}
+            </tbody>
+          </table>
+        </div>
+      `,
     );
-    descargar(`pueblopedidos-negocios-${fechaHora(new Date().toISOString())}.csv`, csv(filas));
+  };
+  // ── La cola de pagos ──
+  // Lo primero que ves al entrar: alguien está esperando que le
+  // confirmes su pago para poder vender.
+  const pintarCola = async () => {
+    const zona = contenedor.querySelector("[data-cola]");
+    let filas = [];
+    try {
+      filas = await repo.colaPagos();
+    } catch (error) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        No se pudo cargar la cola: ${error.message} ¿Corriste 09-cobros.sql?
+      </p>`);
+      return;
+    }
+
+    const pendientes = filas.filter((f) => f.estado === "por_verificar");
+    if (!pendientes.length) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        Nada pendiente. Los pagos nuevos aparecen aquí.
+      </p>`);
+      return;
+    }
+
+    pintarEn(
+      zona,
+      html`${pendientes.map(
+        (f) => html`
+          <div class="pago-fila">
+            <div class="pago-fila-info">
+              <strong>${f.negocio}</strong>
+              <div class="pago-fila-datos">
+                <span class="cifra">${dinero(f.monto)}</span>
+                <span>${f.plan === "destacado" ? "Destacado" : "Presencia"} · ${f.meses} mes${f.meses === 1 ? "" : "es"}</span>
+                <span>${etiquetaMetodoOp(f.metodo)}</span>
+                ${f.referencia ? html`<code>${f.referencia}</code>` : ""}
+              </div>
+              ${f.nota ? html`<small class="pago-fila-nota">"${f.nota}"</small>` : ""}
+              ${f.plan === "destacado" && !f.categoria_libre
+                ? html`<small class="pago-fila-alerta">
+                    ⚠️ Otro negocio ya tiene el destacado de ${f.categoria}. Si confirmas, va a fallar.
+                  </small>`
+                : ""}
+            </div>
+            <div class="pago-fila-acciones">
+              <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
+                Confirmar
+              </button>
+              <button class="boton boton--texto" data-rechazar="${f.id}" type="button">Rechazar</button>
+            </div>
+          </div>
+        `,
+      )}`,
+    );
+  };
+  await pintarCola();
+
+  delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
+    const fila = boton.closest(".pago-fila");
+    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
+    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    boton.disabled = true;
+    try {
+      const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
+      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      await pintarCola();
+      await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+      boton.disabled = false;
+    }
+  });
+
+  delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
+    const motivo = prompt("¿Por qué no se pudo confirmar?\n(el negocio lo va a leer)", "No encontramos el pago");
+    if (motivo === null) return;
+    try {
+      await repo.verificarPago(boton.dataset.rechazar, false, motivo);
+      toast("Marcado como no confirmado.");
+      await pintarCola();
+    } catch (error) {
+      toast(error, "error");
+    }
+  });
+
+  await pintarTablero();
+
+  // Activar un pago (lo que haces tras ver el cobro en Clip).
+  delegar(contenedor, "click", "[data-activar]", async (_ev, boton) => {
+    const plan = boton.dataset.plan;
+    const nombre = plan === "destacado" ? "Destacado ($200)" : "Presencia ($99)";
+    const meses = Number(prompt(`¿Cuántos meses de ${nombre}?\n(escribe un número; normalmente 1)`, "1"));
+    if (!meses || meses < 1) return;
+    const ref = prompt("Referencia del pago en Clip (opcional, para tu control):", "") || null;
+    boton.disabled = true;
+    try {
+      await repo.activarSuscripcion(boton.dataset.activar, plan, meses, ref);
+      toast(`Activado: ${nombre} × ${meses} mes(es).`);
+      // ── La cola de pagos ──
+  // Lo primero que ves al entrar: alguien está esperando que le
+  // confirmes su pago para poder vender.
+  const pintarCola = async () => {
+    const zona = contenedor.querySelector("[data-cola]");
+    let filas = [];
+    try {
+      filas = await repo.colaPagos();
+    } catch (error) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        No se pudo cargar la cola: ${error.message} ¿Corriste 09-cobros.sql?
+      </p>`);
+      return;
+    }
+
+    const pendientes = filas.filter((f) => f.estado === "por_verificar");
+    if (!pendientes.length) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        Nada pendiente. Los pagos nuevos aparecen aquí.
+      </p>`);
+      return;
+    }
+
+    pintarEn(
+      zona,
+      html`${pendientes.map(
+        (f) => html`
+          <div class="pago-fila">
+            <div class="pago-fila-info">
+              <strong>${f.negocio}</strong>
+              <div class="pago-fila-datos">
+                <span class="cifra">${dinero(f.monto)}</span>
+                <span>${f.plan === "destacado" ? "Destacado" : "Presencia"} · ${f.meses} mes${f.meses === 1 ? "" : "es"}</span>
+                <span>${etiquetaMetodoOp(f.metodo)}</span>
+                ${f.referencia ? html`<code>${f.referencia}</code>` : ""}
+              </div>
+              ${f.nota ? html`<small class="pago-fila-nota">"${f.nota}"</small>` : ""}
+              ${f.plan === "destacado" && !f.categoria_libre
+                ? html`<small class="pago-fila-alerta">
+                    ⚠️ Otro negocio ya tiene el destacado de ${f.categoria}. Si confirmas, va a fallar.
+                  </small>`
+                : ""}
+            </div>
+            <div class="pago-fila-acciones">
+              <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
+                Confirmar
+              </button>
+              <button class="boton boton--texto" data-rechazar="${f.id}" type="button">Rechazar</button>
+            </div>
+          </div>
+        `,
+      )}`,
+    );
+  };
+  await pintarCola();
+
+  delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
+    const fila = boton.closest(".pago-fila");
+    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
+    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    boton.disabled = true;
+    try {
+      const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
+      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      await pintarCola();
+      await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+      boton.disabled = false;
+    }
+  });
+
+  delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
+    const motivo = prompt("¿Por qué no se pudo confirmar?\n(el negocio lo va a leer)", "No encontramos el pago");
+    if (motivo === null) return;
+    try {
+      await repo.verificarPago(boton.dataset.rechazar, false, motivo);
+      toast("Marcado como no confirmado.");
+      await pintarCola();
+    } catch (error) {
+      toast(error, "error");
+    }
+  });
+
+  await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+      boton.disabled = false;
+    }
+  });
+
+  delegar(contenedor, "click", "[data-suspender]", async (_ev, boton) => {
+    if (!confirm("¿Suspender esta tienda? Dejará de aparecer, pero no se borra.")) return;
+    try {
+      await repo.suspenderTienda(boton.dataset.suspender, true);
+      toast("Tienda suspendida.");
+      // ── La cola de pagos ──
+  // Lo primero que ves al entrar: alguien está esperando que le
+  // confirmes su pago para poder vender.
+  const pintarCola = async () => {
+    const zona = contenedor.querySelector("[data-cola]");
+    let filas = [];
+    try {
+      filas = await repo.colaPagos();
+    } catch (error) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        No se pudo cargar la cola: ${error.message} ¿Corriste 09-cobros.sql?
+      </p>`);
+      return;
+    }
+
+    const pendientes = filas.filter((f) => f.estado === "por_verificar");
+    if (!pendientes.length) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        Nada pendiente. Los pagos nuevos aparecen aquí.
+      </p>`);
+      return;
+    }
+
+    pintarEn(
+      zona,
+      html`${pendientes.map(
+        (f) => html`
+          <div class="pago-fila">
+            <div class="pago-fila-info">
+              <strong>${f.negocio}</strong>
+              <div class="pago-fila-datos">
+                <span class="cifra">${dinero(f.monto)}</span>
+                <span>${f.plan === "destacado" ? "Destacado" : "Presencia"} · ${f.meses} mes${f.meses === 1 ? "" : "es"}</span>
+                <span>${etiquetaMetodoOp(f.metodo)}</span>
+                ${f.referencia ? html`<code>${f.referencia}</code>` : ""}
+              </div>
+              ${f.nota ? html`<small class="pago-fila-nota">"${f.nota}"</small>` : ""}
+              ${f.plan === "destacado" && !f.categoria_libre
+                ? html`<small class="pago-fila-alerta">
+                    ⚠️ Otro negocio ya tiene el destacado de ${f.categoria}. Si confirmas, va a fallar.
+                  </small>`
+                : ""}
+            </div>
+            <div class="pago-fila-acciones">
+              <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
+                Confirmar
+              </button>
+              <button class="boton boton--texto" data-rechazar="${f.id}" type="button">Rechazar</button>
+            </div>
+          </div>
+        `,
+      )}`,
+    );
+  };
+  await pintarCola();
+
+  delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
+    const fila = boton.closest(".pago-fila");
+    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
+    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    boton.disabled = true;
+    try {
+      const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
+      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      await pintarCola();
+      await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+      boton.disabled = false;
+    }
+  });
+
+  delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
+    const motivo = prompt("¿Por qué no se pudo confirmar?\n(el negocio lo va a leer)", "No encontramos el pago");
+    if (motivo === null) return;
+    try {
+      await repo.verificarPago(boton.dataset.rechazar, false, motivo);
+      toast("Marcado como no confirmado.");
+      await pintarCola();
+    } catch (error) {
+      toast(error, "error");
+    }
+  });
+
+  await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+    }
+  });
+
+  delegar(contenedor, "click", "[data-reactivar]", async (_ev, boton) => {
+    try {
+      await repo.suspenderTienda(boton.dataset.reactivar, false);
+      toast("Suspensión quitada.");
+      // ── La cola de pagos ──
+  // Lo primero que ves al entrar: alguien está esperando que le
+  // confirmes su pago para poder vender.
+  const pintarCola = async () => {
+    const zona = contenedor.querySelector("[data-cola]");
+    let filas = [];
+    try {
+      filas = await repo.colaPagos();
+    } catch (error) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        No se pudo cargar la cola: ${error.message} ¿Corriste 09-cobros.sql?
+      </p>`);
+      return;
+    }
+
+    const pendientes = filas.filter((f) => f.estado === "por_verificar");
+    if (!pendientes.length) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        Nada pendiente. Los pagos nuevos aparecen aquí.
+      </p>`);
+      return;
+    }
+
+    pintarEn(
+      zona,
+      html`${pendientes.map(
+        (f) => html`
+          <div class="pago-fila">
+            <div class="pago-fila-info">
+              <strong>${f.negocio}</strong>
+              <div class="pago-fila-datos">
+                <span class="cifra">${dinero(f.monto)}</span>
+                <span>${f.plan === "destacado" ? "Destacado" : "Presencia"} · ${f.meses} mes${f.meses === 1 ? "" : "es"}</span>
+                <span>${etiquetaMetodoOp(f.metodo)}</span>
+                ${f.referencia ? html`<code>${f.referencia}</code>` : ""}
+              </div>
+              ${f.nota ? html`<small class="pago-fila-nota">"${f.nota}"</small>` : ""}
+              ${f.plan === "destacado" && !f.categoria_libre
+                ? html`<small class="pago-fila-alerta">
+                    ⚠️ Otro negocio ya tiene el destacado de ${f.categoria}. Si confirmas, va a fallar.
+                  </small>`
+                : ""}
+            </div>
+            <div class="pago-fila-acciones">
+              <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
+                Confirmar
+              </button>
+              <button class="boton boton--texto" data-rechazar="${f.id}" type="button">Rechazar</button>
+            </div>
+          </div>
+        `,
+      )}`,
+    );
+  };
+  await pintarCola();
+
+  delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
+    const fila = boton.closest(".pago-fila");
+    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
+    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    boton.disabled = true;
+    try {
+      const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
+      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      await pintarCola();
+      await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+      boton.disabled = false;
+    }
+  });
+
+  delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
+    const motivo = prompt("¿Por qué no se pudo confirmar?\n(el negocio lo va a leer)", "No encontramos el pago");
+    if (motivo === null) return;
+    try {
+      await repo.verificarPago(boton.dataset.rechazar, false, motivo);
+      toast("Marcado como no confirmado.");
+      await pintarCola();
+    } catch (error) {
+      toast(error, "error");
+    }
+  });
+
+  await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+    }
+  });
+
+  contenedor.querySelector("[data-barrer]").addEventListener("click", async (ev) => {
+    ev.currentTarget.disabled = true;
+    const n = await repo.barrerVencidas();
+    toast(n > 0 ? `${n} tienda(s) marcadas como vencidas.` : "Todo al día.");
+    // ── La cola de pagos ──
+  // Lo primero que ves al entrar: alguien está esperando que le
+  // confirmes su pago para poder vender.
+  const pintarCola = async () => {
+    const zona = contenedor.querySelector("[data-cola]");
+    let filas = [];
+    try {
+      filas = await repo.colaPagos();
+    } catch (error) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        No se pudo cargar la cola: ${error.message} ¿Corriste 09-cobros.sql?
+      </p>`);
+      return;
+    }
+
+    const pendientes = filas.filter((f) => f.estado === "por_verificar");
+    if (!pendientes.length) {
+      pintarEn(zona, html`<p style="color:var(--tinta-60)">
+        Nada pendiente. Los pagos nuevos aparecen aquí.
+      </p>`);
+      return;
+    }
+
+    pintarEn(
+      zona,
+      html`${pendientes.map(
+        (f) => html`
+          <div class="pago-fila">
+            <div class="pago-fila-info">
+              <strong>${f.negocio}</strong>
+              <div class="pago-fila-datos">
+                <span class="cifra">${dinero(f.monto)}</span>
+                <span>${f.plan === "destacado" ? "Destacado" : "Presencia"} · ${f.meses} mes${f.meses === 1 ? "" : "es"}</span>
+                <span>${etiquetaMetodoOp(f.metodo)}</span>
+                ${f.referencia ? html`<code>${f.referencia}</code>` : ""}
+              </div>
+              ${f.nota ? html`<small class="pago-fila-nota">"${f.nota}"</small>` : ""}
+              ${f.plan === "destacado" && !f.categoria_libre
+                ? html`<small class="pago-fila-alerta">
+                    ⚠️ Otro negocio ya tiene el destacado de ${f.categoria}. Si confirmas, va a fallar.
+                  </small>`
+                : ""}
+            </div>
+            <div class="pago-fila-acciones">
+              <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
+                Confirmar
+              </button>
+              <button class="boton boton--texto" data-rechazar="${f.id}" type="button">Rechazar</button>
+            </div>
+          </div>
+        `,
+      )}`,
+    );
+  };
+  await pintarCola();
+
+  delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
+    const fila = boton.closest(".pago-fila");
+    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
+    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    boton.disabled = true;
+    try {
+      const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
+      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      await pintarCola();
+      await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
+      boton.disabled = false;
+    }
+  });
+
+  delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
+    const motivo = prompt("¿Por qué no se pudo confirmar?\n(el negocio lo va a leer)", "No encontramos el pago");
+    if (motivo === null) return;
+    try {
+      await repo.verificarPago(boton.dataset.rechazar, false, motivo);
+      toast("Marcado como no confirmado.");
+      await pintarCola();
+    } catch (error) {
+      toast(error, "error");
+    }
+  });
+
+  await pintarTablero();
+    ev.currentTarget.disabled = false;
+  });
+
+  contenedor.querySelector("[data-csv]").addEventListener("click", async () => {
+    const filas = [["negocio", "categoria", "plan", "estado", "vence"]];
+    (await repo.tableroSuscripciones()).forEach((f) =>
+      filas.push([f.nombre, f.categoria, f.plan, f.estado, f.vence || ""]),
+    );
+    descargar(`pueblopedidos-suscripciones-${fechaHora(new Date().toISOString())}.csv`, csv(filas));
     toast("Reporte descargado.");
   });
+}
+
+function etiquetaMetodoOp(m) {
+  return { clip: "En línea", transferencia: "Transferencia", efectivo: "Efectivo" }[m] || "Otro";
+}
+
+function selloEstado(estado) {
+  const mapa = {
+    activa: ["sello--abierto", "Activa"],
+    prueba: ["sello--promo", "Prueba"],
+    vencida: ["sello--cerrado", "Vencida"],
+    suspendida: ["sello--oferta", "Suspendida"],
+  };
+  const [clase, texto] = mapa[estado] || ["sello--modo", estado];
+  return html`<span class="sello ${clase}">${texto}</span>`;
 }

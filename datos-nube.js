@@ -180,7 +180,12 @@ function traducir(error) {
   if (/extra_sin_nombre/i.test(mensaje)) return "Un extra se quedó sin nombre. Escríbelo o quítalo.";
   if (/extra_precio_invalido/i.test(mensaje)) return "Revisa el precio de los extras: debe ser un número de 0 en adelante.";
   if (/extra_nombre_largo|quitable_invalido/i.test(mensaje)) return "Algún nombre de extra o ingrediente es demasiado largo.";
-  if (/categoria_ocupada/i.test(mensaje)) return "Ya hay un destacado en esa categoría. Espera a que se libere o elige el plan Presencia.";
+  if (/categoria_ocupada/i.test(mensaje)) return "Ya hay un negocio destacado en esa categoría. Espera a que se libere o elige el plan Presencia.";
+  if (/categoria_apartada/i.test(mensaje)) return "Otro negocio de tu categoría ya apartó el espacio destacado y está esperando verificación. Te avisamos si se libera.";
+  if (/no_tienes_tienda/i.test(mensaje)) return "Necesitas una tienda registrada para reportar un pago.";
+  if (/demasiados_reportes/i.test(mensaje)) return "Ya tienes 3 pagos esperando verificación. Espera a que los revisemos.";
+  if (/solicitud_ya_resuelta/i.test(mensaje)) return "Ese pago ya se revisó.";
+  if (/solicitud_no_existe/i.test(mensaje)) return "No encontramos ese reporte de pago.";
   if (/solo_operador/i.test(mensaje)) return "Solo el operador puede hacer esto.";
   if (/meses_invalido/i.test(mensaje)) return "El número de meses no es válido.";
   if (/demasiadas_recargas/i.test(mensaje)) return "Demasiadas recargas seguidas. Espera un momento.";
@@ -449,6 +454,47 @@ export const driverNube = {
       { user_id: usuario.id, doc: "privacidad", version },
     ]);
     if (error) console.warn("No se registró la aceptación de términos:", error.message);
+  },
+
+  // ---- Cobros ----
+  async configCobro() {
+    const filas = revisar(await cliente.from("cobro_config").select("*").limit(1));
+    const c = filas?.[0] || {};
+    return {
+      clipLink: c.clip_link || "",
+      banco: c.banco || "",
+      clabe: c.clabe || "",
+      titular: c.titular || "",
+      aceptaEfectivo: c.acepta_efectivo !== false,
+      instrucciones: c.instrucciones || "",
+      whatsappSoporte: c.whatsapp_soporte || "",
+    };
+  },
+  async reportarPago({ plan, meses, metodo, referencia, nota }) {
+    return revisar(
+      await cliente.rpc("reportar_pago", {
+        p_plan: plan,
+        p_meses: meses,
+        p_metodo: metodo,
+        p_referencia: referencia || null,
+        p_nota: nota || null,
+      }),
+    );
+  },
+  async misPagos() {
+    return revisar(await cliente.rpc("mis_pagos")) || [];
+  },
+  async colaPagos() {
+    return revisar(await cliente.rpc("cola_pagos")) || [];
+  },
+  async verificarPago(id, aprobar, motivo) {
+    return revisar(
+      await cliente.rpc("verificar_pago", {
+        p_request_id: id,
+        p_aprobar: aprobar,
+        p_motivo: motivo || null,
+      }),
+    );
   },
 
   // ---- Suscripciones (operador) ----

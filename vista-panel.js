@@ -771,143 +771,305 @@ function pintarContactos({ panel, tienda, leads, contenedor }) {
 
 // ---------- Promoción y recargas ----------
 
-async function pintarPromocion({ panel, tienda, productos, contenedor }) {
-  const promocionados = productos.filter((p) => estaPromocionado(p));
-
-  // Los precios los manda el servidor. Si no llegan, no inventamos: sin
-  // catálogo no se puede cobrar, y mostrar un precio falso sería peor.
-  let precios;
+async function pintarPromocion({ panel, tienda, contenedor }) {
+  let config = {};
+  let pagos = [];
   try {
-    precios = await repo.catalogoPrecios();
+    [config, pagos] = await Promise.all([repo.configCobro(), repo.misPagos()]);
   } catch (error) {
     pintarEn(
       panel,
       vacio({
-        titulo: "No pudimos cargar los precios",
-        texto: `${error.message} Si acabas de instalar, corre 05-precios-y-seguridad.sql en Supabase.`,
-        accion: html`<button class="boton boton--contorno" onclick="location.reload()" type="button">Reintentar</button>`,
+        titulo: "No pudimos cargar los planes",
+        texto: `${error.message} Si acabas de instalar, corre 09-cobros.sql en Supabase.`,
       }),
     );
     return;
   }
 
+  const pendiente = pagos.find((x) => x.estado === "por_verificar");
+  const rechazado = pagos.find((x) => x.estado === "rechazado");
+  const dias = tienda.subscribedUntil
+    ? Math.ceil((new Date(tienda.subscribedUntil) - Date.now()) / 86400000)
+    : 0;
+
   pintarEn(
     panel,
     html`
       <section class="tarjeta">
-        <h2 style="font-size:var(--t-lg)">Recargar contactos</h2>
-        <p style="font-size:var(--t-sm);color:var(--tinta-60);margin:var(--e-1) 0 var(--e-3)">
-          Tienes <strong>${tienda.credits}</strong> contactos. Solo pagas cuando un cliente te escribe;
-          nunca cobramos porcentaje de tu venta.
-        </p>
-        <div class="paquetes">
-          ${precios.paquetes.map(
-            (paquete) => html`
-              <button class="paquete ${paquete.mejor ? "paquete--mejor" : ""}" data-recarga="${paquete.id}" type="button">
-                <strong>+${paquete.contactos}</strong>
-                <small>${dinero(paquete.precio)}</small>
-                ${paquete.mejor ? html`<div class="sello sello--promo" style="margin-top:4px">Popular</div>` : ""}
-              </button>
-            `,
-          )}
+        <h2 style="font-size:var(--t-lg)">Tu plan</h2>
+        <div class="plan-estado">
+          <div>
+            <strong>${tienda.plan === "destacado" ? "Destacado" : "Presencia"}</strong>
+            <small>
+              ${tienda.subStatus === "prueba"
+                ? `Prueba gratis · ${dias} día${dias === 1 ? "" : "s"} restantes`
+                : dias > 0
+                  ? `Activo hasta el ${fechaCorta(tienda.subscribedUntil)}`
+                  : "Vencido"}
+            </small>
+          </div>
+          ${tienda.plan === "destacado"
+            ? html`<span class="sello sello--destacado">${icono.estrella()} Destacado</span>`
+            : ""}
         </div>
       </section>
 
-      <section style="margin-top:var(--e-4)">
+      ${pendiente
+        ? html`
+            <div class="banner banner--info" style="margin-top:var(--e-3)">
+              <strong>Tenemos tu pago en revisión.</strong>
+              Reportaste ${dinero(pendiente.monto)} por ${pendiente.meses} mes${pendiente.meses === 1 ? "" : "es"}
+              de ${pendiente.plan === "destacado" ? "Destacado" : "Presencia"}${pendiente.referencia ? ` (ref. ${pendiente.referencia})` : ""}.
+              En cuanto lo confirmemos se activa solo.
+            </div>
+          `
+        : ""}
+
+      ${rechazado && !pendiente
+        ? html`
+            <div class="banner banner--error" style="margin-top:var(--e-3)">
+              <strong>Tu último pago no se pudo confirmar.</strong>
+              ${rechazado.motivo_rechazo || "Revisa la referencia y vuelve a reportarlo."}
+            </div>
+          `
+        : ""}
+
+      <section style="margin-top:var(--e-5)">
         <div class="seccion-cabeza">
           <div>
-            <h2>Aparecer arriba</h2>
-            <p>Tu producto sale en el carrusel del inicio</p>
+            <h2>Planes</h2>
+            <p>Sin comisión por venta. Nunca cobramos un porcentaje de lo que vendes.</p>
           </div>
         </div>
 
-        ${promocionados.length
-          ? html`
-              <h3 style="margin:var(--e-3) 0 var(--e-2);font-size:var(--t-md)">Activos ahora</h3>
-              ${promocionados.map(
-                (producto) => html`
-                  <div class="envio-fila envio-fila--enviado">
-                    <div class="envio-fila-info">
-                      <strong>${producto.title}</strong>
-                      <small>Hasta el ${fechaCorta(producto.featuredUntil)}</small>
-                    </div>
-                    <span class="sello sello--promo">Arriba</span>
-                  </div>
-                `,
-              )}
-            `
-          : ""}
+        <div class="planes">
+          ${planTarjeta({
+            id: "presencia",
+            titulo: "Presencia",
+            precio: 99,
+            actual: tienda.plan === "presencia" && tienda.subStatus === "activa",
+            puntos: [
+              "Contactos ilimitados",
+              "Productos ilimitados",
+              "Apareces por cercanía",
+              "Tu link para compartir",
+            ],
+          })}
+          ${planTarjeta({
+            id: "destacado",
+            titulo: "Destacado",
+            precio: 200,
+            destacado: true,
+            actual: tienda.plan === "destacado" && tienda.subStatus === "activa",
+            puntos: [
+              "Todo lo de Presencia",
+              "Primeros lugares del inicio",
+              "Insignia de destacado",
+              `Único destacado en ${tienda.category || "tu categoría"}`,
+            ],
+          })}
+        </div>
+      </section>
 
-        <h3 style="margin:var(--e-4) 0 var(--e-2);font-size:var(--t-md)">Promocionar un producto</h3>
-        ${productos.length
-          ? html`
-              <div class="menu-lista">
-                ${productos.map(
-                  (producto) => html`
+      <section class="tarjeta" style="margin-top:var(--e-5)">
+        <h2 style="font-size:var(--t-lg)">Cómo pagar</h2>
+        ${datosDePago(config)}
+      </section>
+
+      ${pagos.length
+        ? html`
+            <section style="margin-top:var(--e-5)">
+              <div class="seccion-cabeza"><h2>Tus pagos</h2></div>
+              <div class="menu-lista" style="grid-template-columns:1fr">
+                ${pagos.map(
+                  (x) => html`
                     <div class="envio-fila">
                       <div class="envio-fila-info">
-                        <strong>${producto.title}</strong>
-                        <small>${dinero(precioFinal(producto))}</small>
+                        <strong>${dinero(x.monto)} · ${x.plan === "destacado" ? "Destacado" : "Presencia"}</strong>
+                        <small>
+                          ${fechaCorta(x.creado_en)} · ${etiquetaMetodo(x.metodo)}${x.referencia ? ` · ${x.referencia}` : ""}
+                        </small>
                       </div>
-                      <div style="display:flex;gap:var(--e-1)">
-                        ${precios.planes.map(
-                          (plan) => html`
-                            <button
-                              class="boton boton--contorno boton--chico"
-                              data-promo="${producto.id}"
-                              data-plan="${plan.id}"
-                              type="button"
-                              title="${plan.dias} días por ${dinero(plan.precio)}"
-                            >
-                              ${plan.dias} d · ${dinero(plan.precio)}
-                            </button>
-                          `,
-                        )}
-                      </div>
+                      ${selloPago(x.estado)}
                     </div>
                   `,
                 )}
               </div>
-            `
-          : vacio({
-              titulo: "Primero publica un producto",
-              texto: "Necesitas al menos uno para poder promocionarlo.",
-              accion: html`<button class="boton boton--principal" data-tab="productos" type="button">Publicar producto</button>`,
-            })}
-      </section>
+            </section>
+          `
+        : ""}
     `,
   );
 
-  delegar(panel, "click", "[data-recarga]", async (_ev, boton) => {
-    const paquete = precios.paquetes.find((p) => p.id === boton.dataset.recarga);
-    if (!paquete) return;
-    if (!confirm(`¿Recargar ${paquete.contactos} contactos por ${dinero(paquete.precio)}?`)) return;
-    boton.disabled = true;
-    try {
-      await repo.comprarCreditos(paquete.id);
-      toast(`Listo: +${paquete.contactos} contactos.`);
-      vistaPanel(contenedor);
-    } catch (error) {
-      toast(error, "error");
-      boton.disabled = false;
-    }
+  delegar(panel, "click", "[data-pagar]", (_ev, boton) => {
+    abrirReportePago(boton.dataset.pagar, config, contenedor);
   });
 
-  delegar(panel, "click", "[data-promo]", async (_ev, boton) => {
-    const producto = productos.find((p) => p.id === boton.dataset.promo);
-    const plan = precios.planes.find((p) => p.id === boton.dataset.plan);
-    if (!producto || !plan) return;
-    if (!confirm(`¿Promocionar "${producto.title}" ${plan.dias} días por ${dinero(plan.precio)}?`)) return;
+  delegar(panel, "click", "[data-copiar]", async (_ev, boton) => {
+    const ok = await copiar(boton.dataset.copiar);
+    toast(ok ? "CLABE copiada." : "No se pudo copiar. Selecciónala a mano.", ok ? "ok" : "error");
+  });
+}
+
+function planTarjeta({ id, titulo, precio, puntos, destacado = false, actual = false }) {
+  return html`
+    <div class="plan ${destacado ? "plan--destacado" : ""} ${actual ? "plan--actual" : ""}">
+      ${actual ? html`<span class="plan-etiqueta">Tu plan actual</span>` : ""}
+      <h3>${titulo}</h3>
+      <div class="plan-precio">
+        <strong>${dinero(precio)}</strong>
+        <small>al mes</small>
+      </div>
+      <ul class="plan-puntos">
+        ${puntos.map((p) => html`<li>${icono.check()} ${p}</li>`)}
+      </ul>
+      <button
+        class="boton ${destacado ? "boton--principal" : "boton--contorno"} boton--ancho"
+        data-pagar="${id}"
+        type="button"
+      >
+        ${actual ? "Renovar" : "Contratar"}
+      </button>
+    </div>
+  `;
+}
+
+/** Los datos de cobro. Si el operador no los llenó, se dice claro. */
+function datosDePago(config) {
+  const hay = config.clipLink || config.clabe || config.aceptaEfectivo;
+  if (!hay) {
+    return html`<p style="color:var(--tinta-60);font-size:var(--t-sm)">
+      Todavía no hay datos de pago configurados. Escríbenos y te decimos cómo pagar.
+    </p>`;
+  }
+  return html`
+    <div class="pago-opciones">
+      ${config.clipLink
+        ? html`
+            <div class="pago-opcion">
+              <strong>Tarjeta o efectivo en OXXO</strong>
+              <a class="boton boton--principal boton--chico" href="${config.clipLink}" target="_blank" rel="noopener">
+                Pagar en línea
+              </a>
+            </div>
+          `
+        : ""}
+      ${config.clabe
+        ? html`
+            <div class="pago-opcion">
+              <strong>Transferencia</strong>
+              <div class="pago-dato">
+                <span>CLABE</span>
+                <code>${config.clabe}</code>
+                <button class="boton boton--texto" data-copiar="${config.clabe}" type="button">Copiar</button>
+              </div>
+              ${config.banco ? html`<small>${config.banco}${config.titular ? ` · ${config.titular}` : ""}</small>` : ""}
+            </div>
+          `
+        : ""}
+      ${config.aceptaEfectivo
+        ? html`
+            <div class="pago-opcion">
+              <strong>Efectivo</strong>
+              <small>
+                Págalo en persona${config.whatsappSoporte ? ` o escríbenos al ${config.whatsappSoporte}` : ""}.
+              </small>
+            </div>
+          `
+        : ""}
+    </div>
+    ${config.instrucciones
+      ? html`<p class="pago-instrucciones">${config.instrucciones}</p>`
+      : ""}
+  `;
+}
+
+/** Hoja para reportar el pago ya hecho. */
+function abrirReportePago(plan, config, contenedor) {
+  const precio = plan === "destacado" ? 200 : 99;
+  const { nodo, cerrar } = abrirHoja({
+    titulo: `Reportar pago · ${plan === "destacado" ? "Destacado" : "Presencia"}`,
+    cuerpo: html`
+      <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-bottom:var(--e-3)">
+        Primero haz el pago, y luego repórtalo aquí. Lo confirmamos y tu plan se activa solo.
+      </p>
+
+      <form data-form-pago novalidate>
+        <label class="campo">
+          <span>¿Cuántos meses pagaste?</span>
+          <select name="meses" data-meses>
+            <option value="1">1 mes · ${dinero(precio)}</option>
+            <option value="3">3 meses · ${dinero(precio * 3)}</option>
+            <option value="6">6 meses · ${dinero(precio * 6)}</option>
+            <option value="12">12 meses · ${dinero(precio * 12)}</option>
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>¿Cómo pagaste?</span>
+          <select name="metodo">
+            ${config.clipLink ? html`<option value="clip">En línea (tarjeta u OXXO)</option>` : ""}
+            ${config.clabe ? html`<option value="transferencia">Transferencia</option>` : ""}
+            ${config.aceptaEfectivo ? html`<option value="efectivo">Efectivo</option>` : ""}
+            <option value="otro">Otro</option>
+          </select>
+        </label>
+
+        <label class="campo">
+          <span>Referencia o folio</span>
+          <input name="referencia" placeholder="Ej. 0012345678" maxlength="60" />
+          <small>Lo que salga en tu comprobante. Nos ayuda a encontrar tu pago rápido.</small>
+        </label>
+
+        <label class="campo">
+          <span>Nota (opcional)</span>
+          <textarea name="nota" maxlength="200" placeholder="Ej. lo pagué en el OXXO de la plaza"></textarea>
+        </label>
+      </form>
+    `,
+    pie: html`<button class="boton boton--principal boton--ancho" data-enviar-pago type="button">
+      Ya pagué, reportarlo
+    </button>`,
+  });
+
+  nodo.querySelector("[data-enviar-pago]").addEventListener("click", async (ev) => {
+    const form = nodo.querySelector("[data-form-pago]");
+    const datos = Object.fromEntries(new FormData(form));
+    const boton = ev.currentTarget;
     boton.disabled = true;
+    boton.textContent = "Enviando...";
     try {
-      await repo.promocionar(producto, plan.id);
-      toast("Tu producto ya aparece arriba.");
+      await repo.reportarPago({
+        plan,
+        meses: Number(datos.meses) || 1,
+        metodo: datos.metodo || "otro",
+        referencia: datos.referencia,
+        nota: datos.nota,
+      });
+      toast("Recibimos tu reporte. En cuanto confirmemos el pago se activa tu plan.");
+      cerrar();
       vistaPanel(contenedor);
     } catch (error) {
       toast(error, "error");
       boton.disabled = false;
+      boton.textContent = "Ya pagué, reportarlo";
     }
   });
+}
+
+function etiquetaMetodo(m) {
+  return { clip: "En línea", transferencia: "Transferencia", efectivo: "Efectivo" }[m] || "Otro";
+}
+
+function selloPago(estado) {
+  const mapa = {
+    por_verificar: ["sello--promo", "En revisión"],
+    verificado: ["sello--abierto", "Confirmado"],
+    rechazado: ["sello--cerrado", "No confirmado"],
+  };
+  const [clase, texto] = mapa[estado] || ["sello--modo", estado];
+  return html`<span class="sello ${clase}">${texto}</span>`;
 }
 
 // ---------- Perfil del negocio ----------

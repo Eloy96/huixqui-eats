@@ -747,3 +747,259 @@
   margin-bottom: var(--e-3);
   line-height: 1.5;
 }
+
+/* ---------- Planes ---------- */
+
+.plan-estado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  margin-top: var(--e-2);
+}
+
+.plan-estado strong {
+  display: block;
+  font-family: var(--fuente-display);
+  font-size: var(--t-lg);
+  font-weight: var(--peso-fuerte);
+}
+
+.plan-estado small {
+  display: block;
+  font-size: var(--t-sm);
+  color: var(--tinta-60);
+  margin-top: 2px;
+}
+
+.planes {
+  display: grid;
+  gap: var(--e-3);
+  margin-top: var(--e-3);
+}
+
+@media (min-width: 640px) {
+  .planes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--e-4);
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--r-lg);
+  background: var(--superficie);
+  box-shadow: var(--s-0);
+}
+
+/* El plan caro se distingue con un borde de color, no con más adornos:
+   la diferencia debe leerse en los puntos, no en la decoración. */
+.plan--destacado {
+  border-color: var(--verde-500);
+  border-width: 2px;
+  box-shadow: var(--s-1);
+}
+
+.plan--actual {
+  background: var(--verde-100);
+}
+
+.plan-etiqueta {
+  position: absolute;
+  top: calc(var(--e-3) * -1);
+  left: var(--e-4);
+  background: var(--verde-500);
+  color: #fff;
+  font-family: var(--fuente-display);
+  font-size: var(--t-2xs);
+  font-weight: var(--peso-fuerte);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px var(--e-2);
+  border-radius: var(--r-sm);
+}
+
+.plan h3 {
+  font-size: var(--t-lg);
+}
+
+.plan-precio {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-1);
+  margin: var(--e-2) 0 var(--e-3);
+}
+
+.plan-precio strong {
+  font-family: var(--fuente-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-2xl);
+  font-weight: var(--peso-negro);
+  letter-spacing: -0.02em;
+}
+
+.plan-precio small {
+  font-size: var(--t-sm);
+  color: var(--tinta-60);
+}
+
+.plan-puntos {
+  display: grid;
+  gap: var(--e-2);
+  margin-bottom: var(--e-4);
+  flex: 1;
+}
+
+.plan-puntos li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-2);
+  font-size: var(--t-sm);
+  line-height: var(--alto-compacto);
+  color: var(--tinta-80);
+}
+
+.plan-puntos svg {
+  width: 16px;
+  height: 16px;
+  color: var(--verde-500);
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ---------- Datos de pago ---------- */
+
+.pago-opciones {
+  display: grid;
+  gap: var(--e-3);
+  margin-top: var(--e-3);
+}
+
+.pago-opcion {
+  padding: var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-md);
+  background: var(--superficie-2);
+}
+
+.pago-opcion strong {
+  display: block;
+  font-size: var(--t-sm);
+  margin-bottom: var(--e-2);
+}
+
+.pago-opcion small {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+  margin-top: var(--e-1);
+}
+
+.pago-dato {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.pago-dato span {
+  font-size: var(--t-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tinta-60);
+}
+
+/* La CLABE con números tabulares y espaciada: se teclea a mano en la app
+   del banco y un dígito mal leído cuesta un pago perdido. */
+.pago-dato code {
+  font-family: var(--fuente-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-md);
+  letter-spacing: 0.06em;
+  color: var(--tinta);
+  word-break: break-all;
+}
+
+.pago-instrucciones {
+  margin-top: var(--e-3);
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--linea);
+  font-size: var(--t-sm);
+  color: var(--tinta-60);
+  line-height: var(--alto-compacto);
+}
+
+/* ---------- Cola de verificación (operador) ---------- */
+
+.pago-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-3);
+  border: 1px solid var(--linea);
+  border-left: 4px solid var(--alerta-500);
+  border-radius: var(--r-md);
+  background: var(--superficie);
+  margin-bottom: var(--e-2);
+}
+
+.pago-fila-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pago-fila-info strong {
+  font-family: var(--fuente-display);
+  font-size: var(--t-md);
+}
+
+.pago-fila-datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-1) var(--e-3);
+  margin-top: var(--e-1);
+  font-size: var(--t-sm);
+  color: var(--tinta-60);
+}
+
+.pago-fila-datos .cifra {
+  font-weight: var(--peso-fuerte);
+  color: var(--tinta);
+}
+
+.pago-fila-datos code {
+  font-family: var(--fuente-num);
+  font-size: var(--t-xs);
+  background: var(--superficie-2);
+  padding: 2px var(--e-2);
+  border-radius: var(--r-sm);
+}
+
+.pago-fila-nota {
+  display: block;
+  margin-top: var(--e-1);
+  font-size: var(--t-xs);
+  color: var(--tinta-60);
+  font-style: italic;
+}
+
+.pago-fila-alerta {
+  display: block;
+  margin-top: var(--e-2);
+  font-size: var(--t-xs);
+  color: var(--error-500);
+  line-height: var(--alto-compacto);
+}
+
+.pago-fila-acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  flex: none;
+}
