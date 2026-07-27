@@ -4,7 +4,7 @@
 // resumen_plataforma, que solo responde a un perfil con role='admin'.
 // La ruta escondida no es seguridad; la seguridad está en la base.
 
-import { html, pintarEn, delegar } from "./lib-dom.js";
+import { html, pintarEn, delegar, copiar } from "./lib-dom.js";
 import { vacio, esqueletoLista, toast } from "./lib-ui.js";
 import * as repo from "./datos-repo.js";
 import { dinero, csv, descargar, fechaHora, fechaCorta } from "./lib-formato.js";
@@ -146,6 +146,14 @@ export async function vistaAdmin(contenedor) {
   // ── La cola de pagos ──
   // Lo primero que ves al entrar: alguien está esperando que le
   // confirmes su pago para poder vender.
+  // El link de Clip y demás datos, para armar los accesos de verificación.
+  let cobro = {};
+  try {
+    cobro = await repo.configCobro();
+  } catch {
+    cobro = {};
+  }
+
   const pintarCola = async () => {
     const zona = contenedor.querySelector("[data-cola]");
     let filas = [];
@@ -187,6 +195,7 @@ export async function vistaAdmin(contenedor) {
                 : ""}
             </div>
             <div class="pago-fila-acciones">
+              ${ayudaVerificar(f, cobro)}
               <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
                 Confirmar
               </button>
@@ -213,6 +222,11 @@ export async function vistaAdmin(contenedor) {
       toast(error, "error");
       boton.disabled = false;
     }
+  });
+
+  delegar(contenedor, "click", "[data-copiar-monto]", async (_ev, boton) => {
+    const ok = await copiar(boton.dataset.copiarMonto);
+    toast(ok ? "Monto copiado. Pégalo en el buscador de tu banco." : "No se pudo copiar.", ok ? "ok" : "error");
   });
 
   delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
@@ -243,6 +257,14 @@ export async function vistaAdmin(contenedor) {
       // ── La cola de pagos ──
   // Lo primero que ves al entrar: alguien está esperando que le
   // confirmes su pago para poder vender.
+  // El link de Clip y demás datos, para armar los accesos de verificación.
+  let cobro = {};
+  try {
+    cobro = await repo.configCobro();
+  } catch {
+    cobro = {};
+  }
+
   const pintarCola = async () => {
     const zona = contenedor.querySelector("[data-cola]");
     let filas = [];
@@ -284,6 +306,7 @@ export async function vistaAdmin(contenedor) {
                 : ""}
             </div>
             <div class="pago-fila-acciones">
+              ${ayudaVerificar(f, cobro)}
               <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
                 Confirmar
               </button>
@@ -310,6 +333,11 @@ export async function vistaAdmin(contenedor) {
       toast(error, "error");
       boton.disabled = false;
     }
+  });
+
+  delegar(contenedor, "click", "[data-copiar-monto]", async (_ev, boton) => {
+    const ok = await copiar(boton.dataset.copiarMonto);
+    toast(ok ? "Monto copiado. Pégalo en el buscador de tu banco." : "No se pudo copiar.", ok ? "ok" : "error");
   });
 
   delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
@@ -339,6 +367,14 @@ export async function vistaAdmin(contenedor) {
       // ── La cola de pagos ──
   // Lo primero que ves al entrar: alguien está esperando que le
   // confirmes su pago para poder vender.
+  // El link de Clip y demás datos, para armar los accesos de verificación.
+  let cobro = {};
+  try {
+    cobro = await repo.configCobro();
+  } catch {
+    cobro = {};
+  }
+
   const pintarCola = async () => {
     const zona = contenedor.querySelector("[data-cola]");
     let filas = [];
@@ -380,6 +416,7 @@ export async function vistaAdmin(contenedor) {
                 : ""}
             </div>
             <div class="pago-fila-acciones">
+              ${ayudaVerificar(f, cobro)}
               <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
                 Confirmar
               </button>
@@ -406,6 +443,11 @@ export async function vistaAdmin(contenedor) {
       toast(error, "error");
       boton.disabled = false;
     }
+  });
+
+  delegar(contenedor, "click", "[data-copiar-monto]", async (_ev, boton) => {
+    const ok = await copiar(boton.dataset.copiarMonto);
+    toast(ok ? "Monto copiado. Pégalo en el buscador de tu banco." : "No se pudo copiar.", ok ? "ok" : "error");
   });
 
   delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
@@ -433,6 +475,14 @@ export async function vistaAdmin(contenedor) {
       // ── La cola de pagos ──
   // Lo primero que ves al entrar: alguien está esperando que le
   // confirmes su pago para poder vender.
+  // El link de Clip y demás datos, para armar los accesos de verificación.
+  let cobro = {};
+  try {
+    cobro = await repo.configCobro();
+  } catch {
+    cobro = {};
+  }
+
   const pintarCola = async () => {
     const zona = contenedor.querySelector("[data-cola]");
     let filas = [];
@@ -474,6 +524,7 @@ export async function vistaAdmin(contenedor) {
                 : ""}
             </div>
             <div class="pago-fila-acciones">
+              ${ayudaVerificar(f, cobro)}
               <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
                 Confirmar
               </button>
@@ -500,6 +551,11 @@ export async function vistaAdmin(contenedor) {
       toast(error, "error");
       boton.disabled = false;
     }
+  });
+
+  delegar(contenedor, "click", "[data-copiar-monto]", async (_ev, boton) => {
+    const ok = await copiar(boton.dataset.copiarMonto);
+    toast(ok ? "Monto copiado. Pégalo en el buscador de tu banco." : "No se pudo copiar.", ok ? "ok" : "error");
   });
 
   delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
@@ -527,6 +583,14 @@ export async function vistaAdmin(contenedor) {
     // ── La cola de pagos ──
   // Lo primero que ves al entrar: alguien está esperando que le
   // confirmes su pago para poder vender.
+  // El link de Clip y demás datos, para armar los accesos de verificación.
+  let cobro = {};
+  try {
+    cobro = await repo.configCobro();
+  } catch {
+    cobro = {};
+  }
+
   const pintarCola = async () => {
     const zona = contenedor.querySelector("[data-cola]");
     let filas = [];
@@ -568,6 +632,7 @@ export async function vistaAdmin(contenedor) {
                 : ""}
             </div>
             <div class="pago-fila-acciones">
+              ${ayudaVerificar(f, cobro)}
               <button class="boton boton--principal boton--chico" data-confirmar="${f.id}" type="button">
                 Confirmar
               </button>
@@ -596,6 +661,11 @@ export async function vistaAdmin(contenedor) {
     }
   });
 
+  delegar(contenedor, "click", "[data-copiar-monto]", async (_ev, boton) => {
+    const ok = await copiar(boton.dataset.copiarMonto);
+    toast(ok ? "Monto copiado. Pégalo en el buscador de tu banco." : "No se pudo copiar.", ok ? "ok" : "error");
+  });
+
   delegar(contenedor, "click", "[data-rechazar]", async (_ev, boton) => {
     const motivo = prompt("¿Por qué no se pudo confirmar?\n(el negocio lo va a leer)", "No encontramos el pago");
     if (motivo === null) return;
@@ -620,6 +690,42 @@ export async function vistaAdmin(contenedor) {
     descargar(`pueblopedidos-suscripciones-${fechaHora(new Date().toISOString())}.csv`, csv(filas));
     toast("Reporte descargado.");
   });
+}
+
+/**
+ * El acceso de verificación, distinto según cómo pagó:
+ *   · Clip          → botón que abre tu panel de Clip para buscar el cobro.
+ *   · Transferencia → botón que copia el monto exacto, para pegarlo en el
+ *                     buscador de tu app del banco.
+ *   · Efectivo      → nada que verificar en pantalla; lo tienes en la mano.
+ *
+ * No automatiza (eso es el webhook, más adelante), pero convierte el
+ * "déjame revisar" en un clic.
+ */
+function ayudaVerificar(f, cobro) {
+  if (f.metodo === "clip" && cobro.clipLink) {
+    // El panel de transacciones de Clip; el operador busca por monto/fecha.
+    return html`<a
+      class="boton boton--contorno boton--chico"
+      href="https://dashboard.clip.mx/transactions"
+      target="_blank"
+      rel="noopener"
+      title="Busca ${dinero(f.monto)} del ${fechaCorta(f.creado_en)}"
+    >
+      Ver en Clip
+    </a>`;
+  }
+  if (f.metodo === "transferencia") {
+    return html`<button
+      class="boton boton--contorno boton--chico"
+      data-copiar-monto="${f.monto}"
+      type="button"
+      title="Copia el monto para buscarlo en tu banco"
+    >
+      Copiar monto
+    </button>`;
+  }
+  return "";
 }
 
 function etiquetaMetodoOp(m) {
