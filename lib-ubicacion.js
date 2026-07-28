@@ -42,6 +42,43 @@ export function ubicacionActual({ preciso = true, esperaMs = 10000 } = {}) {
  * responder. Por eso NUNCA bloquea nada — si falla, el usuario escribe la
  * dirección a mano y la ubicación se guarda igual.
  */
+/**
+ * Busca direcciones por texto: el usuario escribe "Villa Cuauhtémoc" y
+ * salen sugerencias con sus coordenadas. Es lo que hace el autocompletado
+ * de Google, pero con OpenStreetMap: gratis y sin tarjeta.
+ *
+ * Devuelve una lista de { nombre, lat, lng }. Vacía si no hay coincidencias.
+ *
+ * countrycodes=mx acota a México para que "San Juan" no traiga uno de
+ * Argentina. limit=5 porque más sugerencias abruman en un teléfono.
+ */
+export async function buscarDirecciones(texto) {
+  const q = (texto || "").trim();
+  if (q.length < 3) return [];
+
+  const url =
+    `https://nominatim.openstreetmap.org/search?format=jsonv2` +
+    `&q=${encodeURIComponent(q)}&countrycodes=mx&limit=5` +
+    `&addressdetails=1&accept-language=es`;
+
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), 6000);
+  try {
+    const respuesta = await fetch(url, { signal: control.signal });
+    if (!respuesta.ok) throw new Error("sin respuesta");
+    const datos = await respuesta.json();
+    return (Array.isArray(datos) ? datos : []).map((d) => ({
+      nombre: d.display_name,
+      lat: Number(d.lat),
+      lng: Number(d.lon),
+    }));
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(corte);
+  }
+}
+
 export async function direccionDesdeCoords(lat, lng) {
   const llave = `${lat.toFixed(5)},${lng.toFixed(5)}`;
   if (CACHE.has(llave)) return CACHE.get(llave);
