@@ -14,6 +14,7 @@ import { correoValido, telefonoValido, slug } from "./lib-formato.js";
 import { VERSION_LEGAL } from "./legal-textos.js";
 import { ubicacionActual, direccionDesdeCoords, coordsDesdeLink, linkMapa } from "./lib-ubicacion.js";
 import { montarMapa, CENTRO_POR_DEFECTO } from "./lib-mapa.js";
+import { campoDireccion } from "./lib-campo-direccion.js";
 
 let pestana = "entrar";
 let logo = { dataUrl: "", file: null };
@@ -295,7 +296,7 @@ function formularioCliente(panel, contenedor) {
         </label>
         <label class="campo">
           <span>Dirección</span>
-          <input name="address" placeholder="Calle, número, colonia" required />
+          <div data-campo-direccion></div>
         </label>
         <label class="campo">
           <span>Referencia</span>
@@ -310,8 +311,20 @@ function formularioCliente(panel, contenedor) {
     `,
   );
 
-  // Llenamos la dirección solo si está vacía: si el usuario ya escribió
-  // algo, es porque sabe mejor que el geocoding.
+  let coordsElegidas = null;
+  // Campo de dirección con autocompletado. Al elegir una sugerencia,
+  // guarda también las coordenadas para el mapa.
+  const zonaDir = panel.querySelector("[data-campo-direccion]");
+  const dirAuto = zonaDir
+    ? campoDireccion(zonaDir, {
+        requerido: true,
+        alElegir: (_texto, coords) => {
+          if (coords) coordsElegidas = coords;
+        },
+      })
+    : null;
+
+  // El GPS/link sigue funcionando: llena la dirección solo si está vacía.
   conectarUbicacion(panel, (dir) => {
     const campo = panel.querySelector('[name="address"]');
     if (campo && !campo.value.trim() && dir.linea) {
@@ -340,7 +353,7 @@ function formularioCliente(panel, contenedor) {
     const boton = ev.currentTarget.querySelector('[type="submit"]');
     unaVez(boton, "Creando cuenta...", async () => {
       try {
-        await repo.registrarCliente({ ...datos, coords: estado.ubicacion });
+        await repo.registrarCliente({ ...datos, coords: coordsElegidas || estado.ubicacion });
         await repo.registrarAceptacion(VERSION_LEGAL);
         toast("Cuenta creada. Ya puedes pedir.");
         location.hash = "#/";
@@ -421,7 +434,7 @@ function formularioNegocio(panel, contenedor) {
           </div>
           <label class="campo">
             <span>Dirección</span>
-            <input name="address" placeholder="Calle, número, referencia" required />
+            <div data-campo-direccion></div>
           </label>
           <label class="campo">
             <span>Cómo entregas</span>
@@ -462,6 +475,17 @@ function formularioNegocio(panel, contenedor) {
     `,
   );
 
+  let coordsElegidas = null;
+  const zonaDir = panel.querySelector("[data-campo-direccion]");
+  const dirAuto = zonaDir
+    ? campoDireccion(zonaDir, {
+        requerido: true,
+        alElegir: (_texto, coords) => {
+          if (coords) coordsElegidas = coords;
+        },
+      })
+    : null;
+
   conectarUbicacion(panel, (dir) => {
     const campo = panel.querySelector('[name="address"]');
     if (campo && !campo.value.trim() && dir.linea) {
@@ -496,7 +520,7 @@ function formularioNegocio(panel, contenedor) {
           ...datos,
           schedule: horario.schedule,
           slug: slug(datos.name),
-          coords: estado.ubicacion,
+          coords: coordsElegidas || estado.ubicacion,
           image: logo.dataUrl,
           cover: portada.dataUrl,
           logoFile: logo.file,
@@ -825,6 +849,18 @@ function pintarPerfil(contenedor, sesion) {
         ${repo.modo() === "demo" ? "modo demo" : "conectado"}
       </p>
 
+      ${sesion.esOperador
+        ? html`
+            <a
+              class="boton boton--principal"
+              href="#/operador"
+              style="margin-top:var(--e-4);width:100%"
+            >
+              ${icono.tienda()} Panel de administrador
+            </a>
+          `
+        : ""}
+
       ${esTienda
         ? html`
             <div style="display:grid;gap:var(--e-2);margin-top:var(--e-4)">
@@ -847,7 +883,7 @@ function pintarPerfil(contenedor, sesion) {
               </div>
               <label class="campo">
                 <span>Dirección</span>
-                <input name="address" value="${p.address || ""}" />
+                <div data-campo-direccion data-valor="${p.address || ""}"></div>
               </label>
               <label class="campo">
                 <span>Referencia</span>
@@ -888,6 +924,18 @@ function pintarPerfil(contenedor, sesion) {
     `,
   );
 
+  let coordsElegidas = null;
+  const zonaDirPerfil = contenedor.querySelector("[data-campo-direccion]");
+  const dirAuto = zonaDirPerfil
+    ? campoDireccion(zonaDirPerfil, {
+        valor: zonaDirPerfil.dataset.valor || "",
+        requerido: false,
+        alElegir: (_texto, coords) => {
+          if (coords) coordsElegidas = coords;
+        },
+      })
+    : null;
+
   conectarUbicacion(contenedor, (dir) => {
     const campo = contenedor.querySelector('[name="address"]');
     if (campo && !campo.value.trim() && dir.linea) campo.value = dir.linea;
@@ -899,7 +947,7 @@ function pintarPerfil(contenedor, sesion) {
       ev.preventDefault();
       const datos = Object.fromEntries(new FormData(ev.currentTarget));
       try {
-        await repo.actualizarPerfil({ ...datos, coords: estado.ubicacion });
+        await repo.actualizarPerfil({ ...datos, coords: coordsElegidas || estado.ubicacion });
         toast("Datos guardados.");
       } catch (error) {
         toast(error, "error");

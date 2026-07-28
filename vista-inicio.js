@@ -257,14 +257,12 @@ function pintarTiendas(contenedor) {
     ]),
   );
 
+  // El home muestra TODAS las tiendas registradas de la categoría, sin
+  // esconder por modo ni por si aún no subieron productos. En un pueblo
+  // con pocos negocios, esconder cualquiera deja el home casi vacío
+  // mientras Buscar las muestra todas — justo lo que confundía. Las que no
+  // hacen el modo elegido salen igual, con su aviso en la tarjeta.
   const lista = datos.tiendas
-    .filter(tiendaDisponible)
-    // Y además que TENGA algo que vender en este modo. Antes bastaba con
-    // que el negocio dijera "entrega y recoger": si todos sus productos
-    // eran "solo recoger", en modo Entrega aparecía vacío y el cliente se
-    // metía a una tienda sin nada. Prometer algo que no se puede cumplir
-    // es peor que no aparecer.
-    .filter((t) => conteos.get(t.id) > 0)
     .filter((t) => estado.categoria === "Todos" || t.category === estado.categoria)
     .sort(ordenar);
 

@@ -286,7 +286,12 @@ export const driverLocal = {
   // ---------- Lecturas ----------
 
   async tiendas() {
-    return db.stores.filter((t) => t.status !== "paused");
+    return db.stores.filter(
+      (t) =>
+        t.status !== "paused" &&
+        t.subStatus !== "suspendida" &&
+        t.subStatus !== "vencida",
+    );
   },
 
   async tienda(slugOId) {

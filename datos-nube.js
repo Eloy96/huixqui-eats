@@ -298,6 +298,11 @@ export const driverNube = {
     return true;
   },
 
+  async _tieneTienda(uid) {
+    const t = revisar(await cliente.from("stores").select("id").eq("owner_id", uid).maybeSingle());
+    return Boolean(t);
+  },
+
   async sesion() {
     const { data } = await cliente.auth.getUser();
     const usuario = data?.user;
@@ -325,17 +330,22 @@ export const driverNube = {
       );
     }
 
-    if (perfilFila.role === "store_owner") {
+    // ¿Es operador? El rol admin puede convivir con una cuenta de negocio
+    // o de cliente: eres dueño de tu tienda Y administras la plataforma.
+    const esOperador = perfilFila.role === "admin";
+
+    if (perfilFila.role === "store_owner" || (esOperador && (await this._tieneTienda(usuario.id)))) {
       const tienda = revisar(
         await cliente.from("stores").select("*").eq("owner_id", usuario.id).maybeSingle(),
       );
-      if (!tienda) return { role: "client", id: usuario.id, perfil: perfilFila, sinTienda: true };
-      return { role: "store", id: tienda.id, perfil: aTienda(tienda) };
+      if (!tienda) return { role: "client", id: usuario.id, perfil: perfilFila, sinTienda: true, esOperador };
+      return { role: "store", id: tienda.id, perfil: aTienda(tienda), esOperador };
     }
 
     return {
       role: "client",
       id: usuario.id,
+      esOperador,
       perfil: {
         id: usuario.id,
         name: perfilFila.full_name || "",
@@ -566,7 +576,13 @@ export const driverNube = {
         .eq("status", "active")
         .order("created_at", { ascending: false }),
     );
-    return (filas || []).map(aTienda);
+    // El directorio NO muestra suspendidas ni vencidas. status="active" no
+    // basta: la suspensión vive en sub_status (columna distinta), así que
+    // una tienda suspendida seguía saliendo. Se filtra aquí, del lado del
+    // cliente, para no depender de que la consulta conozca cada estado.
+    return (filas || [])
+      .map(aTienda)
+      .filter((t) => t.subStatus !== "suspendida" && t.subStatus !== "vencida");
   },
 
   async tienda(slugOId) {
