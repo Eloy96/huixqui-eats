@@ -176,6 +176,35 @@ export const driverLocal = {
     return { aprobado: aprobar, plan: sol.plan, destacado: sol.plan === "destacado" };
   },
 
+  async darCortesia(storeId, meses) {
+    const s = db.stores.find((x) => x.id === storeId);
+    if (s) {
+      const base = Math.max(Date.parse(s.subscribedUntil || 0) || Date.now(), Date.now());
+      s.subscribedUntil = new Date(base + meses * 30 * 86400000).toISOString();
+      s.subStatus = "activa";
+      guardar();
+    }
+    return s;
+  },
+  async altaRapida(storeId, plan, meses, esCortesia) {
+    const s = db.stores.find((x) => x.id === storeId);
+    if (s) {
+      await this.darCortesia(storeId, meses);
+      s.plan = plan;
+      guardar();
+    }
+    return s;
+  },
+  async panelOperador() {
+    return db.stores.map((s) => ({
+      store_id: s.id, negocio: s.name, categoria: s.category,
+      plan: s.plan, estado: s.subStatus, vence: s.subscribedUntil,
+      dias_restantes: s.subscribedUntil
+        ? Math.ceil((Date.parse(s.subscribedUntil) - Date.now()) / 86400000) : null,
+      pagos_pendientes: 0,
+    }));
+  },
+
   async tableroSuscripciones() {
     const ahora = Date.now();
     return db.stores.map((s) => ({

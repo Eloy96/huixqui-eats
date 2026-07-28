@@ -497,6 +497,22 @@ export const driverNube = {
     );
   },
 
+  // ---- Herramientas de operador ----
+  async darCortesia(storeId, meses, motivo) {
+    return revisar(await cliente.rpc("dar_cortesia", {
+      p_store_id: storeId, p_meses: meses, p_motivo: motivo || null,
+    }));
+  },
+  async altaRapida(storeId, plan, meses, esCortesia, motivo) {
+    return revisar(await cliente.rpc("alta_rapida", {
+      p_store_id: storeId, p_plan: plan, p_meses: meses,
+      p_es_cortesia: !!esCortesia, p_motivo: motivo || null,
+    }));
+  },
+  async panelOperador() {
+    return revisar(await cliente.rpc("panel_operador")) || [];
+  },
+
   // ---- Suscripciones (operador) ----
   async tableroSuscripciones() {
     return revisar(await cliente.rpc("tablero_suscripciones")) || [];

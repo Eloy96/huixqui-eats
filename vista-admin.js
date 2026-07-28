@@ -129,6 +129,9 @@ export async function vistaAdmin(contenedor) {
                         <button class="boton boton--contorno boton--chico" data-activar="${f.store_id}" data-plan="destacado" type="button">
                           $200 Destacado
                         </button>
+                        <button class="boton boton--texto" data-cortesia="${f.store_id}" data-negocio="${f.negocio}" type="button">
+                          Regalar mes
+                        </button>
                         ${f.estado === "suspendida"
                           ? html`<button class="boton boton--texto" data-reactivar="${f.store_id}" type="button">Quitar suspensión</button>`
                           : html`<button class="boton boton--texto" data-suspender="${f.store_id}" type="button">Suspender</button>`}
@@ -209,18 +212,20 @@ export async function vistaAdmin(contenedor) {
   await pintarCola();
 
   delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
-    const fila = boton.closest(".pago-fila");
-    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
-    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    // Un clic. Ya ves negocio, monto y referencia en la fila; no hace falta
+    // un popup que confirme lo que ya estás viendo. Si te equivocas,
+    // "suspender" en el tablero de abajo lo revierte.
     boton.disabled = true;
+    boton.textContent = "Activando...";
     try {
       const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
-      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      toast(r?.destacado ? "Listo. Plan activo y espacio destacado asignado." : "Listo. Plan activo.");
       await pintarCola();
       await pintarTablero();
     } catch (error) {
       toast(error, "error");
       boton.disabled = false;
+      boton.textContent = "Confirmar";
     }
   });
 
@@ -320,18 +325,20 @@ export async function vistaAdmin(contenedor) {
   await pintarCola();
 
   delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
-    const fila = boton.closest(".pago-fila");
-    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
-    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    // Un clic. Ya ves negocio, monto y referencia en la fila; no hace falta
+    // un popup que confirme lo que ya estás viendo. Si te equivocas,
+    // "suspender" en el tablero de abajo lo revierte.
     boton.disabled = true;
+    boton.textContent = "Activando...";
     try {
       const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
-      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      toast(r?.destacado ? "Listo. Plan activo y espacio destacado asignado." : "Listo. Plan activo.");
       await pintarCola();
       await pintarTablero();
     } catch (error) {
       toast(error, "error");
       boton.disabled = false;
+      boton.textContent = "Confirmar";
     }
   });
 
@@ -356,6 +363,20 @@ export async function vistaAdmin(contenedor) {
     } catch (error) {
       toast(error, "error");
       boton.disabled = false;
+    }
+  });
+
+  delegar(contenedor, "click", "[data-cortesia]", async (_ev, boton) => {
+    const negocio = boton.dataset.negocio || "este negocio";
+    const meses = prompt(`¿Cuántos meses de cortesía para ${negocio}?\n(sin cobro — queda registrado como cortesía)`, "1");
+    if (meses === null) return;
+    const n = Math.max(1, Math.min(12, parseInt(meses, 10) || 1));
+    try {
+      await repo.darCortesia(boton.dataset.cortesia, n, "cortesía desde el panel");
+      toast(`Listo. ${n} mes${n === 1 ? "" : "es"} de cortesía para ${negocio}.`);
+      await pintarTablero();
+    } catch (error) {
+      toast(error, "error");
     }
   });
 
@@ -430,18 +451,20 @@ export async function vistaAdmin(contenedor) {
   await pintarCola();
 
   delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
-    const fila = boton.closest(".pago-fila");
-    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
-    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    // Un clic. Ya ves negocio, monto y referencia en la fila; no hace falta
+    // un popup que confirme lo que ya estás viendo. Si te equivocas,
+    // "suspender" en el tablero de abajo lo revierte.
     boton.disabled = true;
+    boton.textContent = "Activando...";
     try {
       const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
-      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      toast(r?.destacado ? "Listo. Plan activo y espacio destacado asignado." : "Listo. Plan activo.");
       await pintarCola();
       await pintarTablero();
     } catch (error) {
       toast(error, "error");
       boton.disabled = false;
+      boton.textContent = "Confirmar";
     }
   });
 
@@ -538,18 +561,20 @@ export async function vistaAdmin(contenedor) {
   await pintarCola();
 
   delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
-    const fila = boton.closest(".pago-fila");
-    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
-    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    // Un clic. Ya ves negocio, monto y referencia en la fila; no hace falta
+    // un popup que confirme lo que ya estás viendo. Si te equivocas,
+    // "suspender" en el tablero de abajo lo revierte.
     boton.disabled = true;
+    boton.textContent = "Activando...";
     try {
       const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
-      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      toast(r?.destacado ? "Listo. Plan activo y espacio destacado asignado." : "Listo. Plan activo.");
       await pintarCola();
       await pintarTablero();
     } catch (error) {
       toast(error, "error");
       boton.disabled = false;
+      boton.textContent = "Confirmar";
     }
   });
 
@@ -646,18 +671,20 @@ export async function vistaAdmin(contenedor) {
   await pintarCola();
 
   delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
-    const fila = boton.closest(".pago-fila");
-    const quien = fila?.querySelector("strong")?.textContent || "este negocio";
-    if (!confirm(`¿Confirmas el pago de ${quien}?\n\nSe le activa el plan de inmediato.`)) return;
+    // Un clic. Ya ves negocio, monto y referencia en la fila; no hace falta
+    // un popup que confirme lo que ya estás viendo. Si te equivocas,
+    // "suspender" en el tablero de abajo lo revierte.
     boton.disabled = true;
+    boton.textContent = "Activando...";
     try {
       const r = await repo.verificarPago(boton.dataset.confirmar, true, null);
-      toast(r?.destacado ? "Pago confirmado y espacio destacado asignado." : "Pago confirmado. Plan activo.");
+      toast(r?.destacado ? "Listo. Plan activo y espacio destacado asignado." : "Listo. Plan activo.");
       await pintarCola();
       await pintarTablero();
     } catch (error) {
       toast(error, "error");
       boton.disabled = false;
+      boton.textContent = "Confirmar";
     }
   });
 

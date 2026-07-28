@@ -138,6 +138,20 @@ export async function verificarPago(id, aprobar, motivo) {
   return r;
 }
 
+export async function darCortesia(storeId, meses, motivo) {
+  const r = await driver.darCortesia(storeId, meses, motivo);
+  invalidar();
+  return r;
+}
+export async function altaRapida(storeId, plan, meses, esCortesia, motivo) {
+  const r = await driver.altaRapida(storeId, plan, meses, esCortesia, motivo);
+  invalidar();
+  return r;
+}
+export async function panelOperador() {
+  return driver.panelOperador ? driver.panelOperador() : [];
+}
+
 export async function tableroSuscripciones() {
   return driver.tableroSuscripciones ? driver.tableroSuscripciones() : [];
 }
