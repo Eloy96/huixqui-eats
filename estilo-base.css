@@ -472,6 +472,7 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 180px;
 }
 
 /* En pantallas muy angostas el nombre estorba: gana la dirección. */

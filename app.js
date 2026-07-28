@@ -1,6 +1,6 @@
 // Arranque. Este archivo solo conecta cosas: no tiene lógica de negocio.
 
-import { html, pintarEn, $ } from "./lib-dom.js";
+import { html, pintarEn, $, activarRespaldoDeImagenes } from "./lib-dom.js";
 import { icono, cerrarHoja, toast } from "./lib-ui.js";
 import * as router from "./lib-router.js";
 import * as repo from "./datos-repo.js";
@@ -163,11 +163,15 @@ function pintarCabecera() {
  * que se toma la primera palabra larga.
  */
 function nombreCorto(sesion) {
+  // Para una tienda: el nombre del negocio ("Tacos de carnitas"). Para un
+  // cliente: su nombre. La versión anterior partía el nombre en su primera
+  // palabra cuando era largo, así "Tacos de carnitas" salía como "Tacos" —
+  // que se confundía con la categoría. Mejor mostrar el nombre completo y,
+  // solo si de plano no cabe, recortar con "…" (nunca a una palabra suelta).
   const nombre = String(sesion?.perfil?.name || "").trim();
   if (!nombre) return sesion?.role === "store" ? "Mi negocio" : "Mi cuenta";
-  if (nombre.length <= 14) return nombre;
-  const primera = nombre.split(/\s+/)[0];
-  return primera.length <= 14 ? primera : `${nombre.slice(0, 12)}…`;
+  if (nombre.length <= 22) return nombre;
+  return `${nombre.slice(0, 21)}…`;
 }
 
 function pintarPie() {
@@ -253,6 +257,7 @@ async function arrancar() {
   } catch (error) {
     toast(`Arrancamos en modo demo: ${error.message}`, "error");
   }
+  activarRespaldoDeImagenes();
   pintarCabecera();
   pintarCintaDemo();
   pintarPie();
