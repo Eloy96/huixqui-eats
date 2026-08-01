@@ -1,7 +1,7 @@
 // ============================================================
 // Plantillas seguras.
 //
-// El problema del código anterior: `innerHTML = \`<h3>${p.title}</h3>\``.
+// El problema del código anterior: `innerHTML = `<h3>${p.title}</h3>``.
 // Si una tienda se registra como  <img src=x onerror=alert(1)>  ese
 // código corre en el navegador de TODOS los clientes.
 //
@@ -83,63 +83,26 @@ export function delegar(raiz, evento, selector, manejador) {
   });
 }
 
-/**
- * Lee un input file y devuelve { dataUrl, file, ancho, alto, aviso }.
- *
- * Además de leerla, la MIDE. Decirle al negocio "sube 1200×675" no basta:
- * la mitad va a subir la foto como le salga. Medirla y avisar cuando se va
- * a ver mal es la diferencia entre un catálogo decente y uno borroso.
- */
-export function leerImagen(file, requisitos = null) {
+/** Lee un input file y devuelve { dataUrl, file } para previa + subida. */
+export function leerImagen(file) {
   return new Promise((resolver, rechazar) => {
     if (!file) {
       resolver({ dataUrl: "", file: null });
       return;
     }
     if (!file.type.startsWith("image/")) {
-      rechazar(new Error("El archivo debe ser una imagen (JPG, PNG o WEBP)."));
+      rechazar(new Error("El archivo debe ser una imagen."));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      const mb = (file.size / 1048576).toFixed(1);
-      rechazar(new Error(`La imagen pesa ${mb} MB y el máximo son 5 MB. Usa una más ligera.`));
+      rechazar(new Error("La imagen pesa más de 5 MB. Usa una más ligera."));
       return;
     }
     const lector = new FileReader();
+    lector.onload = () => resolver({ dataUrl: lector.result, file });
     lector.onerror = () => rechazar(new Error("No se pudo leer la imagen."));
-    lector.onload = () => {
-      const dataUrl = lector.result;
-      const img = new Image();
-      img.onload = () => {
-        resolver({
-          dataUrl,
-          file,
-          ancho: img.naturalWidth,
-          alto: img.naturalHeight,
-          aviso: revisarMedidas(img.naturalWidth, img.naturalHeight, requisitos),
-        });
-      };
-      // Si no se puede medir (formato raro), no bloqueamos: se sube igual.
-      img.onerror = () => resolver({ dataUrl, file, ancho: 0, alto: 0, aviso: "" });
-      img.src = dataUrl;
-    };
     lector.readAsDataURL(file);
   });
-}
-
-/** Devuelve un aviso en español, o "" si la imagen está bien. */
-function revisarMedidas(ancho, alto, req) {
-  if (!req || !ancho || !alto) return "";
-  if (ancho < req.minAncho || alto < req.minAlto) {
-    return `Se va a ver borrosa: tu imagen mide ${ancho}×${alto} y lo mínimo son ${req.minAncho}×${req.minAlto} px.`;
-  }
-  const proporcion = ancho / alto;
-  const objetivo = req.proporcion;
-  // 25% de tolerancia: más que eso y el recorte se come algo importante.
-  if (objetivo && Math.abs(proporcion - objetivo) / objetivo > 0.25) {
-    return req.avisoProporcion;
-  }
-  return "";
 }
 
 export function copiar(texto) {
@@ -161,4 +124,38 @@ export function copiar(texto) {
       campo.remove();
     }
   });
+}
+
+/**
+ * Red de seguridad para imágenes que no cargan.
+ *
+ * Si una foto falla (se borró del storage, se subió mal, la red se cayó),
+ * el navegador deja el icono de imagen rota Y CONSERVA EL ESPACIO que
+ * reserva aspect-ratio: un hueco enorme en medio de la pantalla. Peor aún,
+ * el usuario no sabe si es su internet o el producto.
+ *
+ * Con esto, cualquier <img data-respaldo="..."> que falle cambia sola a su
+ * imagen de respaldo. Un solo listener cubre toda la app, incluidas las
+ * imágenes que se pinten después.
+ *
+ * Va en captura porque el evento `error` de <img> NO burbujea.
+ */
+export function activarRespaldoDeImagenes() {
+  document.addEventListener(
+    "error",
+    (ev) => {
+      const img = ev.target;
+      if (!(img instanceof HTMLImageElement)) return;
+      const respaldo = img.dataset.respaldo;
+      // El marcador evita un bucle si el respaldo también falla.
+      if (!respaldo || img.dataset.respaldoUsado === "si") {
+        img.dataset.respaldoUsado = "si";
+        img.classList.add("img-sin-foto");
+        return;
+      }
+      img.dataset.respaldoUsado = "si";
+      img.src = respaldo;
+    },
+    true,
+  );
 }
