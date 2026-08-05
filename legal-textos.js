@@ -4,17 +4,20 @@
 // fondo en estos textos, sube la versión: así sabes quién aceptó qué.
 // Cambios de redacción menores no necesitan versión nueva.
 
-export const VERSION_LEGAL = "2026-07-22";
+export const VERSION_LEGAL = "2026-08-05";
 
 // ⚠️ Llena estos datos antes de abrir al público. Lo que quede sin llenar
-// aparece marcado en rojo dentro de la app, a propósito: es más fácil
-// notarlo ahí que en un archivo.
+// aparece marcado dentro de la app, a propósito: es más fácil notarlo ahí
+// que en un archivo.
 export const DATOS_RESPONSABLE = {
   responsable: "", // Tu nombre completo o razón social
   domicilio: "", // Domicilio para oír y recibir notificaciones
-  correo: "", // Correo de contacto y de derechos ARCO
   ciudad: "", // Ciudad/estado para la jurisdicción
+  region_datos: "", // Región donde está tu Supabase (p. ej. "Canadá (ca-central-1)")
 };
+
+// El teléfono de contacto sí está fijo (lo definiste).
+export const TELEFONO_CONTACTO = "55 1290 6477";
 
 const PENDIENTE = "[FALTA LLENAR]";
 
@@ -33,14 +36,14 @@ export const AVISO_PRIVACIDAD = [
   {
     titulo: "Quién es responsable de tus datos",
     parrafos: [
-      `${dato("responsable")}, con domicilio en ${dato("domicilio")} y correo de contacto ${dato("correo")}, es responsable del tratamiento de tus datos personales, conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).`,
+      `${dato("responsable")}, con domicilio en ${dato("domicilio")} y teléfono de contacto ${TELEFONO_CONTACTO}, es responsable del tratamiento de tus datos personales, conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).`,
     ],
   },
   {
     titulo: "Qué es PuebloPedidos",
     parrafos: [
       "PuebloPedidos es un directorio que conecta clientes con negocios locales. Armas tu pedido aquí y la plataforma genera un mensaje de WhatsApp que tú mismo envías al negocio.",
-      "PuebloPedidos no vende los productos, no te cobra, no realiza la entrega ni procesa pagos. La compraventa es directamente entre tú y el negocio.",
+      "PuebloPedidos no vende los productos, no te cobra por tu compra, no realiza la entrega ni procesa los pagos de tu pedido. La compraventa es directamente entre tú y el negocio.",
     ],
   },
   {
@@ -48,14 +51,14 @@ export const AVISO_PRIVACIDAD = [
     lista: [
       "Si eres cliente: tu nombre, WhatsApp, correo, dirección y referencias de entrega, tu ubicación aproximada si la autorizas, y el historial de pedidos que envías.",
       "Si eres un negocio: nombre comercial, categoría, descripción, dirección, ubicación, horarios, logo y fotos; más el nombre, WhatsApp y correo de quien lo administra.",
-      "No pedimos ni guardamos datos de tarjetas ni cuentas bancarias: el pago lo haces directo con el negocio.",
+      "No pedimos ni guardamos datos de tarjetas ni cuentas bancarias del cliente: el pago de tu pedido lo haces directo con el negocio.",
     ],
   },
   {
     titulo: "Para qué los usamos",
     parrafos: [
       "Para crear tu cuenta, generar y enviar tu pedido al negocio que elijas, mostrarte los negocios por cercanía si compartes tu ubicación, y darte soporte.",
-      "Si eres un negocio: para publicar tu ficha, hacerte llegar los contactos y llevar el control de tu saldo y promociones.",
+      "Si eres un negocio: para publicar tu ficha, hacerte llegar los contactos de los clientes, y administrar tu suscripción y tus promociones dentro de la plataforma.",
     ],
   },
   {
@@ -63,14 +66,14 @@ export const AVISO_PRIVACIDAD = [
     parrafos: [
       "Cuando envías un pedido, tu nombre, WhatsApp, dirección, referencias y el detalle del pedido se transfieren al negocio que elegiste, para que pueda atenderte. Sin esa transferencia no hay pedido.",
       "El mensaje viaja por WhatsApp, operado por Meta Platforms, Inc., y queda sujeto a sus políticas.",
-      "Si eres un negocio, tu nombre, dirección, teléfono, horarios y fotos se publican en el sitio y son visibles para cualquiera. Los datos de los clientes nunca se publican.",
-      "Usamos Supabase para autenticación, base de datos y almacenamiento de imágenes, y GitHub Pages para alojar el sitio. Tus datos se almacenan en servidores ubicados en Canadá (región ca-central-1). Al aceptar este aviso consientes esa transferencia internacional, necesaria para prestarte el servicio.",
+      "Si eres un negocio, tu nombre comercial, dirección, teléfono, horarios y fotos se publican en el sitio y son visibles para cualquier persona. Los datos personales de los clientes nunca se publican.",
+      `Usamos Supabase para autenticación, base de datos y almacenamiento de imágenes, y GitHub Pages para alojar el sitio. Tus datos se almacenan en servidores ubicados en ${dato("region_datos")}. Al aceptar este aviso consientes esa transferencia internacional, necesaria para prestarte el servicio.`,
     ],
   },
   {
-    titulo: "Menores de edad",
+    titulo: "Solo para mayores de edad",
     parrafos: [
-      "PuebloPedidos puede ser usado por menores de edad únicamente con el consentimiento y bajo la supervisión de quien ejerce la patria potestad o tutela, quien acepta este aviso en su nombre y es responsable de ese uso.",
+      "PuebloPedidos está dirigido exclusivamente a personas mayores de 18 años. Al registrarte declaras que eres mayor de edad. No recabamos intencionalmente datos de menores; si detectamos una cuenta de un menor, la eliminaremos.",
     ],
   },
   {
@@ -83,14 +86,14 @@ export const AVISO_PRIVACIDAD = [
   {
     titulo: "Cuánto tiempo los conservamos",
     parrafos: [
-      "Mientras tu cuenta exista. Cuando la eliminas desde la sección Cuenta, borramos tus datos personales; los pedidos que hayas hecho se conservan de forma anónima, sin tu nombre ni tu dirección, porque son parte de la contabilidad del negocio.",
+      "Conservamos tus datos personales mientras tu cuenta esté activa. Cuando la eliminas desde la sección Cuenta, borramos tus datos personales; los pedidos que hayas hecho se conservan de forma anónima, sin tu nombre ni tu dirección, porque son parte de la contabilidad del negocio.",
     ],
   },
   {
     titulo: "Tus derechos ARCO",
     parrafos: [
       "Puedes Acceder a tus datos, Rectificarlos, Cancelarlos y Oponerte a su tratamiento, además de revocar tu consentimiento.",
-      `Buena parte los ejerces tú mismo desde la sección Cuenta: editar tus datos o eliminar tu cuenta. Para lo demás, escribe a ${dato("correo")} indicando tu nombre, qué derecho quieres ejercer y sobre qué datos. Respondemos en un máximo de 20 días hábiles.`,
+      `Buena parte los ejerces tú mismo desde la sección Cuenta: editar tus datos o eliminar tu cuenta. Para lo demás, comunícate al ${TELEFONO_CONTACTO} indicando tu nombre, qué derecho quieres ejercer y sobre qué datos. Respondemos en un máximo de 20 días hábiles.`,
     ],
   },
   {
@@ -120,15 +123,15 @@ export const TERMINOS = [
   {
     titulo: "Quién puede usarla",
     parrafos: [
-      "Puedes usar PuebloPedidos si eres mayor de edad, o si eres menor y cuentas con el consentimiento y la supervisión de tu padre, madre o tutor, quien acepta estos Términos en tu nombre.",
-      "Para registrar un negocio declaras que estás facultado para representarlo y que la información que das es veraz.",
+      "Para usar PuebloPedidos debes ser mayor de 18 años. Al registrarte declaras que cumples con este requisito.",
+      "Para registrar un negocio declaras además que estás facultado para representarlo y que la información que proporcionas es veraz.",
     ],
   },
   {
     titulo: "Nuestro papel — léelo con atención",
     lista: [
       "PuebloPedidos no vende los productos ni presta los servicios que ofrecen los negocios.",
-      "No te cobramos, no procesamos pagos y no intervenimos en el pago: el precio y la forma de pago los acuerdas directamente con el negocio.",
+      "No cobramos al cliente, no procesamos el pago de su pedido y no intervenimos en él: el precio y la forma de pago del pedido los acuerdas directamente con el negocio.",
       "No realizamos ni garantizamos la entrega. Cada negocio define y cumple sus tiempos y condiciones.",
       "La compraventa es exclusivamente entre el cliente y el negocio. Calidad, cantidad, precio, entrega, garantías, facturación, devoluciones y reclamaciones se resuelven entre ellos.",
       "Los precios, horarios, disponibilidad y fotos los proporciona cada negocio, que es responsable de mantenerlos veraces. PuebloPedidos no los verifica.",
@@ -137,12 +140,17 @@ export const TERMINOS = [
   },
   {
     titulo: "Condiciones para los negocios",
+    parrafos: [
+      "La relación entre PuebloPedidos y el negocio es una suscripción para aparecer y promocionarse dentro de la plataforma:",
+    ],
     lista: [
-      "Registrar un negocio es gratuito.",
-      "PuebloPedidos no cobra comisión sobre las ventas del negocio.",
-      "El negocio paga por cada contacto que recibe a través de la plataforma. El costo y los paquetes se muestran en su panel.",
-      "Opcionalmente puede contratar espacios promocionados al precio indicado en el panel.",
-      "Los contactos y promociones contratados no son reembolsables, salvo que la ley disponga lo contrario.",
+      "Los negocios cuentan con un periodo de prueba gratuito de 30 días desde su registro.",
+      "Al terminar la prueba, para seguir apareciendo el negocio contrata una suscripción mensual, en el plan que elija: Presencia o Destacado. Los precios vigentes se muestran en su panel.",
+      "El plan Destacado otorga posición preferente dentro de su categoría, sujeto a disponibilidad, ya que se ofrece a un solo negocio destacado por categoría.",
+      "PuebloPedidos no cobra comisión sobre las ventas del negocio. El cobro es únicamente la suscripción.",
+      "El pago de la suscripción se realiza por los medios indicados en el panel del negocio y se activa una vez verificado.",
+      "Si la suscripción vence y no se renueva, el negocio deja de aparecer en la plataforma, pero su información no se elimina y puede reactivarse al pagar.",
+      "Las suscripciones y promociones contratadas no son reembolsables, salvo que la ley disponga lo contrario.",
     ],
   },
   {
@@ -175,7 +183,7 @@ export const TERMINOS = [
     parrafos: [
       "Podemos modificar estos Términos; la versión vigente está siempre en esta página. El uso continuado después de un cambio implica que lo aceptas.",
       `Estos Términos se rigen por las leyes de los Estados Unidos Mexicanos y las partes se someten a los tribunales de ${dato("ciudad")}, sin perjuicio de los derechos que la legislación de protección al consumidor reconozca al cliente.`,
-      `Dudas: ${dato("correo")}.`,
+      `Para cualquier duda o información, comunícate al ${TELEFONO_CONTACTO}.`,
     ],
   },
 ];
