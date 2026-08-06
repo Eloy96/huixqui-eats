@@ -138,6 +138,31 @@ export async function verificarPago(id, aprobar, motivo) {
   return r;
 }
 
+// ---- Destacados ----
+export async function cupoDestacados() {
+  return driver.cupoDestacados
+    ? driver.cupoDestacados()
+    : { maxPermitido: 0, enUso: 0, diasElegidos: 0 };
+}
+export async function reportarDestacado(datos) {
+  const r = await driver.reportarDestacado(datos);
+  invalidar();
+  return r;
+}
+export async function verificarDestacado(id, aprobar, motivo) {
+  const r = await driver.verificarDestacado(id, aprobar, motivo);
+  invalidar();
+  return r;
+}
+export async function destacarMiProducto(productId, encender) {
+  const r = await driver.destacarMiProducto(productId, encender);
+  invalidar();
+  return r;
+}
+export async function alertasPendientes() {
+  return driver.alertasPendientes ? driver.alertasPendientes() : [];
+}
+
 export async function darCortesia(storeId, meses, motivo) {
   const r = await driver.darCortesia(storeId, meses, motivo);
   invalidar();

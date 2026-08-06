@@ -176,9 +176,13 @@ function pintarOrden(contenedor) {
 }
 
 function pintarPromos(contenedor) {
+  // Todos los destacados vigentes ROTAN por los 12 espacios del Home: se
+  // mezcla el orden en cada carga, así ninguno queda siempre fuera ni
+  // siempre arriba. Escaso a la vista, justo para todos los que pagaron.
   const promos = datos.productos
     .filter((p) => estaPromocionado(p) && disponible(p) && tiendaDisponible(p.tienda))
-    .slice(0, 8);
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 12);
   const zona = contenedor.querySelector('[data-zona="promos"]');
   if (!promos.length) {
     pintarEn(zona, "");

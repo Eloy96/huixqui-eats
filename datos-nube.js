@@ -507,6 +507,49 @@ export const driverNube = {
     );
   },
 
+  // ---- Destacados ----
+  async cupoDestacados() {
+    const filas = revisar(await cliente.rpc("mi_cupo_destacados"));
+    const c = filas?.[0] || {};
+    return {
+      maxPermitido: c.max_permitido ?? 0,
+      enUso: c.en_uso ?? 0,
+      diasElegidos: c.dias_elegidos ?? 0,
+    };
+  },
+  async reportarDestacado({ tipo, productId, metodo, referencia }) {
+    return revisar(
+      await cliente.rpc("reportar_destacado", {
+        p_tipo: tipo,
+        p_product_id: productId || null,
+        p_metodo: metodo,
+        p_referencia: referencia || null,
+      }),
+    );
+  },
+  async verificarDestacado(id, aprobar, motivo) {
+    return revisar(
+      await cliente.rpc("verificar_destacado", {
+        p_request_id: id,
+        p_aprobar: aprobar,
+        p_motivo: motivo || null,
+      }),
+    );
+  },
+  async destacarMiProducto(productId, encender) {
+    return revisar(
+      await cliente.rpc("destacar_mi_producto", {
+        p_product_id: productId,
+        p_encender: encender,
+      }),
+    );
+  },
+
+  // ---- Alertas de operador ----
+  async alertasPendientes() {
+    return revisar(await cliente.rpc("alertas_pendientes")) || [];
+  },
+
   // ---- Herramientas de operador ----
   async darCortesia(storeId, meses, motivo) {
     return revisar(await cliente.rpc("dar_cortesia", {

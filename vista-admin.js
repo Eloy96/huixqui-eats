@@ -70,6 +70,9 @@ export async function vistaAdmin(contenedor) {
             <h2>Pagos por verificar</h2>
             <p>Compara con tu estado de cuenta antes de confirmar</p>
           </div>
+          <button class="boton boton--contorno boton--chico" data-avisarme type="button">
+            Avisarme por WhatsApp
+          </button>
         </div>
         <div data-cola></div>
       </section>
@@ -210,6 +213,29 @@ export async function vistaAdmin(contenedor) {
     );
   };
   await pintarCola();
+
+  // Abre tu WhatsApp con el resumen del pago pendiente, para que te llegue
+  // el aviso a ti (o lo reenvíes). Usa el link armado por 12-alertas.sql.
+  delegar(contenedor, "click", "[data-avisarme]", async (_ev, boton) => {
+    boton.disabled = true;
+    try {
+      const alertas = await repo.alertasPendientes();
+      if (!alertas.length) {
+        toast("No hay nada pendiente por avisar.");
+        return;
+      }
+      const conLink = alertas.find((a) => a.link_whatsapp);
+      if (conLink?.link_whatsapp) {
+        window.open(conLink.link_whatsapp, "_blank", "noopener");
+      } else {
+        toast("Configura tu WhatsApp de soporte para recibir avisos.", "error");
+      }
+    } catch (error) {
+      toast(error.message, "error");
+    } finally {
+      boton.disabled = false;
+    }
+  });
 
   delegar(contenedor, "click", "[data-confirmar]", async (_ev, boton) => {
     // Un clic. Ya ves negocio, monto y referencia en la fila; no hace falta

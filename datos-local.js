@@ -176,6 +176,67 @@ export const driverLocal = {
     return { aprobado: aprobar, plan: sol.plan, destacado: sol.plan === "destacado" };
   },
 
+  // ---- Destacados (demo) ----
+  async cupoDestacados() {
+    const s = db.stores.find((x) => x.id === db.session?.id);
+    const enUso = (db.products || []).filter(
+      (p) => p.storeId === db.session?.id && p.featuredUntil && Date.parse(p.featuredUntil) > Date.now(),
+    ).length;
+    return { maxPermitido: s?.plan === "destacado" ? 10 : 0, enUso, diasElegidos: 7 };
+  },
+  async reportarDestacado({ tipo, productId, metodo, referencia }) {
+    db.pagos = db.pagos || [];
+    const monto = tipo === "tienda" ? 50 : 20;
+    const sol = {
+      id: `pr-${Date.now()}`, plan: "presencia", meses: 1, monto, metodo,
+      referencia: referencia || null,
+      nota: tipo === "producto" ? `destacar_producto:${productId}` : "destacar_tienda",
+      estado: "por_verificar", creado_en: new Date().toISOString(),
+      store_id: db.session?.id,
+    };
+    db.pagos.push(sol);
+    guardar();
+    return sol;
+  },
+  async verificarDestacado(id, aprobar, motivo) {
+    const sol = (db.pagos || []).find((x) => x.id === id);
+    if (!sol) throw new Error("No encontramos ese reporte.");
+    sol.estado = aprobar ? "verificado" : "rechazado";
+    sol.motivo_rechazo = aprobar ? null : motivo || null;
+    if (aprobar) {
+      const hasta = new Date(Date.now() + 7 * 86400000).toISOString();
+      if (sol.nota?.startsWith("destacar_producto:")) {
+        const pid = sol.nota.split(":")[1];
+        const prod = (db.products || []).find((p) => p.id === pid);
+        if (prod) prod.featuredUntil = hasta;
+      } else if (sol.nota === "destacar_tienda") {
+        const s = db.stores.find((x) => x.id === sol.store_id);
+        if (s) s.featuredUntil = hasta;
+      }
+    }
+    guardar();
+    return { aprobado: aprobar };
+  },
+  async destacarMiProducto(productId, encender) {
+    const prod = (db.products || []).find((p) => p.id === productId);
+    if (prod) {
+      prod.featuredUntil = encender ? new Date(Date.now() + 7 * 86400000).toISOString() : null;
+      guardar();
+    }
+    return { destacado: !!encender };
+  },
+  async alertasPendientes() {
+    return (db.pagos || [])
+      .filter((x) => x.estado === "por_verificar")
+      .map((r) => ({
+        request_id: r.id,
+        negocio: db.stores.find((s) => s.id === r.store_id)?.name || "—",
+        resumen: `${db.stores.find((s) => s.id === r.store_id)?.name || "—"} · $${r.monto}`,
+        link_whatsapp: "",
+        creado_en: r.creado_en,
+      }));
+  },
+
   async darCortesia(storeId, meses) {
     const s = db.stores.find((x) => x.id === storeId);
     if (s) {

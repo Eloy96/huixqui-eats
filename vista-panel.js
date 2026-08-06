@@ -257,8 +257,11 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
                           : ""}
                       </div>
                       <div class="precio"><strong>${dinero(precioFinal(producto))}</strong></div>
-                      <div style="display:flex;gap:var(--e-2);margin-top:var(--e-2)">
+                      <div style="display:flex;gap:var(--e-2);margin-top:var(--e-2);flex-wrap:wrap">
                         <button class="boton boton--contorno boton--chico" data-editar="${producto.id}" type="button">Editar</button>
+                        ${estaPromocionado(producto)
+                          ? html`<button class="boton boton--texto boton--chico" data-quitar-destacado="${producto.id}" type="button">Quitar destacado</button>`
+                          : html`<button class="boton boton--contorno boton--chico" data-destacar="${producto.id}" data-nombre="${producto.title}" type="button">${icono.estrella()} Destacar</button>`}
                         <button class="boton boton--peligro boton--chico" data-borrar="${producto.id}" type="button">
                           ${icono.basura()}
                         </button>
@@ -297,6 +300,40 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
     try {
       await repo.borrarProducto(producto);
       toast("Producto quitado.");
+      vistaPanel(contenedor);
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
+
+  // Destacar un producto. Si la tienda tiene plan Destacado, se enciende
+  // con su cupo (sin cobro). Si es Presencia, se le ofrece comprarlo ($20).
+  delegar(panel, "click", "[data-destacar]", async (_ev, boton) => {
+    const id = boton.dataset.destacar;
+    const nombre = boton.dataset.nombre || "este producto";
+    try {
+      if (tienda.plan === "destacado") {
+        await repo.destacarMiProducto(id, true);
+        toast(`“${nombre}” quedó destacado.`);
+        vistaPanel(contenedor);
+      } else {
+        // Plan Presencia: es un servicio de pago.
+        if (!confirm(`Destacar “${nombre}” cuesta $20 por 7 días.\n\nSe abrirá el pago; al terminar, repórtalo. ¿Continuar?`)) return;
+        const config = await repo.configCobro();
+        if (config.clipLink) window.open(config.clipLink, "_blank", "noopener");
+        await repo.reportarDestacado({ tipo: "producto", productId: id, metodo: "clip" });
+        toast("Reportamos tu destacado. Se activa al verificar tu pago.");
+        vistaPanel(contenedor);
+      }
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
+
+  delegar(panel, "click", "[data-quitar-destacado]", async (_ev, boton) => {
+    try {
+      await repo.destacarMiProducto(boton.dataset.quitarDestacado, false);
+      toast("Se quitó el destacado.");
       vistaPanel(contenedor);
     } catch (error) {
       toast(error.message, "error");
