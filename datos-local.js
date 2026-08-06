@@ -136,7 +136,9 @@ export const driverLocal = {
 
   async configCobro() {
     return {
-      clipLink: "", banco: "Demo", clabe: "000000000000000000",
+      clipLink: "", clipLinkPresencia: "", clipLinkDestacado: "",
+      clipLinkProducto: "", clipLinkTienda: "",
+      banco: "Demo", clabe: "000000000000000000",
       titular: "Modo demo", aceptaEfectivo: true,
       instrucciones: "En el demo los pagos no son reales.",
       whatsappSoporte: "",

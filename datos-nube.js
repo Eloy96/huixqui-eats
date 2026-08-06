@@ -222,6 +222,7 @@ function aTienda(fila) {
     plan: fila.plan || "presencia",
     subStatus: fila.sub_status || "prueba",
     subscribedUntil: fila.subscribed_until,
+    featuredUntil: fila.featured_until || "",
     creditSpend: Number(fila.credit_spend || 0),
     status: fila.status || "active",
     remoto: true,
@@ -472,6 +473,11 @@ export const driverNube = {
     const c = filas?.[0] || {};
     return {
       clipLink: c.clip_link || "",
+      // Los 4 links por monto. Si falta alguno, cae al link general.
+      clipLinkPresencia: c.clip_link_presencia || c.clip_link || "",
+      clipLinkDestacado: c.clip_link_destacado || c.clip_link || "",
+      clipLinkProducto: c.clip_link_producto || c.clip_link || "",
+      clipLinkTienda: c.clip_link_tienda || c.clip_link || "",
       banco: c.banco || "",
       clabe: c.clabe || "",
       titular: c.titular || "",

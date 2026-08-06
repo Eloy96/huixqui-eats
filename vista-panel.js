@@ -320,7 +320,8 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
         // Plan Presencia: es un servicio de pago.
         if (!confirm(`Destacar “${nombre}” cuesta $20 por 7 días.\n\nSe abrirá el pago; al terminar, repórtalo. ¿Continuar?`)) return;
         const config = await repo.configCobro();
-        if (config.clipLink) window.open(config.clipLink, "_blank", "noopener");
+        const link = config.clipLinkProducto || config.clipLink;
+        if (link) window.open(link, "_blank", "noopener");
         await repo.reportarDestacado({ tipo: "producto", productId: id, metodo: "clip" });
         toast("Reportamos tu destacado. Se activa al verificar tu pago.");
         vistaPanel(contenedor);
@@ -909,6 +910,22 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
         </div>
       </section>
 
+      ${tienda.plan !== "destacado"
+        ? html`
+            <section class="tarjeta" style="margin-top:var(--e-5)">
+              <h2 style="font-size:var(--t-lg)">Destaca tu tienda</h2>
+              <p style="color:var(--tinta-60);font-size:var(--t-sm)">
+                Aparece en primeros lugares por 7 días. $50 · pago único.
+              </p>
+              ${estaPromocionadoTienda(tienda)
+                ? html`<span class="sello sello--destacado">${icono.estrella()} Tu tienda está destacada</span>`
+                : html`<button class="boton boton--principal boton--chico" data-destacar-tienda type="button">
+                    ${icono.estrella()} Destacar mi tienda · $50
+                  </button>`}
+            </section>
+          `
+        : ""}
+
       <section class="tarjeta" style="margin-top:var(--e-5)">
         <h2 style="font-size:var(--t-lg)">Cómo pagar</h2>
         ${datosDePago(config)}
@@ -947,6 +964,20 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
     const ok = await copiar(boton.dataset.copiar);
     toast(ok ? "CLABE copiada." : "No se pudo copiar. Selecciónala a mano.", ok ? "ok" : "error");
   });
+
+  // Destacar la tienda (plan Presencia): $50 por 7 días.
+  delegar(panel, "click", "[data-destacar-tienda]", async () => {
+    if (!confirm("Destacar tu tienda cuesta $50 por 7 días.\n\nSe abrirá el pago; al terminar, repórtalo. ¿Continuar?")) return;
+    try {
+      const link = config.clipLinkTienda || config.clipLink;
+      if (link) window.open(link, "_blank", "noopener");
+      await repo.reportarDestacado({ tipo: "tienda", productId: null, metodo: "clip" });
+      toast("Reportamos tu destacado de tienda. Se activa al verificar tu pago.");
+      vistaPanel(contenedor);
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
 }
 
 function planTarjeta({ id, titulo, precio, puntos, destacado = false, actual = false }) {
@@ -973,8 +1004,15 @@ function planTarjeta({ id, titulo, precio, puntos, destacado = false, actual = f
 }
 
 /** Los datos de cobro. Si el operador no los llenó, se dice claro. */
+// ¿La tienda tiene un destacado vigente? (columna featured_until)
+function estaPromocionadoTienda(tienda) {
+  return tienda.featuredUntil && new Date(tienda.featuredUntil) > new Date();
+}
+
 function datosDePago(config) {
-  const hay = config.clipLink || config.clabe || config.aceptaEfectivo;
+  const linkPresencia = config.clipLinkPresencia || config.clipLink;
+  const linkDestacado = config.clipLinkDestacado || config.clipLink;
+  const hay = linkPresencia || linkDestacado || config.clabe || config.aceptaEfectivo;
   if (!hay) {
     return html`<p style="color:var(--tinta-60);font-size:var(--t-sm)">
       Todavía no hay datos de pago configurados. Escríbenos y te decimos cómo pagar.
@@ -982,13 +1020,19 @@ function datosDePago(config) {
   }
   return html`
     <div class="pago-opciones">
-      ${config.clipLink
+      ${linkPresencia || linkDestacado
         ? html`
             <div class="pago-opcion">
               <strong>Tarjeta o efectivo en OXXO</strong>
-              <a class="boton boton--principal boton--chico" href="${config.clipLink}" target="_blank" rel="noopener">
-                Pagar en línea
-              </a>
+              <small style="display:block;margin-bottom:var(--e-2)">Elige según tu plan:</small>
+              <div style="display:flex;gap:var(--e-2);flex-wrap:wrap">
+                ${linkPresencia
+                  ? html`<a class="boton boton--contorno boton--chico" href="${linkPresencia}" target="_blank" rel="noopener">Pagar Presencia $99</a>`
+                  : ""}
+                ${linkDestacado
+                  ? html`<a class="boton boton--principal boton--chico" href="${linkDestacado}" target="_blank" rel="noopener">Pagar Destacado $200</a>`
+                  : ""}
+              </div>
             </div>
           `
         : ""}
@@ -1046,7 +1090,7 @@ function abrirReportePago(plan, config, contenedor) {
         <label class="campo">
           <span>¿Cómo pagaste?</span>
           <select name="metodo">
-            ${config.clipLink ? html`<option value="clip">En línea (tarjeta u OXXO)</option>` : ""}
+            ${config.clipLinkPresencia || config.clipLinkDestacado || config.clipLink ? html`<option value="clip">En línea (tarjeta u OXXO)</option>` : ""}
             ${config.clabe ? html`<option value="transferencia">Transferencia</option>` : ""}
             ${config.aceptaEfectivo ? html`<option value="efectivo">Efectivo</option>` : ""}
             <option value="otro">Otro</option>
