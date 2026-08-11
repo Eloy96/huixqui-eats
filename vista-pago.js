@@ -43,10 +43,15 @@ export async function vistaPago(contenedor, params) {
   }
 
   if (ultimo?.estado === "verificado") {
+    const detalle = ultimo.purchase_type === "store_feature"
+      ? `Pago confirmado. Tu tienda quedó destacada por ${ultimo.promo_days || 7} días.`
+      : ultimo.purchase_type === "product_feature"
+        ? `Pago confirmado. Tu producto quedó destacado por ${ultimo.promo_days || 7} días.`
+        : `Pago confirmado. Tu plan ${ultimo.plan === "destacado" ? "Destacado" : "Presencia"} por ${ultimo.meses} mes${ultimo.meses === 1 ? "" : "es"} ya está activo.`;
     pintarEn(
       contenedor,
       estadoFinal(
-        `Pago confirmado. Tu plan ${ultimo.plan === "destacado" ? "Destacado" : "Presencia"} por ${ultimo.meses} mes${ultimo.meses === 1 ? "" : "es"} ya esta activo.`,
+        detalle,
         "ok",
         dinero(ultimo.monto),
       ),
@@ -58,7 +63,7 @@ export async function vistaPago(contenedor, params) {
     pintarEn(
       contenedor,
       estadoFinal(
-        ultimo.motivo_rechazo || "Clip no pudo completar el pago. No se activo el plan.",
+        ultimo.motivo_rechazo || "Clip no pudo completar el pago. No se activó ninguna compra.",
         "error",
       ),
     );
@@ -96,4 +101,3 @@ function estadoFinal(mensaje, tipo, monto = "") {
 function esperar(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-

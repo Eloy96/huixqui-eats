@@ -261,9 +261,7 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
                         <button class="boton boton--contorno boton--chico" data-editar="${producto.id}" type="button">Editar</button>
                         ${estaPromocionado(producto)
                           ? html`<button class="boton boton--texto boton--chico" data-quitar-destacado="${producto.id}" type="button">Quitar destacado</button>`
-                          : tienda.plan === "destacado"
-                            ? html`<button class="boton boton--contorno boton--chico" data-destacar="${producto.id}" data-nombre="${producto.title}" type="button">${icono.estrella()} Destacar</button>`
-                            : ""}
+                          : html`<button class="boton boton--contorno boton--chico" data-destacar="${producto.id}" data-nombre="${producto.title}" type="button">${icono.estrella()} ${tienda.plan === "destacado" ? "Destacar" : "Destacar · $20"}</button>`}
                         <button class="boton boton--peligro boton--chico" data-borrar="${producto.id}" type="button">
                           ${icono.basura()}
                         </button>
@@ -308,15 +306,25 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
     }
   });
 
-  // Destacar productos es un beneficio del plan Destacado. Ya no se abre
-  // el flujo manual de $20, porque no podia comprobar el pago con Clip.
+  // El plan Destacado usa su cupo. En Presencia se crea un Checkout nuevo
+  // y el producto solo cambia cuando Clip confirma el pago.
   delegar(panel, "click", "[data-destacar]", async (_ev, boton) => {
     const id = boton.dataset.destacar;
     const nombre = boton.dataset.nombre || "este producto";
     try {
-      await repo.destacarMiProducto(id, true);
-      toast(`“${nombre}” quedó destacado.`);
-      vistaPanel(contenedor);
+      if (tienda.plan === "destacado") {
+        await repo.destacarMiProducto(id, true);
+        toast(`“${nombre}” quedó destacado.`);
+        vistaPanel(contenedor);
+      } else {
+        abrirPagoDestacado({
+          purchaseType: "product_feature",
+          productId: id,
+          titulo: `Destacar “${nombre}”`,
+          descripcion: "Tu producto aparecerá como promocionado durante 7 días.",
+          monto: 20,
+        });
+      }
     } catch (error) {
       toast(error.message, "error");
     }
@@ -853,9 +861,8 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
         ? html`
             <div class="banner banner--info" style="margin-top:var(--e-3)">
               <strong>Clip todavía no confirma este pago.</strong>
-              La solicitud es por ${dinero(pendiente.monto)} y ${pendiente.meses} mes${pendiente.meses === 1 ? "" : "es"}
-              de ${pendiente.plan === "destacado" ? "Destacado" : "Presencia"}.
-              Si cerraste o cancelaste el pago, no se activará ningún plan.
+              ${descripcionPago(pendiente)} por ${dinero(pendiente.monto)}.
+              Si cerraste o cancelaste el pago, no se activará ninguna compra.
             </div>
           `
         : ""}
@@ -906,6 +913,22 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
         </div>
       </section>
 
+      ${tienda.plan !== "destacado"
+        ? html`
+            <section class="tarjeta" style="margin-top:var(--e-5)">
+              <h2 style="font-size:var(--t-lg)">Destaca tu tienda</h2>
+              <p style="color:var(--tinta-60);font-size:var(--t-sm)">
+                Aparece en primeros lugares por 7 días. $50 · pago único con Clip.
+              </p>
+              ${estaPromocionadoTienda(tienda)
+                ? html`<span class="sello sello--destacado">${icono.estrella()} Tu tienda está destacada</span>`
+                : html`<button class="boton boton--principal boton--chico" data-destacar-tienda type="button">
+                    ${icono.estrella()} Destacar mi tienda · $50
+                  </button>`}
+            </section>
+          `
+        : ""}
+
       <section class="tarjeta" style="margin-top:var(--e-5)">
         <h2 style="font-size:var(--t-lg)">Cómo pagar</h2>
         ${datosDePago(config)}
@@ -920,7 +943,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
                   (x) => html`
                     <div class="envio-fila">
                       <div class="envio-fila-info">
-                        <strong>${dinero(x.monto)} · ${x.plan === "destacado" ? "Destacado" : "Presencia"}</strong>
+                        <strong>${dinero(x.monto)} · ${descripcionPago(x)}</strong>
                         <small>
                           ${fechaCorta(x.creado_en)} · ${etiquetaMetodo(x.metodo)}${x.referencia ? ` · ${x.referencia}` : ""}
                         </small>
@@ -945,6 +968,23 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
     toast(ok ? "CLABE copiada." : "No se pudo copiar. Selecciónala a mano.", ok ? "ok" : "error");
   });
 
+  delegar(panel, "click", "[data-destacar-tienda]", () => {
+    abrirPagoDestacado({
+      purchaseType: "store_feature",
+      titulo: "Destacar mi tienda",
+      descripcion: "Tu tienda aparecerá en primeros lugares durante 7 días.",
+      monto: 50,
+    });
+  });
+
+}
+
+function descripcionPago(pago) {
+  if (pago.purchase_type === "store_feature") return `Tienda destacada · ${pago.promo_days || 7} días`;
+  if (pago.purchase_type === "product_feature") {
+    return `${pago.product_title || "Producto"} destacado · ${pago.promo_days || 7} días`;
+  }
+  return `${pago.plan === "destacado" ? "Destacado" : "Presencia"} · ${pago.meses} mes${pago.meses === 1 ? "" : "es"}`;
 }
 
 function planTarjeta({ id, titulo, precio, puntos, destacado = false, actual = false }) {
@@ -1024,7 +1064,48 @@ function datosDePago(config) {
   `;
 }
 
-/** Checkout automático para tarjeta/OXXO; los métodos manuales se reportan aparte. */
+function abrirPagoDestacado({ purchaseType, productId = null, titulo, descripcion, monto }) {
+  const { nodo } = abrirHoja({
+    titulo,
+    cuerpo: html`
+      <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-bottom:var(--e-3)">
+        ${descripcion}
+      </p>
+      <div class="plan-precio">
+        <strong>${dinero(monto)}</strong>
+        <small>pago único</small>
+      </div>
+      <div class="banner banner--info" style="margin-top:var(--e-3)">
+        Solo se activará cuando Clip confirme el pago. Si cierras o cancelas, no cambia nada.
+      </div>
+    `,
+    pie: html`<button class="boton boton--principal boton--ancho" data-iniciar-destacado type="button">
+      Continuar a Clip
+    </button>`,
+  });
+  const idempotencyKey = crypto.randomUUID();
+
+  nodo.querySelector("[data-iniciar-destacado]").addEventListener("click", async (ev) => {
+    const boton = ev.currentTarget;
+    boton.disabled = true;
+    boton.textContent = "Creando pago seguro...";
+    try {
+      const pago = await repo.iniciarPagoClip({
+        purchaseType,
+        productId,
+        idempotencyKey,
+      });
+      if (!/^https:\/\//i.test(pago?.checkoutUrl || "")) throw new Error("Clip no devolvió un enlace válido.");
+      location.assign(pago.checkoutUrl);
+    } catch (error) {
+      toast(error.message, "error");
+      boton.disabled = false;
+      boton.textContent = "Continuar a Clip";
+    }
+  });
+}
+
+/** Checkout automático de suscripciones con tarjeta. */
 function abrirPagoSuscripcion(plan, config, contenedor) {
   const precio = plan === "destacado" ? 200 : 99;
   const hayManual = false;

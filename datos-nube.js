@@ -514,14 +514,14 @@ export const driverNube = {
       }),
     );
   },
-  async iniciarPagoClip({ plan, meses, idempotencyKey }) {
-    return invocarFuncion("clip-checkout", { plan, meses, idempotencyKey });
+  async iniciarPagoClip({ purchaseType = "subscription", plan, meses, productId, idempotencyKey }) {
+    return invocarFuncion("clip-checkout", { purchaseType, plan, meses, productId, idempotencyKey });
   },
   async estadoPagoClip(requestId) {
     return invocarFuncion("clip-payment-status", { requestId });
   },
   async misPagos() {
-    return revisar(await cliente.rpc("mis_pagos")) || [];
+    return revisar(await cliente.rpc("mis_pagos_clip")) || [];
   },
   async colaPagos() {
     return revisar(await cliente.rpc("cola_pagos")) || [];

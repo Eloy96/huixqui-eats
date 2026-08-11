@@ -126,11 +126,11 @@ export async function reportarPago(datos) {
   invalidar();
   return r;
 }
-export async function iniciarPagoClip({ plan, meses, idempotencyKey }) {
+export async function iniciarPagoClip({ purchaseType = "subscription", plan, meses, productId, idempotencyKey }) {
   if (driver.modo !== "nube" || !driver.iniciarPagoClip) {
     throw new Error("El pago automatico de Clip solo esta disponible con Supabase conectado.");
   }
-  return driver.iniciarPagoClip({ plan, meses, idempotencyKey });
+  return driver.iniciarPagoClip({ purchaseType, plan, meses, productId, idempotencyKey });
 }
 export async function estadoPagoClip(requestId) {
   if (driver.modo !== "nube" || !driver.estadoPagoClip) {
