@@ -6,6 +6,8 @@
 // Con el GPS y el link de Google Maps se resuelve el 95% de los casos sin
 // cargar nada extra.
 
+import { direccionGoogleDesdeCoords } from "./lib-google-maps.js";
+
 const CACHE = new Map();
 
 /** Lee el GPS del dispositivo. Errores en español, no códigos. */
@@ -36,94 +38,25 @@ export function ubicacionActual({ preciso = true, esperaMs = 10000 } = {}) {
 }
 
 /**
- * Coordenadas → dirección, con OpenStreetMap (Nominatim).
- *
- * Es gratis y sin llave, pero es un servicio ajeno: puede tardar o no
- * responder. Por eso NUNCA bloquea nada — si falla, el usuario escribe la
- * dirección a mano y la ubicación se guarda igual.
- */
-/**
- * Busca direcciones por texto: el usuario escribe "Villa Cuauhtémoc" y
- * salen sugerencias con sus coordenadas. Es lo que hace el autocompletado
- * de Google, pero con OpenStreetMap: gratis y sin tarjeta.
- *
- * Devuelve una lista de { nombre, lat, lng }. Vacía si no hay coincidencias.
- *
- * countrycodes=mx acota a México para que "San Juan" no traiga uno de
- * Argentina. limit=5 porque más sugerencias abruman en un teléfono.
+ * Compatibilidad con versiones anteriores. El autocompletado vive ahora
+ * en lib-campo-direccion.js y usa Google Places únicamente cuando existe
+ * una llave configurada.
  */
 export async function buscarDirecciones(texto) {
-  const q = (texto || "").trim();
-  if (q.length < 3) return [];
-
-  const url =
-    `https://nominatim.openstreetmap.org/search?format=jsonv2` +
-    `&q=${encodeURIComponent(q)}&countrycodes=mx&limit=5` +
-    `&addressdetails=1&accept-language=es`;
-
-  const control = new AbortController();
-  const corte = setTimeout(() => control.abort(), 6000);
-  try {
-    const respuesta = await fetch(url, { signal: control.signal });
-    if (!respuesta.ok) throw new Error("sin respuesta");
-    const datos = await respuesta.json();
-    return (Array.isArray(datos) ? datos : []).map((d) => ({
-      nombre: d.display_name,
-      lat: Number(d.lat),
-      lng: Number(d.lon),
-    }));
-  } catch {
-    return [];
-  } finally {
-    clearTimeout(corte);
-  }
+  // Conservado por compatibilidad con versiones anteriores. El servicio
+  // público de Nominatim no permite autocompletado; Google Places se monta
+  // ahora desde lib-campo-direccion.js.
+  void texto;
+  return [];
 }
 
 export async function direccionDesdeCoords(lat, lng) {
   const llave = `${lat.toFixed(5)},${lng.toFixed(5)}`;
   if (CACHE.has(llave)) return CACHE.get(llave);
 
-  const url =
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2` +
-    `&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=es`;
-
-  const control = new AbortController();
-  const corte = setTimeout(() => control.abort(), 6000);
-  try {
-    const respuesta = await fetch(url, { signal: control.signal });
-    if (!respuesta.ok) throw new Error("sin respuesta");
-    const datos = await respuesta.json();
-    const resultado = armarDireccion(datos);
-    CACHE.set(llave, resultado);
-    return resultado;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(corte);
-  }
-}
-
-function armarDireccion(datos) {
-  const d = datos?.address || {};
-  const calle = d.road || d.pedestrian || d.footway || "";
-  const numero = d.house_number || "";
-  const colonia = d.neighbourhood || d.suburb || d.quarter || d.village || "";
-  const municipio = d.city || d.town || d.municipality || d.village || "";
-  const estado = d.state || "";
-  const cp = d.postcode || "";
-
-  const linea = [calle && numero ? `${calle} ${numero}` : calle, colonia]
-    .filter(Boolean)
-    .join(", ");
-
-  return {
-    linea: linea || datos?.display_name?.split(",").slice(0, 2).join(",") || "",
-    colonia,
-    municipio,
-    estado,
-    cp,
-    completa: datos?.display_name || "",
-  };
+  const resultado = await direccionGoogleDesdeCoords(lat, lng);
+  if (resultado) CACHE.set(llave, resultado);
+  return resultado;
 }
 
 /**

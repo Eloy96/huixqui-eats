@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://eloy96.github.io/huixqui-eats/sitemap.xml

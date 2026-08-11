@@ -67,14 +67,19 @@ export function agregarAlCarrito({
   precio,
   sinQue = [],
   extras = [],
+  selectedOptions = [],
 }) {
   // Mismo producto + misma nota + misma configuración = suma cantidad.
   // Cualquier diferencia es línea nueva, porque "sin cebolla" y "con
   // todo" son dos platos distintos en la cocina.
+  const firmaOpciones = selectedOptions
+    .map((o) => `${o.groupId || o.group_id || ""}:${o.optionId || o.option_id || o.name || ""}`)
+    .sort()
+    .join(",");
   const firma = `${nota.trim()}|${[...sinQue].sort().join(",")}|${extras
     .map((e) => e.nombre)
     .sort()
-    .join(",")}`;
+    .join(",")}|${firmaOpciones}`;
   const igual = estado.carrito.find(
     (l) => l.productoId === producto.id && l.firma === firma,
   );
@@ -92,6 +97,7 @@ export function agregarAlCarrito({
       nota: nota.trim(),
       sinQue: [...sinQue],
       extras: extras.map((e) => ({ ...e })),
+      selectedOptions: selectedOptions.map((o) => ({ ...o })),
       firma,
     });
   }
@@ -151,5 +157,25 @@ export function itemsParaServidor(grupo) {
     qty: l.qty,
     price: l.precio,
     note: l.nota || "",
+    selected_options: [
+      ...(Array.isArray(l.sinQue) ? l.sinQue : []).map((name) => ({
+        kind: "remove",
+        name,
+        price: 0,
+      })),
+      ...(Array.isArray(l.extras) ? l.extras : []).map((extra) => ({
+        kind: "extra",
+        name: extra.nombre,
+        price: Number(extra.precio) || 0,
+      })),
+      ...(Array.isArray(l.selectedOptions) ? l.selectedOptions : []).map((opcion) => ({
+        kind: "group",
+        group_id: opcion.groupId || opcion.group_id,
+        group_name: opcion.groupName || opcion.group_name,
+        option_id: opcion.optionId || opcion.option_id,
+        name: opcion.name,
+        price: Number(opcion.price) || 0,
+      })),
+    ],
   }));
 }

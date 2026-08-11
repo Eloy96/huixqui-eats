@@ -1,127 +1,94 @@
-// Campo de dirección con autocompletado.
-//
-// El usuario escribe, aparecen sugerencias reales (calles, colonias del
-// pueblo), toca una, y se llenan solos el texto de la dirección Y sus
-// coordenadas. Es lo que hace el autocompletado de Google Maps, pero con
-// OpenStreetMap: gratis y sin tarjeta de crédito.
-//
-// Diseñado para reemplazar un <input name="address"> suelto sin que el
-// resto del formulario se entere: sigue habiendo un input con ese nombre,
-// solo que ahora es inteligente.
+// Campo de dirección progresivo.
+// Con Google configurado ofrece sugerencias precisas; sin llave conserva
+// captura manual y coordenadas existentes, sin depender de Nominatim.
 
 import { html, pintarEn } from "./lib-dom.js";
-import { buscarDirecciones } from "./lib-ubicacion.js";
+import { googleMapsConfigurado, montarAutocompleteGoogle } from "./lib-google-maps.js";
 
-/**
- * Convierte un contenedor en un campo de dirección con autocompletado.
- *
- * @param {HTMLElement} zona  dónde montarlo
- * @param {object} opciones
- *   - valor: dirección inicial (para editar un perfil existente)
- *   - coords: { lat, lng } inicial
- *   - alElegir: callback(direccion, coords) cada vez que se elige una
- *   - requerido: si el input es obligatorio
- * @returns un objeto con { direccion(), coords() } para leer al guardar
- */
 export function campoDireccion(zona, opciones = {}) {
-  const { valor = "", coords = null, alElegir = null, requerido = false } = opciones;
-
-  let elegidas = coords; // coordenadas de la dirección elegida
-  let ultimaBusqueda = 0;
-  let temporizador = null;
+  const {
+    valor = "",
+    coords = null,
+    alElegir = null,
+    alEditar: alEditarDireccion = null,
+    requerido = false,
+  } = opciones;
+  let elegidas = coords;
+  let metadatos = null;
 
   pintarEn(
     zona,
     html`
       <div class="dir-auto">
+        <div class="dir-google" data-google-direccion ${googleMapsConfigurado() ? "" : "hidden"}></div>
         <input
           name="address"
           class="dir-auto-input"
           value="${valor}"
-          placeholder="Escribe tu calle o colonia..."
-          autocomplete="off"
+          placeholder="Calle, número, colonia y municipio"
+          autocomplete="street-address"
+          ${googleMapsConfigurado() ? "hidden" : ""}
           ${requerido ? "required" : ""}
         />
-        <div class="dir-auto-lista" data-sugerencias hidden></div>
         <small class="dir-auto-ayuda" data-ayuda>
-          Escribe y elige de la lista para ubicarte en el mapa.
+          ${googleMapsConfigurado()
+            ? "Escribe y elige una dirección de Google para guardar el punto exacto."
+            : "Escribe la dirección completa. Puedes complementar con el GPS."}
         </small>
       </div>
     `,
   );
 
   const input = zona.querySelector(".dir-auto-input");
-  const lista = zona.querySelector("[data-sugerencias]");
   const ayuda = zona.querySelector("[data-ayuda]");
-
-  const cerrarLista = () => {
-    lista.hidden = true;
-    pintarEn(lista, "");
-  };
-
-  const pintarSugerencias = (opciones) => {
-    if (!opciones.length) {
-      cerrarLista();
-      return;
-    }
-    pintarEn(
-      lista,
-      html`${opciones.map(
-        (o, i) => html`
-          <button type="button" class="dir-auto-item" data-idx="${i}">
-            ${o.nombre}
-          </button>
-        `,
-      )}`,
-    );
-    lista.hidden = false;
-
-    lista.querySelectorAll(".dir-auto-item").forEach((btn, i) => {
-      btn.addEventListener("click", () => {
-        const elegida = opciones[i];
-        input.value = elegida.nombre;
-        elegidas = { lat: elegida.lat, lng: elegida.lng };
-        ayuda.textContent = "Ubicación fijada ✓";
-        ayuda.classList.add("dir-auto-ok");
-        cerrarLista();
-        if (alElegir) alElegir(elegida.nombre, elegidas);
-      });
-    });
-  };
-
-  const buscar = async (texto) => {
-    const marca = ++ultimaBusqueda;
-    const resultados = await buscarDirecciones(texto);
-    // Si llegó otra búsqueda mientras esta viajaba, ignoramos la vieja:
-    // así no parpadean sugerencias de lo que el usuario ya borró.
-    if (marca !== ultimaBusqueda) return;
-    pintarSugerencias(resultados);
-  };
+  const zonaGoogle = zona.querySelector("[data-google-direccion]");
 
   input.addEventListener("input", () => {
-    // Si el usuario reescribe, las coordenadas viejas ya no valen.
     elegidas = null;
-    ayuda.textContent = "Escribe y elige de la lista para ubicarte en el mapa.";
+    metadatos = null;
+    ayuda.textContent = "Dirección escrita manualmente. Usa el GPS si quieres fijar el punto exacto.";
     ayuda.classList.remove("dir-auto-ok");
-
-    // Espera 350ms tras la última tecla antes de buscar: no dispara una
-    // consulta por letra, respeta el servicio gratuito y va más suave.
-    clearTimeout(temporizador);
-    const texto = input.value.trim();
-    if (texto.length < 3) {
-      cerrarLista();
-      return;
-    }
-    temporizador = setTimeout(() => buscar(texto), 350);
+    alEditarDireccion?.(input.value.trim());
   });
 
-  // Cerrar la lista al tocar fuera.
-  document.addEventListener("click", (ev) => {
-    if (!zona.contains(ev.target)) cerrarLista();
-  });
+  if (googleMapsConfigurado()) {
+    montarAutocompleteGoogle(zonaGoogle, {
+      valor,
+      requerido,
+      alEditar() {
+        elegidas = null;
+        metadatos = null;
+        ayuda.textContent = "Elige una sugerencia para confirmar la ubicación.";
+        ayuda.classList.remove("dir-auto-ok");
+        alEditarDireccion?.(input.value.trim());
+      },
+      alElegir(direccion, coordsElegidas, meta) {
+        input.value = direccion;
+        elegidas = coordsElegidas;
+        metadatos = meta;
+        ayuda.textContent = "Dirección y ubicación confirmadas ✓";
+        ayuda.classList.add("dir-auto-ok");
+        alElegir?.(direccion, elegidas, metadatos);
+      },
+    }).catch(() => {
+      zonaGoogle.hidden = true;
+      input.hidden = false;
+      ayuda.textContent = "Google no respondió. Escribe la dirección y usa el GPS para confirmar.";
+    });
+  }
 
   return {
     direccion: () => input.value.trim(),
     coords: () => elegidas,
+    metadata: () => metadatos,
+    establecer(direccion, nuevasCoords = null) {
+      input.value = String(direccion || "");
+      elegidas = nuevasCoords;
+      metadatos = null;
+      ayuda.textContent = nuevasCoords
+        ? "Dirección y ubicación confirmadas ✓"
+        : "Dirección guardada. Usa el GPS si quieres mejorar la precisión.";
+      ayuda.classList.toggle("dir-auto-ok", Boolean(nuevasCoords));
+    },
   };
 }

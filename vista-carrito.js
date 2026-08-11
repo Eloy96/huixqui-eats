@@ -22,6 +22,7 @@ import {
 } from "./estado.js";
 import * as repo from "./datos-repo.js";
 import { dinero, normalizarWhatsApp, estaAbierta } from "./lib-formato.js";
+import { campoDireccion } from "./lib-campo-direccion.js";
 
 export async function vistaCarrito(contenedor) {
   if (estado.envios.length) {
@@ -100,6 +101,16 @@ export async function vistaCarrito(contenedor) {
         )}
       </div>
 
+      ${!repo.esCliente()
+        ? html`<section class="tarjeta carrito-acceso">
+            <div>
+              <strong>Inicia sesión antes de confirmar</strong>
+              <p>Tu carrito se conservará mientras entras o creas tu cuenta.</p>
+            </div>
+            <a class="boton boton--contorno boton--chico" href="#/cuenta">Entrar</a>
+          </section>`
+        : ""}
+
       <section class="tarjeta" style="margin-top:var(--e-4)">
         <h2 style="font-size:var(--t-lg);margin-bottom:var(--e-3)">
           ${entrega ? "¿A dónde lo llevamos?" : "¿Quién recoge?"}
@@ -116,7 +127,7 @@ export async function vistaCarrito(contenedor) {
           ? html`
               <label class="campo">
                 <span>Dirección</span>
-                <input data-direccion value="${cliente?.address || ""}" placeholder="Calle, número, colonia" />
+                <div data-direccion-carrito></div>
               </label>
               <label class="campo">
                 <span>Referencia</span>
@@ -148,6 +159,20 @@ export async function vistaCarrito(contenedor) {
     `,
   );
 
+  const direccionCarrito = entrega
+    ? campoDireccion(contenedor.querySelector("[data-direccion-carrito]"), {
+        valor: cliente?.address || estado.etiquetaUbicacion || "",
+        coords: cliente?.coords || estado.ubicacion,
+        requerido: true,
+        alElegir(direccion, coords) {
+          fijar({ etiquetaUbicacion: direccion, ubicacion: coords });
+        },
+        alEditar(direccion) {
+          fijar({ etiquetaUbicacion: direccion, ubicacion: null });
+        },
+      })
+    : null;
+
   delegar(contenedor, "click", "[data-mas]", (_ev, b) => {
     cambiarCantidad(b.dataset.mas, 1);
     vistaCarrito(contenedor);
@@ -169,7 +194,8 @@ export async function vistaCarrito(contenedor) {
     const boton = ev.currentTarget;
     const nombre = contenedor.querySelector("[data-nombre]").value.trim();
     const telefono = contenedor.querySelector("[data-telefono]").value.trim();
-    const direccion = entrega ? contenedor.querySelector("[data-direccion]").value.trim() : "";
+    const direccion = entrega ? direccionCarrito.direccion() : "";
+    const coordsEntrega = entrega ? direccionCarrito.coords() || estado.ubicacion : null;
     const referencia = entrega ? contenedor.querySelector("[data-referencia]").value.trim() : "";
 
     if (!nombre || telefono.replace(/\D/g, "").length < 10) {
@@ -203,7 +229,13 @@ export async function vistaCarrito(contenedor) {
     boton.textContent = "Preparando...";
 
     try {
-      await repo.actualizarPerfil({ name: nombre, phone: telefono, address: direccion, reference: referencia });
+      await repo.actualizarPerfil({
+        name: nombre,
+        phone: telefono,
+        address: direccion,
+        reference: referencia,
+        coords: coordsEntrega,
+      });
       const resultado = await repo.crearPedidos({
         grupos: lista.map((g) => ({
           storeId: g.storeId,
@@ -213,26 +245,30 @@ export async function vistaCarrito(contenedor) {
         modo: estado.modoPedido,
         direccion,
         referencia,
+        coords: coordsEntrega,
       });
 
       const envios = resultado.map((fila) => {
         const grupo = lista.find((g) => g.storeId === (fila.pedido.storeId || fila.pedido.store_id));
+        const lineasConfirmadas = lineasDesdeServidor(fila.pedido.items, grupo.lineas);
+        const totalConfirmado = Number(fila.pedido.total ?? grupo.total);
         return {
           storeId: grupo.storeId,
           tienda: grupo.tienda?.name || "Negocio",
           telefono: grupo.tienda?.phone || "",
-          total: grupo.total,
+          total: totalConfirmado,
           enviado: false,
           cobrable: fila.cobrable,
           texto: mensaje({
             tienda: grupo.tienda,
-            lineas: grupo.lineas,
-            total: grupo.total,
+            lineas: lineasConfirmadas,
+            total: totalConfirmado,
             nombre,
             telefono,
             direccion,
             referencia,
             modo: estado.modoPedido,
+            coords: coordsEntrega,
           }),
         };
       });
@@ -248,7 +284,46 @@ export async function vistaCarrito(contenedor) {
   });
 }
 
-function mensaje({ tienda, lineas, total, nombre, telefono, direccion, referencia, modo }) {
+/** Usa lo que confirmó el servidor, no precios viejos que quedaran en el carrito. */
+function lineasDesdeServidor(items, respaldo) {
+  if (!Array.isArray(items) || !items.length) return respaldo;
+  return items.map((item) => {
+    const opciones = Array.isArray(item.selected_options) ? item.selected_options : [];
+    return {
+      titulo: item.title,
+      qty: Number(item.qty || item.quantity || 1),
+      precio: Number(item.price ?? item.unit_price) || 0,
+      nota: item.note || item.customer_note || "",
+      sinQue: opciones.filter((o) => o.kind === "remove").map((o) => o.name),
+      extras: opciones
+        .filter((o) => o.kind === "extra")
+        .map((o) => ({ nombre: o.name, precio: Number(o.price) || 0 })),
+      selectedOptions: opciones
+        .filter((o) => o.kind === "group")
+        .map((o) => ({ groupName: o.group_name, name: o.name, price: Number(o.price) || 0 })),
+    };
+  });
+}
+
+/** Resume exactamente la configuración elegida sin romper el carrito. */
+function detalleLinea(linea) {
+  const sinQue = Array.isArray(linea.sinQue) ? linea.sinQue : [];
+  const extras = Array.isArray(linea.extras) ? linea.extras : [];
+  const opciones = Array.isArray(linea.selectedOptions) ? linea.selectedOptions : [];
+  if (!sinQue.length && !extras.length && !opciones.length) return "";
+
+  return html`<div class="carrito-config">
+    ${sinQue.map((nombre) => html`<span class="carrito-sin">Sin ${nombre}</span>`)}
+    ${extras.map(
+      (extra) => html`<span class="carrito-extra">+ ${extra.nombre} ${Number(extra.precio) ? dinero(extra.precio) : ""}</span>`,
+    )}
+    ${opciones.map(
+      (opcion) => html`<span class="carrito-opcion">${opcion.groupName || "Opción"}: ${opcion.name}</span>`,
+    )}
+  </div>`;
+}
+
+function mensaje({ tienda, lineas, total, nombre, telefono, direccion, referencia, modo, coords }) {
   const detalle = lineas
     .map((l) => {
       // El negocio necesita leerlo de un vistazo en su teléfono, sin
@@ -256,8 +331,10 @@ function mensaje({ tienda, lineas, total, nombre, telefono, direccion, referenci
       const partes = [`• ${l.qty} x ${l.titulo} — ${dinero(l.qty * l.precio)}`];
       const sinQue = Array.isArray(l.sinQue) ? l.sinQue : [];
       const extras = Array.isArray(l.extras) ? l.extras : [];
+      const opciones = Array.isArray(l.selectedOptions) ? l.selectedOptions : [];
       if (sinQue.length) partes.push(`   SIN: ${sinQue.join(", ")}`);
       extras.forEach((e) => partes.push(`   + ${e.nombre} (${dinero(e.precio || 0)})`));
+      opciones.forEach((o) => partes.push(`   ${o.groupName || "Opción"}: ${o.name}`));
       if (l.nota) partes.push(`   Nota: ${l.nota}`);
       return partes.join("\n");
     })
@@ -271,6 +348,9 @@ function mensaje({ tienda, lineas, total, nombre, telefono, direccion, referenci
     `Modo: ${modo}`,
     modo === "Entrega" ? `Dirección: ${direccion}` : "Paso a recoger",
     modo === "Entrega" && referencia ? `Referencia: ${referencia}` : "",
+    modo === "Entrega" && coords
+      ? `Ubicación: https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
+      : "",
     "",
     `Soy ${nombre} · ${telefono}`,
   ]

@@ -68,7 +68,10 @@ export async function vistaPedidos(contenedor) {
               <ul>
                 ${(pedido.items || []).map(
                   (item) => html`
-                    <li>${item.qty} × ${item.title}${item.note ? html` <em style="color:var(--tinta-60)">(${item.note})</em>` : ""}</li>
+                    <li>
+                      ${item.qty} × ${item.title}${item.note ? html` <em style="color:var(--tinta-60)">(${item.note})</em>` : ""}
+                      ${detalleOpciones(item.selected_options || item.selectedOptions)}
+                    </li>
                   `,
                 )}
               </ul>
@@ -76,11 +79,11 @@ export async function vistaPedidos(contenedor) {
                 ? html`
                     <div style="display:flex;gap:var(--e-2);margin-top:var(--e-3);flex-wrap:wrap">
                       <a class="boton boton--contorno boton--chico" href="#/tienda/${tienda.slug || tienda.id}">
-                        Volver a pedir
+                        Ver menú
                       </a>
                       <a
                         class="boton boton--wa boton--chico"
-                        href="https://wa.me/${normalizarWhatsApp(tienda.phone)}"
+                        href="https://wa.me/${normalizarWhatsApp(tienda.phone)}?text=${encodeURIComponent(`Hola ${tienda.name}, tengo una duda sobre mi pedido ${pedido.id}.`)}"
                         target="_blank"
                         rel="noopener"
                       >
@@ -95,4 +98,15 @@ export async function vistaPedidos(contenedor) {
       </div>
     `,
   );
+}
+
+function detalleOpciones(opciones) {
+  const lista = Array.isArray(opciones) ? opciones : [];
+  if (!lista.length) return "";
+  const partes = lista.map((opcion) => {
+    if (opcion.kind === "remove") return `Sin ${opcion.name}`;
+    if (opcion.kind === "extra") return `+ ${opcion.name}`;
+    return `${opcion.group_name || opcion.groupName || "Opción"}: ${opcion.name}`;
+  });
+  return html`<small class="pedido-opciones">${partes.join(" · ")}</small>`;
 }

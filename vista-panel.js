@@ -21,6 +21,8 @@ import {
   csv,
   descargar,
 } from "./lib-formato.js";
+import { campoDireccion } from "./lib-campo-direccion.js";
+import { ubicacionActual, direccionDesdeCoords, linkMapa } from "./lib-ubicacion.js";
 
 let pestana = "resumen";
 let editando = null;
@@ -516,6 +518,18 @@ function hojaProducto(tienda, contenedor) {
               ${icono.mas()} Agregar extra
             </button>
           </div>
+
+          <div class="opciones-grupo">
+            <h4>Opciones para elegir</h4>
+            <p class="opciones-ayuda">
+              Para tamaño, salsa, sabor o tipo de tortilla. Puedes hacer una elección obligatoria
+              y cobrar cantidades diferentes por cada opción.
+            </p>
+            <div data-grupos-opciones></div>
+            <button class="boton boton--contorno boton--chico" data-agregar-grupo type="button">
+              ${icono.mas()} Agregar grupo
+            </button>
+          </div>
         </section>
       </form>
     `,
@@ -561,6 +575,22 @@ function hojaProducto(tienda, contenedor) {
   let extras = Array.isArray(editando?.extras)
     ? editando.extras.map((e) => ({ ...e }))
     : [];
+  const idOpcion = () =>
+    globalThis.crypto?.randomUUID?.() || `op-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let gruposOpciones = (Array.isArray(editando?.optionGroups) ? editando.optionGroups : []).map(
+    (grupo) => ({
+      id: grupo.id || idOpcion(),
+      name: grupo.name || "",
+      required: grupo.required === true,
+      minSelected: Number(grupo.minSelected || 0),
+      maxSelected: Math.max(1, Number(grupo.maxSelected || 1)),
+      options: (Array.isArray(grupo.options) ? grupo.options : []).map((opcion) => ({
+        id: opcion.id || idOpcion(),
+        name: opcion.name || "",
+        price: Math.max(0, Number(opcion.price) || 0),
+      })),
+    }),
+  );
 
   const pintarQuitables = () => {
     const zona = form.querySelector("[data-quitables]");
@@ -629,6 +659,86 @@ function hojaProducto(tienda, contenedor) {
     );
   };
 
+  const pintarGruposOpciones = () => {
+    const zona = form.querySelector("[data-grupos-opciones]");
+    if (!zona) return;
+    pintarEn(
+      zona,
+      gruposOpciones.length
+        ? html`${gruposOpciones.map(
+            (grupo, indiceGrupo) => html`
+              <article class="opcion-grupo-editor">
+                <div class="opcion-grupo-editor-cabeza">
+                  <input
+                    value="${grupo.name || ""}"
+                    data-grupo-nombre="${indiceGrupo}"
+                    placeholder="Ej. Elige tu salsa"
+                    maxlength="60"
+                    aria-label="Nombre del grupo ${indiceGrupo + 1}"
+                  />
+                  <button class="boton boton--texto" data-quitar-grupo="${indiceGrupo}" type="button">
+                    Quitar grupo
+                  </button>
+                </div>
+                <div class="opcion-grupo-reglas">
+                  <label class="opcion-check opcion-check--extra">
+                    <input type="checkbox" data-grupo-obligatorio="${indiceGrupo}" ${grupo.required ? "checked" : ""} />
+                    <span>Obligatorio</span>
+                  </label>
+                  <label class="campo">
+                    <span>Mínimo</span>
+                    <input type="number" min="0" max="20" value="${grupo.minSelected || 0}" data-grupo-min="${indiceGrupo}" />
+                  </label>
+                  <label class="campo">
+                    <span>Máximo</span>
+                    <input type="number" min="1" max="20" value="${grupo.maxSelected || 1}" data-grupo-max="${indiceGrupo}" />
+                  </label>
+                </div>
+                <div class="opcion-grupo-lista">
+                  ${grupo.options.length
+                    ? grupo.options.map(
+                        (opcion, indiceOpcion) => html`
+                          <div class="opcion-fila opcion-fila--extra">
+                            <input
+                              class="opcion-nombre"
+                              value="${opcion.name || ""}"
+                              data-grupo-opcion-nombre="${indiceGrupo}:${indiceOpcion}"
+                              placeholder="Ej. Salsa verde"
+                              maxlength="60"
+                              aria-label="Opción ${indiceOpcion + 1}"
+                            />
+                            <div class="opcion-precio">
+                              <span>+$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputmode="numeric"
+                                value="${opcion.price || 0}"
+                                data-grupo-opcion-precio="${indiceGrupo}:${indiceOpcion}"
+                                aria-label="Precio adicional"
+                              />
+                            </div>
+                            <button
+                              class="boton boton--texto"
+                              data-quitar-grupo-opcion="${indiceGrupo}:${indiceOpcion}"
+                              type="button"
+                            >Quitar</button>
+                          </div>
+                        `,
+                      )
+                    : html`<p class="opciones-vacio">Agrega al menos una opción.</p>`}
+                </div>
+                <button class="boton boton--contorno boton--chico" data-agregar-grupo-opcion="${indiceGrupo}" type="button">
+                  ${icono.mas()} Agregar opción
+                </button>
+              </article>
+            `,
+          )}`
+        : html`<p class="opciones-vacio">Este producto todavía no pide elecciones.</p>`,
+    );
+  };
+
   // Se lee del DOM al vuelo: así lo escrito nunca se pierde al repintar.
   const leerListas = () => {
     form.querySelectorAll("[data-quitable-idx]").forEach((input) => {
@@ -646,6 +756,29 @@ function hojaProducto(tienda, contenedor) {
     });
   };
 
+  const leerGruposOpciones = () => {
+    form.querySelectorAll("[data-grupo-nombre]").forEach((input) => {
+      gruposOpciones[Number(input.dataset.grupoNombre)].name = input.value.trim();
+    });
+    form.querySelectorAll("[data-grupo-obligatorio]").forEach((input) => {
+      gruposOpciones[Number(input.dataset.grupoObligatorio)].required = input.checked;
+    });
+    form.querySelectorAll("[data-grupo-min]").forEach((input) => {
+      gruposOpciones[Number(input.dataset.grupoMin)].minSelected = Math.max(0, Number(input.value) || 0);
+    });
+    form.querySelectorAll("[data-grupo-max]").forEach((input) => {
+      gruposOpciones[Number(input.dataset.grupoMax)].maxSelected = Math.max(1, Number(input.value) || 1);
+    });
+    form.querySelectorAll("[data-grupo-opcion-nombre]").forEach((input) => {
+      const [g, o] = input.dataset.grupoOpcionNombre.split(":").map(Number);
+      gruposOpciones[g].options[o].name = input.value.trim();
+    });
+    form.querySelectorAll("[data-grupo-opcion-precio]").forEach((input) => {
+      const [g, o] = input.dataset.grupoOpcionPrecio.split(":").map(Number);
+      gruposOpciones[g].options[o].price = Math.max(0, Number(input.value) || 0);
+    });
+  };
+
   nodo.querySelector("[data-agregar-quitable]")?.addEventListener("click", () => {
     leerListas();
     quitables.push("");
@@ -660,6 +793,20 @@ function hojaProducto(tienda, contenedor) {
     form.querySelector(`[data-extra-nombre="${extras.length - 1}"]`)?.focus();
   });
 
+  nodo.querySelector("[data-agregar-grupo]")?.addEventListener("click", () => {
+    leerGruposOpciones();
+    gruposOpciones.push({
+      id: idOpcion(),
+      name: "",
+      required: true,
+      minSelected: 1,
+      maxSelected: 1,
+      options: [],
+    });
+    pintarGruposOpciones();
+    form.querySelector(`[data-grupo-nombre="${gruposOpciones.length - 1}"]`)?.focus();
+  });
+
   delegar(nodo, "click", "[data-quitar-quitable]", (_ev, boton) => {
     leerListas();
     quitables.splice(Number(boton.dataset.quitarQuitable), 1);
@@ -672,8 +819,31 @@ function hojaProducto(tienda, contenedor) {
     pintarExtras();
   });
 
+  delegar(nodo, "click", "[data-quitar-grupo]", (_ev, boton) => {
+    leerGruposOpciones();
+    gruposOpciones.splice(Number(boton.dataset.quitarGrupo), 1);
+    pintarGruposOpciones();
+  });
+
+  delegar(nodo, "click", "[data-agregar-grupo-opcion]", (_ev, boton) => {
+    leerGruposOpciones();
+    const indice = Number(boton.dataset.agregarGrupoOpcion);
+    gruposOpciones[indice].options.push({ id: idOpcion(), name: "", price: 0 });
+    pintarGruposOpciones();
+    const ultimo = gruposOpciones[indice].options.length - 1;
+    form.querySelector(`[data-grupo-opcion-nombre="${indice}:${ultimo}"]`)?.focus();
+  });
+
+  delegar(nodo, "click", "[data-quitar-grupo-opcion]", (_ev, boton) => {
+    leerGruposOpciones();
+    const [g, o] = boton.dataset.quitarGrupoOpcion.split(":").map(Number);
+    gruposOpciones[g].options.splice(o, 1);
+    pintarGruposOpciones();
+  });
+
   pintarQuitables();
   pintarExtras();
+  pintarGruposOpciones();
 
   const sincronizaDescuento = () => {
     const valor = form.querySelector("[data-descuento]").value;
@@ -718,11 +888,33 @@ function hojaProducto(tienda, contenedor) {
     boton.textContent = "Guardando...";
     try {
       leerListas();
+      leerGruposOpciones();
+      for (const grupo of gruposOpciones) {
+        if (!grupo.name || !grupo.options.length || grupo.options.some((opcion) => !opcion.name)) {
+          throw new Error("Cada grupo necesita nombre y al menos una opción con nombre.");
+        }
+        if (grupo.required) grupo.minSelected = Math.max(1, grupo.minSelected);
+        if (grupo.maxSelected < grupo.minSelected || grupo.maxSelected > grupo.options.length) {
+          throw new Error(`Revisa el mínimo y máximo de “${grupo.name}”.`);
+        }
+      }
       const guardado = await repo.guardarProducto({
         quitables: quitables.map((q) => q.trim()).filter(Boolean),
         extras: extras
           .filter((e) => e.nombre?.trim())
           .map((e) => ({ nombre: e.nombre.trim(), precio: Math.max(0, Number(e.precio) || 0) })),
+        optionGroups: gruposOpciones.map((grupo) => ({
+          id: grupo.id,
+          name: grupo.name.trim(),
+          required: grupo.required,
+          minSelected: grupo.minSelected,
+          maxSelected: grupo.maxSelected,
+          options: grupo.options.map((opcion) => ({
+            id: opcion.id,
+            name: opcion.name.trim(),
+            price: Math.max(0, Number(opcion.price) || 0),
+          })),
+        })),
         id: editando?.id,
         storeId: tienda.id,
         ...datos,
@@ -1292,8 +1484,19 @@ function pintarPerfil({ panel, tienda, contenedor }) {
         </div>
         <label class="campo">
           <span>Dirección</span>
-          <input name="address" value="${tienda.address || ""}" />
+          <div data-campo-direccion-perfil></div>
         </label>
+        <div class="ubicacion-bloque">
+          <button class="boton boton--contorno boton--chico" data-ubicar-negocio type="button">
+            ${icono.cercania()} Usar ubicación del local
+          </button>
+          ${tienda.coords
+            ? html`<a class="boton boton--texto" href="${linkMapa(tienda.coords.lat, tienda.coords.lng)}" target="_blank" rel="noopener">
+                Verificar punto actual
+              </a>`
+            : ""}
+          <p class="ubicacion-estado" data-ubicacion-negocio></p>
+        </div>
         <label class="campo">
           <span>Cómo entregas</span>
           <select name="serviceModes">
@@ -1326,6 +1529,40 @@ function pintarPerfil({ panel, tienda, contenedor }) {
     `,
   );
 
+  let coordsPerfil = tienda.coords || null;
+  const direccionPerfil = campoDireccion(panel.querySelector("[data-campo-direccion-perfil]"), {
+    valor: tienda.address || "",
+    coords: tienda.coords || null,
+    alElegir(_direccion, coords) {
+      coordsPerfil = coords;
+    },
+    alEditar() {
+      coordsPerfil = null;
+    },
+  });
+  panel.querySelector("[data-ubicar-negocio]").addEventListener("click", async (ev) => {
+    const boton = ev.currentTarget;
+    const aviso = panel.querySelector("[data-ubicacion-negocio]");
+    boton.disabled = true;
+    boton.textContent = "Buscando...";
+    try {
+      const punto = await ubicacionActual();
+      const detectada = await direccionDesdeCoords(punto.lat, punto.lng);
+      coordsPerfil = { lat: punto.lat, lng: punto.lng };
+      direccionPerfil.establecer(detectada?.linea || direccionPerfil.direccion(), coordsPerfil);
+      aviso.textContent = punto.precision > 100
+        ? `Punto aproximado (±${punto.precision} m). Confírmalo con el enlace después de guardar.`
+        : "Punto exacto listo para guardar.";
+      aviso.className = `ubicacion-estado ${punto.precision > 100 ? "ubicacion-estado--aviso" : "ubicacion-estado--listo"}`;
+    } catch (error) {
+      aviso.textContent = error.message;
+      aviso.className = "ubicacion-estado ubicacion-estado--error";
+    } finally {
+      boton.disabled = false;
+      pintarEn(boton, html`${icono.cercania()} Usar ubicación del local`);
+    }
+  });
+
   panel.querySelector("[data-logo]").addEventListener("change", async (ev) => {
     try {
       nuevoLogo = await leerImagen(ev.target.files[0]);
@@ -1352,6 +1589,7 @@ function pintarPerfil({ panel, tienda, contenedor }) {
         cover: nuevaPortada.dataUrl || tienda.cover,
         logoFile: nuevoLogo.file,
         coverFile: nuevaPortada.file,
+        coords: coordsPerfil,
       });
       toast("Perfil actualizado.");
       vistaPanel(contenedor);

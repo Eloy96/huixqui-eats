@@ -42,6 +42,7 @@ export async function vistaTienda(contenedor, { slug }) {
     (p) => p.availability === "both" || p.availability === modo,
   );
   const enlace = `${location.origin}${location.pathname}#/tienda/${tienda.slug || tienda.id}`;
+  const mensajeDuda = `Hola ${tienda.name}, vi tu tienda en PuebloPedidos. ¿Me ayudas con una duda? ${enlace}`;
 
   pintarEn(
     contenedor,
@@ -66,6 +67,14 @@ export async function vistaTienda(contenedor, { slug }) {
         ${detalle ? html`<p class="campo-error" style="margin-top:var(--e-2)">${detalle}</p>` : ""}
 
         <div class="tienda-acciones">
+          <a
+            class="boton boton--wa boton--chico"
+            href="https://wa.me/${normalizarWhatsApp(tienda.phone)}?text=${encodeURIComponent(mensajeDuda)}"
+            target="_blank"
+            rel="noopener"
+          >
+            ${icono.wa()} Preguntar
+          </a>
           <button class="boton boton--contorno boton--chico" data-horario type="button">Ver horario</button>
           <button class="boton boton--contorno boton--chico" data-copiar type="button">
             ${icono.copiar()} Copiar link

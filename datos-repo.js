@@ -137,7 +137,10 @@ export async function estadoPagoClip(requestId) {
     throw new Error("No se puede verificar el pago sin conexion al servidor.");
   }
   const resultado = await driver.estadoPagoClip(requestId);
-  if (resultado?.estado === "verificado") await refrescarSesion();
+  if (resultado?.estado === "verificado") {
+    invalidar();
+    await refrescarSesion();
+  }
   return resultado;
 }
 export async function misPagos() {

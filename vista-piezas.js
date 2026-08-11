@@ -14,6 +14,7 @@ import {
   distanciaKm,
   etiquetaDistancia,
   tiempoEstimado,
+  normalizarWhatsApp,
 } from "./lib-formato.js";
 import { imagenPorCategoria } from "./datos-semillas.js";
 import { estado, agregarAlCarrito } from "./estado.js";
@@ -213,11 +214,63 @@ function bloqueExtras(producto) {
   `;
 }
 
+/** Variantes configurables: salsa, tamaño, tortilla, sabor, etc. */
+function bloqueGrupos(producto) {
+  const grupos = (Array.isArray(producto.optionGroups) ? producto.optionGroups : []).filter(
+    (grupo) => grupo?.name && Array.isArray(grupo.options) && grupo.options.length,
+  );
+  if (!grupos.length) return "";
+
+  return html`${grupos.map((grupo, indiceGrupo) => {
+    const minimo = Math.max(grupo.required ? 1 : 0, Number(grupo.minSelected || 0));
+    const maximo = Math.max(1, Number(grupo.maxSelected || 1));
+    const tipo = maximo === 1 ? "radio" : "checkbox";
+    const ayuda = maximo === 1
+      ? minimo > 0 ? "Elige una opción." : "Opcional: elige una opción."
+      : `Elige ${minimo ? `de ${minimo} a ` : "hasta "}${maximo}.`;
+    return html`
+      <fieldset
+        class="opciones-cliente opciones-cliente--grupo"
+        data-option-group="${grupo.id}"
+        data-group-name="${grupo.name}"
+        data-min="${minimo}"
+        data-max="${maximo}"
+      >
+        <legend>${grupo.name}${minimo ? " · obligatorio" : ""}</legend>
+        <p class="opciones-cliente-ayuda">${ayuda}</p>
+        ${grupo.options.map(
+          (opcion, indiceOpcion) => html`
+            <label class="opcion-check opcion-check--extra">
+              <input
+                type="${tipo}"
+                name="grupo-${indiceGrupo}"
+                data-group-option
+                data-group-id="${grupo.id}"
+                data-group-name="${grupo.name}"
+                data-option-id="${opcion.id || `${indiceGrupo}-${indiceOpcion}`}"
+                data-option-name="${opcion.name}"
+                data-precio="${Number(opcion.price) || 0}"
+              />
+              <span>${opcion.name}</span>
+              ${Number(opcion.price)
+                ? html`<strong class="opcion-precio-etiqueta">+${dinero(opcion.price)}</strong>`
+                : ""}
+            </label>
+          `,
+        )}
+        <p class="campo-error opcion-grupo-error" data-group-error hidden></p>
+      </fieldset>
+    `;
+  })}`;
+}
+
 /** Hoja de producto: cantidad + nota antes de agregar. */
 export function abrirProducto(producto, tienda) {
   let cantidad = 1;
   const final = precioFinal(producto);
   const { abierta } = estadoTienda(tienda);
+  const enlaceProducto = `${location.origin}${location.pathname}#/tienda/${tienda.slug || tienda.id}`;
+  const mensajeDuda = `Hola ${tienda.name}, vi ${producto.title} en PuebloPedidos. ¿Me ayudas con una duda? ${enlaceProducto}`;
 
   const { nodo, cerrar } = abrirHoja({
     titulo: producto.title,
@@ -256,6 +309,16 @@ export function abrirProducto(producto, tienda) {
           </p>`}
       ${bloqueQuitables(producto)}
       ${bloqueExtras(producto)}
+      ${bloqueGrupos(producto)}
+
+      <a
+        class="boton boton--wa boton--ancho producto-pregunta"
+        href="https://wa.me/${normalizarWhatsApp(tienda.phone)}?text=${encodeURIComponent(mensajeDuda)}"
+        target="_blank"
+        rel="noopener"
+      >
+        ${icono.wa()} Preguntar por este producto
+      </a>
 
       <label class="campo" style="margin-top:var(--e-4)">
         <span>Comentario para la cocina</span>
@@ -309,7 +372,36 @@ export function abrirProducto(producto, tienda) {
     }));
 
   const precioConExtras = () =>
-    final + leerExtras().reduce((suma, e) => suma + e.precio, 0);
+    final
+    + leerExtras().reduce((suma, e) => suma + e.precio, 0)
+    + leerOpcionesGrupo().reduce((suma, opcion) => suma + opcion.price, 0);
+
+  const leerOpcionesGrupo = () =>
+    [...nodo.querySelectorAll("[data-group-option]:checked")].map((campo) => ({
+      groupId: campo.dataset.groupId,
+      groupName: campo.dataset.groupName,
+      optionId: campo.dataset.optionId,
+      name: campo.dataset.optionName,
+      price: Number(campo.dataset.precio) || 0,
+    }));
+
+  const validarGrupos = () => {
+    let valido = true;
+    nodo.querySelectorAll("[data-option-group]").forEach((grupo) => {
+      const elegidas = grupo.querySelectorAll("[data-group-option]:checked").length;
+      const minimo = Number(grupo.dataset.min || 0);
+      const maximo = Number(grupo.dataset.max || 1);
+      const error = grupo.querySelector("[data-group-error]");
+      let mensaje = "";
+      if (elegidas < minimo) mensaje = `Elige al menos ${minimo} en ${grupo.dataset.groupName}.`;
+      if (elegidas > maximo) mensaje = `Elige máximo ${maximo} en ${grupo.dataset.groupName}.`;
+      error.textContent = mensaje;
+      error.hidden = !mensaje;
+      grupo.classList.toggle("opciones-cliente--error", Boolean(mensaje));
+      if (mensaje) valido = false;
+    });
+    return valido;
+  };
 
   /** El botón muestra siempre lo que se va a cobrar de verdad. */
   const refrescarTotal = () => {
@@ -320,9 +412,27 @@ export function abrirProducto(producto, tienda) {
   // Marcar un extra cambia el total al instante: nadie debe descubrir el
   // cargo hasta el carrito.
   delegar(nodo, "change", "[data-extra]", refrescarTotal);
+  delegar(nodo, "change", "[data-group-option]", (_ev, campo) => {
+    const grupo = campo.closest("[data-option-group]");
+    if (campo.type === "checkbox" && grupo) {
+      const maximo = Number(grupo.dataset.max || 1);
+      const elegidas = [...grupo.querySelectorAll("[data-group-option]:checked")];
+      if (elegidas.length > maximo) {
+        campo.checked = false;
+        toast(`Puedes elegir máximo ${maximo} en ${grupo.dataset.groupName}.`, "error");
+      }
+    }
+    validarGrupos();
+    refrescarTotal();
+  });
   refrescarTotal();
 
   nodo.querySelector("[data-agregar]").addEventListener("click", () => {
+    if (!validarGrupos()) {
+      nodo.querySelector(".opciones-cliente--error")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast("Completa las opciones obligatorias.", "error");
+      return;
+    }
     agregarAlCarrito({
       producto,
       cantidad,
@@ -330,6 +440,7 @@ export function abrirProducto(producto, tienda) {
       precio: precioConExtras(),
       sinQue: leerSinQue(),
       extras: leerExtras(),
+      selectedOptions: leerOpcionesGrupo(),
     });
     cerrar();
     toast(`${producto.title} agregado al carrito.`);

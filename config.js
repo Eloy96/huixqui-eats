@@ -16,3 +16,17 @@ export const CONFIG_SUPABASE = {
 // ¿Quieres enseñar la app sin tocar la base? Pon esto en true y arranca
 // siempre en demo local.
 export const FORZAR_DEMO = false;
+
+// Google Maps Platform (Places API New + Maps JavaScript API).
+// Esta llave es pública por diseño porque se usa desde el navegador, pero
+// DEBE quedar restringida en Google Cloud a https://eloy96.github.io/* y
+// únicamente a Maps JavaScript API y Places API (New).
+// Mientras esté vacía, la app conserva dirección manual, GPS y links de Maps.
+export const CONFIG_GOOGLE_MAPS = {
+  apiKey: "",
+  country: "MX",
+  language: "es",
+  // Centro aproximado del área de servicio para priorizar resultados cercanos.
+  center: { lat: 19.4, lng: -99.55 },
+  radiusMeters: 70000,
+};

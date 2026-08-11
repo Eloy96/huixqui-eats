@@ -1178,6 +1178,24 @@
   color: var(--tinta-60);
 }
 
+/* Google Places se monta como componente web. Si la llave todavía no está
+   configurada, el input manual ocupa exactamente el mismo espacio. */
+.dir-google,
+.dir-google gmp-place-autocomplete {
+  display: block;
+  width: 100%;
+}
+
+.dir-auto-ayuda {
+  display: block;
+  margin-top: var(--e-1);
+}
+
+.dir-auto-ok {
+  color: var(--ok-500);
+  font-weight: var(--peso-medio);
+}
+
 /* Destello verde cuando la dirección se llenó sola: sin esto el usuario
    no nota que algo cambió más abajo en el formulario. */
 .campo-autollenado {
@@ -1479,6 +1497,60 @@
   }
 }
 
+.opcion-grupo-editor {
+  display: grid;
+  gap: var(--e-3);
+  padding: var(--e-3);
+  margin-bottom: var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-md);
+  background: var(--superficie-2);
+}
+
+.opcion-grupo-editor-cabeza {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.opcion-grupo-editor-cabeza input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--toque);
+  padding: 0 var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-sm);
+  background: var(--superficie);
+  font: inherit;
+  font-weight: var(--peso-fuerte);
+}
+
+.opcion-grupo-reglas {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 100px 100px;
+  align-items: end;
+  gap: var(--e-2);
+}
+
+.opcion-grupo-reglas .campo {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .opcion-grupo-editor-cabeza {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .opcion-grupo-reglas {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .opcion-grupo-reglas .opcion-check {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ---------- Opciones del producto (lado cliente) ---------- */
 
 .opciones-cliente {
@@ -1486,6 +1558,23 @@
   border-radius: var(--r-md);
   background: var(--superficie-2);
   padding: var(--e-3);
+  margin-top: var(--e-4);
+}
+
+.opciones-cliente--grupo {
+  background: var(--superficie);
+}
+
+.opciones-cliente--error {
+  border-color: var(--error-500);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--error-500) 14%, transparent);
+}
+
+.opcion-grupo-error {
+  margin-top: var(--e-2);
+}
+
+.producto-pregunta {
   margin-top: var(--e-4);
 }
 
@@ -1567,7 +1656,8 @@
 }
 
 .carrito-sin,
-.carrito-extra {
+.carrito-extra,
+.carrito-opcion {
   font-size: var(--t-xs);
   padding: 2px var(--e-2);
   border-radius: var(--r-sm);
@@ -1585,6 +1675,35 @@
   color: var(--verde-700);
   font-weight: var(--peso-medio);
   font-variant-numeric: tabular-nums;
+}
+
+.carrito-opcion {
+  background: #eef4ff;
+  color: #254a82;
+  font-weight: var(--peso-medio);
+}
+
+.carrito-acceso {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  margin-top: var(--e-4);
+  border-color: var(--verde-300);
+  background: var(--verde-50);
+}
+
+.carrito-acceso p {
+  margin-top: 3px;
+  color: var(--tinta-60);
+  font-size: var(--t-xs);
+}
+
+.pedido-opciones {
+  display: block;
+  margin-top: 3px;
+  color: var(--tinta-60);
+  font-size: var(--t-xs);
 }
 
 /* El texto de la tarjeta se estira para empujar el precio al fondo: así

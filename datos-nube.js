@@ -207,6 +207,15 @@ function traducir(error) {
   if (/meses_invalido/i.test(mensaje)) return "El número de meses no es válido.";
   if (/demasiadas_recargas/i.test(mensaje)) return "Demasiadas recargas seguidas. Espera un momento.";
   if (/limite_productos/i.test(mensaje)) return "Llegaste al máximo de 300 productos publicados.";
+  if (/required_product_options_missing/i.test(mensaje)) return "Falta elegir una opción obligatoria del producto.";
+  if (/invalid_option_group|invalid_group_option|invalid_option_groups/i.test(mensaje)) return "Revisa los grupos y opciones del producto.";
+  if (/invalid_extra|invalid_removable_item|invalid_selected_options/i.test(mensaje)) return "Una opción del producto cambió. Vuelve a abrirlo y elígela otra vez.";
+  if (/product_unavailable|product_mode_unavailable/i.test(mensaje)) return "Un producto ya no está disponible para este tipo de pedido.";
+  if (/store_unavailable|store_mode_unavailable/i.test(mensaje)) return "Un negocio ya no está disponible para este tipo de pedido.";
+  if (/delivery_address_required/i.test(mensaje)) return "Falta una dirección de entrega válida.";
+  if (/invalid_delivery_coordinates/i.test(mensaje)) return "La ubicación de entrega no es válida. Vuelve a elegirla.";
+  if (/too_many_orders/i.test(mensaje)) return "Hiciste varios pedidos seguidos. Espera unos minutos antes de intentar otra vez.";
+  if (/crear_pedidos_configurados|guardar_grupos_producto/i.test(mensaje)) return "Falta instalar la mejora de productos y pedidos en Supabase.";
   if (/textos_razonables|orders_razonable/i.test(mensaje)) return "Algún texto es demasiado largo. Acórtalo e inténtalo de nuevo.";
   if (/JWT|session/i.test(mensaje)) return "Tu sesión expiró. Vuelve a entrar.";
   if (/Failed to fetch|NetworkError/i.test(mensaje)) return "Sin conexión. Revisa tus datos móviles.";
@@ -275,6 +284,22 @@ function aProducto(fila) {
     requirements: detalle.requirements || "",
     options: detalle.options || "",
     extras: Array.isArray(fila.extras) ? fila.extras : [],
+    optionGroups: (Array.isArray(fila.option_groups) ? fila.option_groups : [])
+      .slice()
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+      .map((grupo) => ({
+        id: grupo.id,
+        name: grupo.name,
+        required: grupo.required === true,
+        minSelected: Number(grupo.min_selected || 0),
+        maxSelected: Number(grupo.max_selected || 1),
+        sortOrder: Number(grupo.sort_order || 0),
+        options: (Array.isArray(grupo.options) ? grupo.options : []).map((opcion) => ({
+          id: String(opcion.id || ""),
+          name: String(opcion.name || opcion.nombre || ""),
+          price: Math.max(0, Number(opcion.price ?? opcion.precio) || 0),
+        })),
+      })),
     remoto: true,
   };
 }
@@ -677,7 +702,7 @@ export const driverNube = {
     const filas = revisar(
       await cliente
         .from("products")
-        .select("*, details:product_details(*)")
+        .select("*, details:product_details(*), option_groups:product_option_groups(*)")
         .eq("store_id", storeId)
         .eq("is_active", true)
         .order("created_at", { ascending: false }),
@@ -689,7 +714,7 @@ export const driverNube = {
     const filas = revisar(
       await cliente
         .from("products")
-        .select("*, details:product_details(*)")
+        .select("*, details:product_details(*), option_groups:product_option_groups(*)")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(500),
@@ -706,8 +731,8 @@ export const driverNube = {
           phone: parche.phone ? normalizarWhatsApp(parche.phone) : undefined,
           address: parche.address,
           reference: parche.reference,
-          lat: parche.coords?.lat ?? undefined,
-          lng: parche.coords?.lng ?? undefined,
+          lat: parche.coords === null ? null : parche.coords?.lat ?? undefined,
+          lng: parche.coords === null ? null : parche.coords?.lng ?? undefined,
         })
         .eq("id", clienteId)
         .select()
@@ -723,6 +748,8 @@ export const driverNube = {
       category: parche.category,
       description: parche.description,
       address: parche.address,
+      lat: parche.coords === null ? null : parche.coords?.lat ?? undefined,
+      lng: parche.coords === null ? null : parche.coords?.lng ?? undefined,
       service_modes: parche.serviceModes ? aModos(parche.serviceModes) : undefined,
       schedule: parche.schedule,
       prep_minutes: parche.prepMinutes,
@@ -822,7 +849,32 @@ export const driverNube = {
         .single(),
     );
 
+    // Los grupos (tamaño, salsa, tipo de tortilla...) se guardan en una
+    // RPC atómica. Así el dueño solo puede modificar opciones de sus propios
+    // productos y nunca quedan grupos viejos mezclados con los nuevos.
+    revisar(
+      await cliente.rpc("guardar_grupos_producto", {
+        p_product_id: fila.id,
+        p_groups: (Array.isArray(producto.optionGroups) ? producto.optionGroups : []).map(
+          (grupo, indice) => ({
+            id: grupo.id || null,
+            name: grupo.name,
+            required: grupo.required === true,
+            min_selected: Number(grupo.minSelected || 0),
+            max_selected: Number(grupo.maxSelected || 1),
+            sort_order: indice,
+            options: (Array.isArray(grupo.options) ? grupo.options : []).map((opcion) => ({
+              id: opcion.id,
+              name: opcion.name,
+              price: Math.max(0, Number(opcion.price) || 0),
+            })),
+          }),
+        ),
+      }),
+    );
+
     const resultado = aProducto(fila);
+    resultado.optionGroups = Array.isArray(producto.optionGroups) ? producto.optionGroups : [];
     if (fila.__avisoFoto) resultado.avisoFoto = fila.__avisoFoto;
     if (avisoExtras) resultado.avisoExtras = avisoExtras;
     return resultado;
@@ -879,17 +931,18 @@ export const driverNube = {
   },
 
   /** Una llamada, una transacción, el servidor manda. */
-  async crearPedidos({ grupos, modo, direccion, referencia }) {
+  async crearPedidos({ grupos, modo, direccion, referencia, coords }) {
     const data = revisar(
-      await cliente.rpc("crear_pedidos", {
+      await cliente.rpc("crear_pedidos_configurados", {
         p_grupos: grupos.map((g) => ({
           store_id: g.storeId,
           items: g.items,
-          total: g.total,
         })),
         p_modo: modo,
         p_direccion: direccion,
         p_referencia: referencia,
+        p_lat: coords?.lat ?? null,
+        p_lng: coords?.lng ?? null,
       }),
     );
     return (data || []).map((fila) => ({
@@ -897,7 +950,7 @@ export const driverNube = {
         id: fila.order_id,
         storeId: fila.store_id,
         items: fila.items,
-        total: fila.total,
+        total: Number(fila.total || 0),
         mode: modo,
         address: direccion,
         reference: referencia,
