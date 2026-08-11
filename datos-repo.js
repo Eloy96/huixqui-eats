@@ -126,6 +126,20 @@ export async function reportarPago(datos) {
   invalidar();
   return r;
 }
+export async function iniciarPagoClip({ plan, meses, idempotencyKey }) {
+  if (driver.modo !== "nube" || !driver.iniciarPagoClip) {
+    throw new Error("El pago automatico de Clip solo esta disponible con Supabase conectado.");
+  }
+  return driver.iniciarPagoClip({ plan, meses, idempotencyKey });
+}
+export async function estadoPagoClip(requestId) {
+  if (driver.modo !== "nube" || !driver.estadoPagoClip) {
+    throw new Error("No se puede verificar el pago sin conexion al servidor.");
+  }
+  const resultado = await driver.estadoPagoClip(requestId);
+  if (resultado?.estado === "verificado") await refrescarSesion();
+  return resultado;
+}
 export async function misPagos() {
   return driver.misPagos ? driver.misPagos() : [];
 }

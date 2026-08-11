@@ -1003,3 +1003,13 @@
   gap: var(--e-2);
   flex: none;
 }
+.pago-resultado {
+  max-width: 640px;
+  margin: var(--e-8) auto;
+  text-align: center;
+}
+
+.pago-resultado p {
+  color: var(--tinta-60);
+  margin-top: var(--e-3);
+}

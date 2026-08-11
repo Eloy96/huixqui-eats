@@ -16,6 +16,7 @@ import { vistaPedidos } from "./vista-pedidos.js";
 import { vistaCuenta } from "./vista-cuenta.js";
 import { vistaPanel } from "./vista-panel.js";
 import { vistaAdmin } from "./vista-admin.js";
+import { vistaPago } from "./vista-pago.js";
 import { vistaPrivacidad, vistaTerminos } from "./vista-legal.js";
 import { abrirSelectorUbicacion } from "./vista-ubicacion.js";
 
@@ -31,6 +32,7 @@ router.definir("/pedidos", vistaPedidos);
 router.definir("/cuenta", vistaCuenta);
 router.definir("/panel", vistaPanel);
 router.definir("/operador", vistaAdmin);
+router.definir("/pago/:requestId/:regreso", vistaPago);
 router.definir("/privacidad", vistaPrivacidad);
 router.definir("/terminos", vistaTerminos);
 

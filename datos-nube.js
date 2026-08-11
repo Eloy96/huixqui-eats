@@ -92,6 +92,20 @@ function revisar({ data, error }) {
   return data;
 }
 
+/** Invoca una Edge Function y conserva el mensaje seguro que devolvio. */
+async function invocarFuncion(nombre, body) {
+  const { data, error } = await cliente.functions.invoke(nombre, { body });
+  if (!error) return data;
+  let detalle = "";
+  try {
+    const payload = await error.context?.json();
+    detalle = payload?.error || "";
+  } catch (_ignorado) {
+    // Algunas fallas de red no traen una respuesta JSON.
+  }
+  throw new Error(detalle || traducir(error));
+}
+
 /** Los errores de Supabase vienen en inglés. El pueblo no lee inglés. */
 /**
  * Qué script crea cada cosa.
@@ -496,6 +510,12 @@ export const driverNube = {
         p_nota: nota || null,
       }),
     );
+  },
+  async iniciarPagoClip({ plan, meses, idempotencyKey }) {
+    return invocarFuncion("clip-checkout", { plan, meses, idempotencyKey });
+  },
+  async estadoPagoClip(requestId) {
+    return invocarFuncion("clip-payment-status", { requestId });
   },
   async misPagos() {
     return revisar(await cliente.rpc("mis_pagos")) || [];

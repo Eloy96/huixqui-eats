@@ -957,7 +957,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
   );
 
   delegar(panel, "click", "[data-pagar]", (_ev, boton) => {
-    abrirReportePago(boton.dataset.pagar, config, contenedor);
+    abrirPagoSuscripcion(boton.dataset.pagar, config, contenedor);
   });
 
   delegar(panel, "click", "[data-copiar]", async (_ev, boton) => {
@@ -1010,9 +1010,8 @@ function estaPromocionadoTienda(tienda) {
 }
 
 function datosDePago(config) {
-  const linkPresencia = config.clipLinkPresencia || config.clipLink;
-  const linkDestacado = config.clipLinkDestacado || config.clipLink;
-  const hay = linkPresencia || linkDestacado || config.clabe || config.aceptaEfectivo;
+  const clipAutomatico = repo.modo() === "nube";
+  const hay = clipAutomatico || config.clabe || config.aceptaEfectivo;
   if (!hay) {
     return html`<p style="color:var(--tinta-60);font-size:var(--t-sm)">
       Todavía no hay datos de pago configurados. Escríbenos y te decimos cómo pagar.
@@ -1020,19 +1019,11 @@ function datosDePago(config) {
   }
   return html`
     <div class="pago-opciones">
-      ${linkPresencia || linkDestacado
+      ${clipAutomatico
         ? html`
             <div class="pago-opcion">
-              <strong>Tarjeta o efectivo en OXXO</strong>
-              <small style="display:block;margin-bottom:var(--e-2)">Elige según tu plan:</small>
-              <div style="display:flex;gap:var(--e-2);flex-wrap:wrap">
-                ${linkPresencia
-                  ? html`<a class="boton boton--contorno boton--chico" href="${linkPresencia}" target="_blank" rel="noopener">Pagar Presencia $99</a>`
-                  : ""}
-                ${linkDestacado
-                  ? html`<a class="boton boton--principal boton--chico" href="${linkDestacado}" target="_blank" rel="noopener">Pagar Destacado $200</a>`
-                  : ""}
-              </div>
+              <strong>Pago automático con Clip</strong>
+              <small>Elige Contratar o Renovar en tu plan. Solo se activa cuando Clip confirma el pago.</small>
             </div>
           `
         : ""}
@@ -1066,6 +1057,73 @@ function datosDePago(config) {
   `;
 }
 
+/** Checkout automático para tarjeta/OXXO; los métodos manuales se reportan aparte. */
+function abrirPagoSuscripcion(plan, config, contenedor) {
+  const precio = plan === "destacado" ? 200 : 99;
+  const hayManual = Boolean(config.clabe || config.aceptaEfectivo);
+  const { nodo, cerrar } = abrirHoja({
+    titulo: `Pagar plan ${plan === "destacado" ? "Destacado" : "Presencia"}`,
+    cuerpo: html`
+      <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-bottom:var(--e-3)">
+        Clip confirmará el resultado directamente con PuebloPedidos. Regresarás aquí al terminar.
+      </p>
+      <label class="campo">
+        <span>Duración</span>
+        <select data-meses-clip>
+          <option value="1">1 mes · ${dinero(precio)}</option>
+          <option value="3">3 meses · ${dinero(precio * 3)}</option>
+          <option value="6">6 meses · ${dinero(precio * 6)}</option>
+          <option value="12">12 meses · ${dinero(precio * 12)}</option>
+        </select>
+      </label>
+      <div class="banner banner--info" style="margin-top:var(--e-3)">
+        Si Clip rechaza, cancela o deja vencer el pago, no se activa ningún plan.
+      </div>
+    `,
+    pie: html`
+      <div style="display:grid;gap:var(--e-2);width:100%">
+        <button class="boton boton--principal boton--ancho" data-iniciar-clip type="button">
+          Continuar a Clip
+        </button>
+        ${hayManual
+          ? html`<button class="boton boton--texto boton--ancho" data-pago-manual type="button">
+              Pagar por transferencia o efectivo
+            </button>`
+          : ""}
+      </div>
+    `,
+  });
+
+  // Se conserva durante todos los reintentos de esta misma hoja. Si la red
+  // corta la respuesta, el servidor devuelve el checkout ya creado.
+  const idempotencyKey = crypto.randomUUID();
+
+  nodo.querySelector("[data-iniciar-clip]").addEventListener("click", async (ev) => {
+    const boton = ev.currentTarget;
+    const meses = Number(nodo.querySelector("[data-meses-clip]").value) || 1;
+    boton.disabled = true;
+    boton.textContent = "Creando pago seguro...";
+    try {
+      const pago = await repo.iniciarPagoClip({
+        plan,
+        meses,
+        idempotencyKey,
+      });
+      if (!/^https:\/\//i.test(pago?.checkoutUrl || "")) throw new Error("Clip no devolvió un enlace válido.");
+      location.assign(pago.checkoutUrl);
+    } catch (error) {
+      toast(error.message, "error");
+      boton.disabled = false;
+      boton.textContent = "Continuar a Clip";
+    }
+  });
+
+  nodo.querySelector("[data-pago-manual]")?.addEventListener("click", () => {
+    cerrar();
+    abrirReportePago(plan, config, contenedor);
+  });
+}
+
 /** Hoja para reportar el pago ya hecho. */
 function abrirReportePago(plan, config, contenedor) {
   const precio = plan === "destacado" ? 200 : 99;
@@ -1090,7 +1148,6 @@ function abrirReportePago(plan, config, contenedor) {
         <label class="campo">
           <span>¿Cómo pagaste?</span>
           <select name="metodo">
-            ${config.clipLinkPresencia || config.clipLinkDestacado || config.clipLink ? html`<option value="clip">En línea (tarjeta u OXXO)</option>` : ""}
             ${config.clabe ? html`<option value="transferencia">Transferencia</option>` : ""}
             ${config.aceptaEfectivo ? html`<option value="efectivo">Efectivo</option>` : ""}
             <option value="otro">Otro</option>
