@@ -99,7 +99,10 @@ async function invocarFuncion(nombre, body) {
   let detalle = "";
   try {
     const payload = await error.context?.json();
-    detalle = payload?.error || "";
+    const serverError = payload?.error;
+    detalle = typeof serverError === "string"
+      ? serverError
+      : String(serverError?.message || payload?.message || "");
   } catch (_ignorado) {
     // Algunas fallas de red no traen una respuesta JSON.
   }

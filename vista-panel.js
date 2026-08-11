@@ -825,6 +825,11 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
     return;
   }
 
+  // La plataforma solo acepta cobros confirmados por Clip. Los reportes
+  // manuales antiguos se conservan en la base como historial, pero ya no se
+  // muestran ni bloquean el flujo actual.
+  pagos = pagos.filter((x) => x.metodo === "clip");
+
   const pendiente = pagos.find((x) => x.estado === "por_verificar");
   const rechazado = pagos.find((x) => x.estado === "rechazado");
   const dias = tienda.subscribedUntil
@@ -1011,7 +1016,7 @@ function estaPromocionadoTienda(tienda) {
 
 function datosDePago(config) {
   const clipAutomatico = repo.modo() === "nube";
-  const hay = clipAutomatico || config.clabe || config.aceptaEfectivo;
+  const hay = clipAutomatico;
   if (!hay) {
     return html`<p style="color:var(--tinta-60);font-size:var(--t-sm)">
       Todavía no hay datos de pago configurados. Escríbenos y te decimos cómo pagar.
@@ -1027,7 +1032,7 @@ function datosDePago(config) {
             </div>
           `
         : ""}
-      ${config.clabe
+      ${false && config.clabe
         ? html`
             <div class="pago-opcion">
               <strong>Transferencia</strong>
@@ -1040,7 +1045,7 @@ function datosDePago(config) {
             </div>
           `
         : ""}
-      ${config.aceptaEfectivo
+      ${false && config.aceptaEfectivo
         ? html`
             <div class="pago-opcion">
               <strong>Efectivo</strong>
@@ -1051,7 +1056,7 @@ function datosDePago(config) {
           `
         : ""}
     </div>
-    ${config.instrucciones
+    ${false && config.instrucciones
       ? html`<p class="pago-instrucciones">${config.instrucciones}</p>`
       : ""}
   `;
@@ -1060,7 +1065,7 @@ function datosDePago(config) {
 /** Checkout automático para tarjeta/OXXO; los métodos manuales se reportan aparte. */
 function abrirPagoSuscripcion(plan, config, contenedor) {
   const precio = plan === "destacado" ? 200 : 99;
-  const hayManual = Boolean(config.clabe || config.aceptaEfectivo);
+  const hayManual = false;
   const { nodo, cerrar } = abrirHoja({
     titulo: `Pagar plan ${plan === "destacado" ? "Destacado" : "Presencia"}`,
     cuerpo: html`
