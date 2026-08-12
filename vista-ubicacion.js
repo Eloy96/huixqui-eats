@@ -17,7 +17,7 @@ export function abrirSelectorUbicacion(alElegir) {
   const actual = estado.ubicacion;
 
   const { nodo, cerrar } = abrirHoja({
-    titulo: "¿Dónde entregamos?",
+    titulo: estado.modoPedido === "Recoger" ? "¿Cerca de dónde buscas?" : "¿Dónde entregamos?",
     cuerpo: html`
       <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-bottom:var(--e-3)">
         Escribe tu dirección o usa el GPS. Así mostramos primero los negocios realmente cercanos.
@@ -57,7 +57,7 @@ export function abrirSelectorUbicacion(alElegir) {
   const controlador = campoDireccion(nodo.querySelector("[data-campo-direccion]"), {
     valor: guardada || estado.etiquetaUbicacion || "",
     coords: coordsGuardadas || actual,
-    requerido: true,
+    requerido: false,
     alElegir(direccion, coords) {
       fijar({ ubicacion: coords, etiquetaUbicacion: direccion });
     },
@@ -80,12 +80,26 @@ export function abrirSelectorUbicacion(alElegir) {
       fijar({
         ubicacion: { lat: punto.lat, lng: punto.lng },
         etiquetaUbicacion: direccion || "Cerca de ti",
+        ordenCercania: true,
       });
       controlador.establecer(direccion, { lat: punto.lat, lng: punto.lng });
-      aviso.textContent = punto.precision > 100
-        ? `Punto aproximado (±${punto.precision} m). Revisa o completa la dirección.`
-        : "Ubicación precisa. Revisa la dirección y toca Listo.";
-      aviso.style.color = punto.precision > 100 ? "var(--maiz-600)" : "var(--ok-500)";
+      if (sesion?.role === "client") {
+        void repo
+          .actualizarPerfil({
+            address: direccion || guardada || undefined,
+            coords: { lat: punto.lat, lng: punto.lng },
+          })
+          // La cercanía sigue funcionando en este dispositivo aunque el
+          // perfil no se pueda actualizar en ese momento.
+          .catch(() => {});
+      }
+      toast(
+        punto.precision > 100
+          ? `Ubicación aproximada (±${punto.precision} m). Ya mostramos los negocios más cercanos.`
+          : "Ubicación lista. Ya mostramos los negocios más cercanos.",
+      );
+      cerrar();
+      if (alElegir) alElegir();
     } catch (error) {
       aviso.textContent = error.message;
       aviso.style.color = "var(--error-500)";
@@ -123,17 +137,24 @@ export function abrirSelectorUbicacion(alElegir) {
   nodo.querySelector("[data-listo]").addEventListener("click", async (ev) => {
     const direccion = controlador.direccion();
     const coords = controlador.coords() || estado.ubicacion;
-    if (!direccion) {
-      toast("Escribe tu dirección para continuar.", "error");
+    if (!direccion && !coords) {
+      toast("Escribe una dirección o usa tu ubicación actual.", "error");
       return;
     }
     const boton = ev.currentTarget;
     boton.disabled = true;
     boton.textContent = "Guardando...";
-    fijar({ ubicacion: coords || null, etiquetaUbicacion: direccion });
+    fijar({
+      ubicacion: coords || null,
+      etiquetaUbicacion: direccion || "Cerca de ti",
+      ordenCercania: Boolean(coords),
+    });
     if (sesion?.role === "client") {
       try {
-        await repo.actualizarPerfil({ address: direccion, coords: coords || null });
+        await repo.actualizarPerfil({
+          address: direccion || guardada || undefined,
+          coords: coords || null,
+        });
       } catch {
         toast("La dirección queda en este dispositivo, pero no pudimos guardarla en tu cuenta.", "error");
       }

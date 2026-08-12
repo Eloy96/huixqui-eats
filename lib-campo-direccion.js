@@ -85,9 +85,11 @@ export function campoDireccion(zona, opciones = {}) {
       input.value = String(direccion || "");
       elegidas = nuevasCoords;
       metadatos = null;
-      ayuda.textContent = nuevasCoords
+      ayuda.textContent = nuevasCoords && direccion
         ? "Dirección y ubicación confirmadas ✓"
-        : "Dirección guardada. Usa el GPS si quieres mejorar la precisión.";
+        : nuevasCoords
+          ? "Ubicación confirmada ✓ La dirección se pedirá al ordenar."
+          : "Dirección guardada. Usa el GPS si quieres mejorar la precisión.";
       ayuda.classList.toggle("dir-auto-ok", Boolean(nuevasCoords));
     },
   };
