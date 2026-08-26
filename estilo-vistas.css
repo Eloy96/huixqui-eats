@@ -14,7 +14,7 @@
 }
 
 .modo-switch button {
-  min-height: 38px;
+  min-height: var(--toque);
   padding: 0 var(--e-4);
   border-radius: var(--r-full);
   font-size: var(--t-sm);
@@ -60,6 +60,25 @@
   flex-basis: 100%;
   font-size: var(--t-xs);
   color: var(--tinta-60);
+}
+
+.orden-ubicacion {
+  flex-basis: 100%;
+  min-height: var(--toque);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  width: fit-content;
+  color: var(--verde-700);
+  font-size: var(--t-sm);
+  font-weight: var(--peso-medio);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.orden-ubicacion svg {
+  width: 17px;
+  height: 17px;
 }
 
 /* ---------- Home ---------- */

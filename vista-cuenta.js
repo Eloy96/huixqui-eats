@@ -372,13 +372,23 @@ function formularioNegocio(panel, contenedor) {
   pintarEn(
     panel,
     html`
-      <form class="tarjeta" data-form novalidate>
-        <p style="font-size:var(--t-sm);color:var(--tinta-60);margin-bottom:var(--e-2)">
-          Registrar tu negocio es gratis. Solo pagas por cada contacto que te llega y, si quieres,
-          por aparecer arriba. Nunca cobramos comisión de tus ventas.
-        </p>
+      <form class="tarjeta registro-negocio" data-form novalidate>
+        <div class="registro-intro">
+          <strong>Publica tu negocio sin comisión por venta</strong>
+          <p>Incluye 30 días de prueba. Después podrás elegir el plan que mejor te convenga desde tu panel.</p>
+        </div>
 
-        <section class="bloque">
+        <div class="registro-progreso" aria-label="Progreso del registro">
+          <div class="registro-progreso-cabeza">
+            <span data-paso-texto>Paso 1 de 5</span>
+            <strong data-paso-titulo tabindex="-1">Tu negocio</strong>
+          </div>
+          <div class="registro-progreso-pista" aria-hidden="true">
+            <span data-paso-barra style="width:20%"></span>
+          </div>
+        </div>
+
+        <section class="bloque registro-paso" data-paso-negocio="0">
           <div class="bloque-titulo">
             <span class="bloque-num">1</span>
             <h3>Tu negocio</h3>
@@ -400,9 +410,12 @@ function formularioNegocio(panel, contenedor) {
             <textarea name="description" placeholder="Qué vendes y qué te hace distinto"></textarea>
             <small>Esto es lo primero que lee el cliente. Sé concreto.</small>
           </label>
+          <div class="registro-acciones registro-acciones--derecha">
+            <button class="boton boton--principal" data-paso-siguiente type="button">Continuar</button>
+          </div>
         </section>
 
-        <section class="bloque">
+        <section class="bloque registro-paso" data-paso-negocio="1" hidden>
           <div class="bloque-titulo">
             <span class="bloque-num">2</span>
             <h3>Cómo te contactan</h3>
@@ -429,9 +442,13 @@ function formularioNegocio(panel, contenedor) {
               <small>Mínimo 8 caracteres.</small>
             </label>
           </div>
+          <div class="registro-acciones">
+            <button class="boton boton--contorno" data-paso-anterior type="button">Atrás</button>
+            <button class="boton boton--principal" data-paso-siguiente type="button">Continuar</button>
+          </div>
         </section>
 
-        <section class="bloque">
+        <section class="bloque registro-paso" data-paso-negocio="2" hidden>
           <div class="bloque-titulo">
             <span class="bloque-num">3</span>
             <h3>Dónde estás</h3>
@@ -449,32 +466,40 @@ function formularioNegocio(panel, contenedor) {
             </select>
           </label>
           ${bloqueUbicacion({ paraTienda: true })}
+          <div class="registro-acciones">
+            <button class="boton boton--contorno" data-paso-anterior type="button">Atrás</button>
+            <button class="boton boton--principal" data-paso-siguiente type="button">Continuar</button>
+          </div>
         </section>
 
-        <section class="bloque">
+        <section class="bloque registro-paso" data-paso-negocio="3" hidden>
           <div class="bloque-titulo">
             <span class="bloque-num">4</span>
             <h3>Tu horario</h3>
           </div>
           ${bloqueHorario()}
+          <div class="registro-acciones">
+            <button class="boton boton--contorno" data-paso-anterior type="button">Atrás</button>
+            <button class="boton boton--principal" data-paso-siguiente type="button">Continuar</button>
+          </div>
         </section>
 
-        <section class="bloque">
+        <section class="bloque registro-paso" data-paso-negocio="4" hidden>
           <div class="bloque-titulo">
             <span class="bloque-num">5</span>
             <h3>Fotos</h3>
-            <small>opcional, pero duplican los contactos</small>
+            <small>opcional; ayuda a que te reconozcan</small>
           </div>
           <div class="fotos-fila">
             ${campoFoto(META_FOTOS.logo)}
             ${campoFoto(META_FOTOS.portada)}
           </div>
+          ${casillaAcepto()}
+          <div class="registro-acciones">
+            <button class="boton boton--contorno" data-paso-anterior type="button">Atrás</button>
+            <button class="boton boton--principal" type="submit">Registrar mi negocio</button>
+          </div>
         </section>
-
-        ${casillaAcepto()}
-        <button class="boton boton--principal boton--ancho" type="submit" style="margin-top:var(--e-4)">
-          Registrar mi negocio
-        </button>
       </form>
     `,
   );
@@ -505,7 +530,59 @@ function formularioNegocio(panel, contenedor) {
   });
   conectarFotos(panel, META_FOTOS);
 
-  panel.querySelector("[data-form]").addEventListener("submit", async (ev) => {
+  const form = panel.querySelector("[data-form]");
+  const pasos = [...form.querySelectorAll("[data-paso-negocio]")];
+  const titulos = ["Tu negocio", "Contacto", "Ubicación", "Horario", "Fotos y confirmación"];
+  let pasoActual = 0;
+
+  function mostrarPaso(indice, moverFoco = true) {
+    pasoActual = Math.max(0, Math.min(indice, pasos.length - 1));
+    pasos.forEach((paso, i) => { paso.hidden = i !== pasoActual; });
+    form.querySelector("[data-paso-texto]").textContent = `Paso ${pasoActual + 1} de ${pasos.length}`;
+    form.querySelector("[data-paso-titulo]").textContent = titulos[pasoActual];
+    form.querySelector("[data-paso-barra]").style.width = `${((pasoActual + 1) / pasos.length) * 100}%`;
+    if (moverFoco) {
+      form.querySelector("[data-paso-titulo]").focus?.();
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function validarPaso() {
+    const paso = pasos[pasoActual];
+    const campos = [...paso.querySelectorAll("input, select, textarea")]
+      .filter((campo) => campo.type !== "file" && campo.type !== "checkbox");
+    const invalido = campos.find((campo) => !campo.checkValidity());
+    if (invalido) {
+      invalido.reportValidity();
+      invalido.focus();
+      return false;
+    }
+    if (pasoActual === 1) {
+      const phone = form.querySelector('[name="phone"]').value;
+      const email = form.querySelector('[name="email"]').value;
+      const password = form.querySelector('[name="password"]').value;
+      if (!telefonoValido(phone) || !correoValido(email) || password.length < 8) {
+        toast("Revisa WhatsApp, correo y contraseña antes de continuar.", "error");
+        return false;
+      }
+    }
+    if (pasoActual === 3) {
+      const horario = leerHorario(form);
+      if (horario.error) {
+        toast(horario.error, "error");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  delegar(form, "click", "[data-paso-siguiente]", () => {
+    if (validarPaso()) mostrarPaso(pasoActual + 1);
+  });
+  delegar(form, "click", "[data-paso-anterior]", () => mostrarPaso(pasoActual - 1));
+  mostrarPaso(0, false);
+
+  form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const datos = Object.fromEntries(new FormData(ev.currentTarget));
     if (!datos.name?.trim() || !datos.owner?.trim() || !telefonoValido(datos.phone)) {

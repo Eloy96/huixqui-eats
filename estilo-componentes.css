@@ -90,7 +90,7 @@
 }
 
 .boton--texto {
-  min-height: 32px;
+  min-height: var(--toque);
   padding: 0 var(--e-1);
   color: var(--verde-500);
   font-weight: var(--peso-medio);
@@ -99,7 +99,7 @@
 }
 
 .boton--chico {
-  min-height: 36px;
+  min-height: var(--toque);
   padding: 0 var(--e-3);
   font-size: var(--t-sm);
 }
@@ -120,7 +120,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--e-1);
-  height: 36px;
+  height: var(--toque);
   padding: 0 var(--e-3);
   border-radius: var(--r-full);
   background: var(--superficie);
@@ -348,6 +348,14 @@
   backdrop-filter: blur(8px);
 }
 
+/* Los dos estados no se tapan entre sí: disponibilidad arriba y
+   promoción abajo. Antes "Destacado" ocultaba si el negocio estaba
+   abierto o cerrado. */
+.tienda-portada .sello--destacado {
+  top: auto;
+  bottom: var(--e-2);
+}
+
 /* Degradado sutil al pie de la foto: separa la imagen del nombre sin
    meter una línea dura, y salva los casos donde la foto es clara y
    el sello se perdía encima. */
@@ -405,6 +413,20 @@
 /* Tarjeta ancha para la lista vertical del home */
 .tienda-tarjeta--fila {
   width: 100%;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  min-height: 112px;
+}
+
+.tienda-tarjeta--fila .tienda-portada {
+  aspect-ratio: auto;
+  height: 100%;
+  min-height: 112px;
+}
+
+.tienda-tarjeta--fila .tienda-cuerpo {
+  min-width: 0;
+  align-self: center;
 }
 
 /* ---------- Producto en el menú ----------
@@ -839,6 +861,89 @@
   color: var(--verde-700);
   font-size: var(--t-2xs);
   font-weight: var(--peso-fuerte);
+}
+
+/* ---------- Registro guiado de negocio ---------- */
+
+.registro-negocio {
+  scroll-margin-top: 76px;
+}
+
+.registro-intro {
+  padding: var(--e-3);
+  border-radius: var(--r-md);
+  background: var(--verde-100);
+  color: var(--verde-900);
+}
+
+.registro-intro p {
+  margin-top: var(--e-1);
+  font-size: var(--t-sm);
+  line-height: 1.45;
+}
+
+.registro-progreso {
+  margin-top: var(--e-4);
+}
+
+.registro-progreso-cabeza {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e-2);
+  font-size: var(--t-sm);
+}
+
+.registro-progreso-cabeza span {
+  color: var(--tinta-60);
+}
+
+.registro-progreso-cabeza strong:focus {
+  outline: 2px solid var(--verde-500);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
+.registro-progreso-pista {
+  height: 6px;
+  margin-top: var(--e-2);
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--superficie-2);
+}
+
+.registro-progreso-pista span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--verde-500);
+  transition: width var(--transicion);
+}
+
+.registro-paso[hidden] {
+  display: none;
+}
+
+.registro-acciones {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e-2);
+  margin-top: var(--e-5);
+}
+
+.registro-acciones--derecha {
+  justify-content: flex-end;
+}
+
+.registro-acciones .boton {
+  min-width: 118px;
+}
+
+@media (max-width: 420px) {
+  .registro-acciones .boton {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 /* ---------- Hoja inferior (bottom sheet) ---------- */
