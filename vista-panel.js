@@ -319,12 +319,13 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
         toast(`“${nombre}” quedó destacado.`);
         vistaPanel(contenedor);
       } else {
+        const config = await repo.configCobro();
         abrirPagoDestacado({
           purchaseType: "product_feature",
           productId: id,
           titulo: `Destacar “${nombre}”`,
-          descripcion: "Tu producto aparecerá como promocionado durante 7 días.",
-          monto: 20,
+          descripcion: `Tu producto aparecerá como promocionado durante ${config.productFeatureDays || 7} días.`,
+          monto: config.productFeaturePrice || 20,
         });
       }
     } catch (error) {
@@ -1020,6 +1021,8 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
   // manuales antiguos se conservan en la base como historial, pero ya no se
   // muestran ni bloquean el flujo actual.
   pagos = pagos.filter((x) => x.metodo === "clip" && x.idempotency_key);
+  const precioPresencia = config.subscriptionPrices?.presencia || 99;
+  const precioDestacado = config.subscriptionPrices?.destacado || 200;
 
   const pendiente = pagos.find((x) => x.estado === "por_verificar");
   const rechazado = pagos.find((x) => x.estado === "rechazado");
@@ -1080,7 +1083,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
           ${planTarjeta({
             id: "presencia",
             titulo: "Presencia",
-            precio: 99,
+            precio: precioPresencia,
             actual: tienda.plan === "presencia" && tienda.subStatus === "activa",
             puntos: [
               "Contactos ilimitados",
@@ -1092,7 +1095,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
           ${planTarjeta({
             id: "destacado",
             titulo: "Destacado",
-            precio: 200,
+            precio: precioDestacado,
             destacado: true,
             actual: tienda.plan === "destacado" && tienda.subStatus === "activa",
             puntos: [
@@ -1110,12 +1113,13 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
             <section class="tarjeta" style="margin-top:var(--e-5)">
               <h2 style="font-size:var(--t-lg)">Destaca tu tienda</h2>
               <p style="color:var(--tinta-60);font-size:var(--t-sm)">
-                Aparece en primeros lugares por 7 días. $50 · pago único con Clip.
+                Aparece en primeros lugares por ${config.storeFeatureDays || 7} días.
+                ${dinero(config.storeFeaturePrice || 50)} · pago único con Clip.
               </p>
               ${estaPromocionadoTienda(tienda)
                 ? html`<span class="sello sello--destacado">${icono.estrella()} Tu tienda está destacada</span>`
                 : html`<button class="boton boton--principal boton--chico" data-destacar-tienda type="button">
-                    ${icono.estrella()} Destacar mi tienda · $50
+                    ${icono.estrella()} Destacar mi tienda · ${dinero(config.storeFeaturePrice || 50)}
                   </button>`}
             </section>
           `
@@ -1165,7 +1169,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
       purchaseType: "store_feature",
       titulo: "Destacar mi tienda",
       descripcion: "Tu tienda aparecerá en primeros lugares durante 7 días.",
-      monto: 50,
+      monto: config.storeFeaturePrice,
     });
   });
 
@@ -1299,7 +1303,7 @@ function abrirPagoDestacado({ purchaseType, productId = null, titulo, descripcio
 
 /** Checkout automático de suscripciones con tarjeta. */
 function abrirPagoSuscripcion(plan, config, contenedor) {
-  const precio = plan === "destacado" ? 200 : 99;
+  const precio = Number(config.subscriptionPrices?.[plan]) || (plan === "destacado" ? 200 : 99);
   const hayManual = false;
   const { nodo, cerrar } = abrirHoja({
     titulo: `Pagar plan ${plan === "destacado" ? "Destacado" : "Presencia"}`,
@@ -1366,7 +1370,7 @@ function abrirPagoSuscripcion(plan, config, contenedor) {
 
 /** Hoja para reportar el pago ya hecho. */
 function abrirReportePago(plan, config, contenedor) {
-  const precio = plan === "destacado" ? 200 : 99;
+  const precio = Number(config.subscriptionPrices?.[plan]) || (plan === "destacado" ? 200 : 99);
   const { nodo, cerrar } = abrirHoja({
     titulo: `Reportar pago · ${plan === "destacado" ? "Destacado" : "Presencia"}`,
     cuerpo: html`

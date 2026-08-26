@@ -274,6 +274,9 @@ a {
 
 .marca {
   flex: none;
+  min-width: var(--toque);
+  min-height: var(--toque);
+  justify-content: center;
 }
 
 .marca-sello {

@@ -511,7 +511,16 @@ export const driverNube = {
 
   // ---- Cobros ----
   async configCobro() {
-    const filas = revisar(await cliente.from("cobro_config").select("*").limit(1));
+    const [configResult, subscriptionsResult, featureResult] = await Promise.all([
+      cliente.from("cobro_config").select("*").limit(1),
+      cliente.from("subscription_prices").select("plan,monthly_amount,currency").eq("active", true),
+      cliente.from("destacado_precios")
+        .select("producto_suelto_precio,producto_suelto_dias,tienda_suelta_precio,tienda_suelta_dias")
+        .limit(1),
+    ]);
+    const filas = revisar(configResult);
+    const subscriptions = revisar(subscriptionsResult) || [];
+    const feature = (revisar(featureResult) || [])[0] || {};
     const c = filas?.[0] || {};
     return {
       clipLink: c.clip_link || "",
@@ -526,6 +535,13 @@ export const driverNube = {
       aceptaEfectivo: c.acepta_efectivo !== false,
       instrucciones: c.instrucciones || "",
       whatsappSoporte: c.whatsapp_soporte || "",
+      subscriptionPrices: Object.fromEntries(
+        subscriptions.map((item) => [item.plan, Number(item.monthly_amount)]),
+      ),
+      productFeaturePrice: Number(feature.producto_suelto_precio) || 0,
+      productFeatureDays: Number(feature.producto_suelto_dias) || 0,
+      storeFeaturePrice: Number(feature.tienda_suelta_precio) || 0,
+      storeFeatureDays: Number(feature.tienda_suelta_dias) || 0,
     };
   },
   async reportarPago({ plan, meses, metodo, referencia, nota }) {

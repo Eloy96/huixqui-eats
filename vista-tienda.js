@@ -5,7 +5,7 @@
 import { html, pintarEn, delegar, urlSegura, copiar } from "./lib-dom.js";
 import { icono, toast, vacio, esqueletoLista, abrirHoja } from "./lib-ui.js";
 import * as repo from "./datos-repo.js";
-import { estado } from "./estado.js";
+import { estado, fijar } from "./estado.js";
 import {
   etiquetaModo,
   proximaApertura,
@@ -94,14 +94,24 @@ export async function vistaTienda(contenedor, { slug }) {
 
   const menu = contenedor.querySelector("[data-menu]");
   if (!disponibles.length) {
+    const sinCatalogo = productos.length === 0;
+    const otroModo = estado.modoPedido === "Entrega" ? "Recoger" : "Entrega";
     pintarEn(
       menu,
       vacio({
-        titulo: `Nada para ${estado.modoPedido.toLowerCase()}`,
-        texto: `${tienda.name} no ofrece ${estado.modoPedido.toLowerCase()} por ahora. Cambia el modo desde el inicio.`,
-        accion: html`<a class="boton boton--contorno" href="#/">Volver al inicio</a>`,
+        titulo: sinCatalogo ? "Este catálogo se está preparando" : `Nada para ${estado.modoPedido.toLowerCase()}`,
+        texto: sinCatalogo
+          ? `${tienda.name} todavía no publica productos. Puedes preguntarle directamente por WhatsApp.`
+          : `No hay productos disponibles para ${estado.modoPedido.toLowerCase()}, pero puedes revisar el otro tipo de pedido.`,
+        accion: sinCatalogo
+          ? html`<a class="boton boton--wa" href="https://wa.me/${normalizarWhatsApp(tienda.phone)}?text=${encodeURIComponent(mensajeDuda)}" target="_blank" rel="noopener">${icono.wa()} Preguntar al negocio</a>`
+          : html`<button class="boton boton--principal" data-cambiar-modo type="button">Ver para ${otroModo.toLowerCase()}</button>`,
       }),
     );
+    menu.querySelector("[data-cambiar-modo]")?.addEventListener("click", () => {
+      fijar({ modoPedido: otroModo });
+      vistaTienda(contenedor, { slug });
+    });
   } else {
     pintarEn(menu, disponibles.map((p) => filaMenu(p)));
   }

@@ -169,7 +169,9 @@ function pintarOrden(contenedor) {
         </button>
       </div>
       ${!conUbicacion
-        ? html`<span class="orden-nota">Activa tu ubicación para ver los más cercanos</span>`
+        ? html`<button class="orden-ubicacion" type="button" data-orden="cerca">
+            ${icono.cercania()} Usar mi ubicación y ordenar por cercanía
+          </button>`
         : ""}
     `,
   );
@@ -216,11 +218,15 @@ function pintarPromos(contenedor) {
 
 function pintarCategorias(contenedor) {
   const activas = CATEGORIAS.filter((c) =>
-    datos.tiendas.some((t) => t.category === c && tiendaDisponible(t)),
+    datos.productos.some((p) => p.tienda && p.tienda.category === c && disponible(p) && tiendaDisponible(p.tienda)),
   );
   const conteo = (categoria) =>
-    datos.tiendas.filter((t) => tiendaDisponible(t) && (categoria === "Todos" || t.category === categoria))
-      .length;
+    new Set(
+      datos.productos
+        .filter((p) => p.tienda && disponible(p) && tiendaDisponible(p.tienda))
+        .filter((p) => categoria === "Todos" || p.tienda?.category === categoria)
+        .map((p) => p.storeId),
+    ).size;
 
   pintarEn(
     contenedor.querySelector('[data-zona="categorias"]'),
@@ -261,12 +267,13 @@ function pintarTiendas(contenedor) {
     ]),
   );
 
-  // El home muestra TODAS las tiendas registradas de la categoría, sin
-  // esconder por modo ni por si aún no subieron productos. En un pueblo
-  // con pocos negocios, esconder cualquiera deja el home casi vacío
-  // mientras Buscar las muestra todas — justo lo que confundía. Las que no
-  // hacen el modo elegido salen igual, con su aviso en la tarjeta.
+  // El directorio es para comprar, no para auditar altas. Una tienda sin
+  // catálogo todavía no ofrece una acción útil y empuja hacia abajo a las
+  // que sí pueden recibir pedidos. Se publica automáticamente aquí en
+  // cuanto tenga al menos un producto compatible con el modo elegido.
   const lista = datos.tiendas
+    .filter((t) => tiendaDisponible(t))
+    .filter((t) => (conteos.get(t.id) || 0) > 0)
     .filter((t) => estado.categoria === "Todos" || t.category === estado.categoria)
     .sort(ordenar);
 
@@ -276,7 +283,7 @@ function pintarTiendas(contenedor) {
     (t) =>
       (estado.categoria === "Todos" || t.category === estado.categoria) &&
       !lista.includes(t) &&
-      datos.productos.some((p) => p.storeId === t.id),
+      datos.productos.some((p) => p.storeId === t.id && disponible(p)),
   ).length;
 
   if (!lista.length) {
