@@ -89,7 +89,14 @@ function pintarNav(rutaActual = router.rutaActual()) {
   // que mostrar, y una pestaña que siempre lleva a una pantalla vacía
   // gasta espacio en la barra de un teléfono.
   const items =
-    sesion?.role === "store"
+    sesion?.role === "admin"
+      ? [
+          { ruta: "/", texto: "Inicio", icono: "inicio" },
+          { ruta: "/operador", texto: "Operación", icono: "tienda" },
+          { ruta: "/buscar", texto: "Buscar", icono: "buscar" },
+          { ruta: "/cuenta", texto: "Cuenta", icono: "cuenta" },
+        ]
+      : sesion?.role === "store"
       ? [
           { ruta: "/", texto: "Inicio", icono: "inicio" },
           { ruta: "/panel", texto: "Mi panel", icono: "tienda" },

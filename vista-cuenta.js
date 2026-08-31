@@ -147,11 +147,63 @@ function pieFoto(clave) {
 
 export async function vistaCuenta(contenedor) {
   const sesion = repo.sesion();
+  if (sesion?.role === "admin") {
+    pintarCuentaOperador(contenedor, sesion);
+    return;
+  }
+  if (sesion?.sinTienda) {
+    pintarRegistroPendiente(contenedor, sesion);
+    return;
+  }
   if (sesion) {
     pintarPerfil(contenedor, sesion);
     return;
   }
   pintarAuth(contenedor);
+}
+
+function pintarCuentaOperador(contenedor, sesion) {
+  pintarEn(
+    contenedor,
+    html`
+      <h1>${sesion.perfil?.name || "Operador"}</h1>
+      <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-top:var(--e-1)">
+        Cuenta de administración · ${repo.modo() === "demo" ? "modo demo" : "conectado"}
+      </p>
+      <div style="display:grid;gap:var(--e-2);margin-top:var(--e-4)">
+        <a class="boton boton--principal boton--ancho" href="#/operador">${icono.tienda()} Ir a operación</a>
+        <button class="boton boton--contorno boton--ancho" data-salir-operador type="button">Cerrar sesión</button>
+        ${repo.modo() === "demo"
+          ? html`<button class="boton boton--texto" data-reiniciar-operador type="button">Reiniciar datos del demo</button>`
+          : ""}
+      </div>
+    `,
+  );
+  contenedor.querySelector("[data-salir-operador]").addEventListener("click", async () => {
+    await repo.salir();
+    toast("Cerraste sesión.");
+    location.hash = "#/";
+  });
+  contenedor.querySelector("[data-reiniciar-operador]")?.addEventListener("click", () => {
+    if (confirm("Esto borra los datos de prueba de este navegador. ¿Continuar?")) repo.reiniciarDemo();
+  });
+}
+
+function pintarRegistroPendiente(contenedor, sesion) {
+  pintarEn(
+    contenedor,
+    html`
+      <div class="auth-cabeza">
+        <h1>Termina de publicar tu negocio</h1>
+        <p>Tu correo ya está confirmado. Solo faltan los datos de la tienda; no crearemos otra cuenta.</p>
+      </div>
+      <div class="banner banner--info" style="margin-bottom:var(--e-4)">
+        Sesión activa: ${sesion.perfil?.email || "cuenta de negocio"}
+      </div>
+      <div data-panel-pendiente></div>
+    `,
+  );
+  formularioNegocio(contenedor.querySelector("[data-panel-pendiente]"), contenedor);
 }
 
 // ============================================================
@@ -224,6 +276,7 @@ function formularioEntrar(panel, contenedor) {
             <p style="margin-top:var(--e-3);font-size:var(--t-sm);color:var(--tinta-60);text-align:center">
               Vas en modo demo: entra con cualquiera de los correos de prueba
               (por ejemplo <strong>tacos@pueblopedidos.mx</strong>) y la contraseña que quieras.
+              Para revisar la operación usa <strong>operador@pueblopedidos.mx</strong>.
             </p>
           `
         : ""}
@@ -244,10 +297,14 @@ function formularioEntrar(panel, contenedor) {
         const sesion = await repo.entrar({
           identificador: correo,
           password: String(datos.get("password") || ""),
-          rol: correo.includes("@pueblopedidos.mx") ? "store" : "client",
+          rol: correo.toLowerCase() === "operador@pueblopedidos.mx"
+            ? "admin"
+            : correo.includes("@pueblopedidos.mx") ? "store" : "client",
         });
         toast(`Hola de nuevo${sesion?.perfil?.name ? `, ${sesion.perfil.name}` : ""}.`);
-        location.hash = sesion?.role === "store" ? "#/panel" : "#/";
+        location.hash = sesion?.role === "admin" || sesion?.esOperador
+          ? "#/operador"
+          : sesion?.role === "store" ? "#/panel" : "#/";
       } catch (error) {
         toast(error, "error");
       }
@@ -369,6 +426,8 @@ function formularioCliente(panel, contenedor) {
 }
 
 function formularioNegocio(panel, contenedor) {
+  const cuentaPendiente = repo.sesion()?.sinTienda === true;
+  const correoPendiente = repo.sesion()?.perfil?.email || "";
   pintarEn(
     panel,
     html`
@@ -434,13 +493,19 @@ function formularioNegocio(panel, contenedor) {
           <div class="campos-2">
             <label class="campo">
               <span>Correo</span>
-              <input name="email" type="email" autocomplete="email" required />
+              <input name="email" type="email" autocomplete="email" value="${correoPendiente}" ${cuentaPendiente ? "readonly" : ""} required />
             </label>
-            <label class="campo">
-              <span>Contraseña</span>
-              <input name="password" type="password" autocomplete="new-password" minlength="8" required />
-              <small>Mínimo 8 caracteres.</small>
-            </label>
+            ${cuentaPendiente
+              ? html`<label class="campo">
+                  <span>Cuenta</span>
+                  <input value="Correo confirmado" readonly />
+                  <input name="password" type="hidden" value="sesion-activa" />
+                </label>`
+              : html`<label class="campo">
+                  <span>Contraseña</span>
+                  <input name="password" type="password" autocomplete="new-password" minlength="8" required />
+                  <small>Mínimo 8 caracteres.</small>
+                </label>`}
           </div>
           <div class="registro-acciones">
             <button class="boton boton--contorno" data-paso-anterior type="button">Atrás</button>

@@ -70,6 +70,50 @@ export async function vistaPago(contenedor, params) {
     return;
   }
 
+  if (ultimo?.applied?.category_conflict) {
+    pintarEn(
+      contenedor,
+      estadoFinal(
+        "Clip confirmó el pago, pero otro negocio ocupó el destacado de tu categoría al mismo tiempo. No aplicamos un beneficio incorrecto; el operador revisará tu compra.",
+        "pendiente",
+      ),
+    );
+    return;
+  }
+
+  if (ultimo?.applied?.category_changed) {
+    pintarEn(
+      contenedor,
+      estadoFinal(
+        "Clip confirmó el pago, pero la categoría del negocio cambió después de crear el enlace. No aplicamos un beneficio incorrecto; el operador revisará tu compra.",
+        "pendiente",
+      ),
+    );
+    return;
+  }
+
+  if (ultimo?.applied?.amount_mismatch) {
+    pintarEn(
+      contenedor,
+      estadoFinal(
+        "El monto informado por Clip no coincide con la compra. No activamos nada automáticamente; el operador debe revisarlo.",
+        "pendiente",
+      ),
+    );
+    return;
+  }
+
+  if (ultimo?.verificationWarning) {
+    pintarEn(
+      contenedor,
+      estadoFinal(
+        `No pudimos consultar el estado final en Clip. ${ultimo.verificationWarning} Puedes intentarlo otra vez desde Tus pagos.`,
+        "pendiente",
+      ),
+    );
+    return;
+  }
+
   pintarEn(
     contenedor,
     estadoFinal(

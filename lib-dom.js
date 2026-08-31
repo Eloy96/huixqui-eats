@@ -53,6 +53,18 @@ export function html(partes, ...valores) {
   return new Crudo(salida);
 }
 
+// Los contenedores principales de la SPA se reutilizan al navegar. Sin un
+// registro, cada visita deja listeners delegados vivos y un solo clic termina
+// ejecutando la misma petición varias veces.
+const DELEGADOS = new WeakMap();
+
+function limpiarDelegados(raiz) {
+  const registros = DELEGADOS.get(raiz);
+  if (!registros) return;
+  registros.forEach(({ evento, listener }) => raiz.removeEventListener(evento, listener));
+  DELEGADOS.delete(raiz);
+}
+
 /**
  * URLs seguras: bloquea javascript:, data: y vbscript: en href/src.
  * Deja pasar rutas relativas, http(s), blob: y las data:image que
@@ -69,6 +81,9 @@ export function urlSegura(valor) {
 /** Escribe HTML en un nodo. Único punto del proyecto que toca innerHTML. */
 export function pintarEn(nodo, contenido) {
   if (!nodo) return;
+  // Si se reemplaza todo el contenido de una vista, sus controles anteriores
+  // ya no existen y sus listeners tampoco deben sobrevivir.
+  limpiarDelegados(nodo);
   nodo.innerHTML = pintar(contenido);
 }
 
@@ -77,10 +92,18 @@ export const $$ = (sel, raiz = document) => Array.from(raiz.querySelectorAll(sel
 
 /** Delegación de eventos: un listener por vista, no uno por tarjeta. */
 export function delegar(raiz, evento, selector, manejador) {
-  raiz.addEventListener(evento, (ev) => {
+  const clave = `${evento}\u0000${selector}`;
+  const registros = DELEGADOS.get(raiz) || new Map();
+  const anterior = registros.get(clave);
+  if (anterior) raiz.removeEventListener(anterior.evento, anterior.listener);
+
+  const listener = (ev) => {
     const objetivo = ev.target.closest(selector);
     if (objetivo && raiz.contains(objetivo)) manejador(ev, objetivo);
-  });
+  };
+  raiz.addEventListener(evento, listener);
+  registros.set(clave, { evento, listener });
+  DELEGADOS.set(raiz, registros);
 }
 
 /** Lee un input file y devuelve { dataUrl, file } para previa + subida. */

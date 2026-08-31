@@ -323,6 +323,7 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
         abrirPagoDestacado({
           purchaseType: "product_feature",
           productId: id,
+          contenedor,
           titulo: `Destacar “${nombre}”`,
           descripcion: `Tu producto aparecerá como promocionado durante ${config.productFeatureDays || 7} días.`,
           monto: config.productFeaturePrice || 20,
@@ -1144,7 +1145,14 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
                           ${fechaCorta(x.creado_en)} · ${etiquetaMetodo(x.metodo)}${x.referencia ? ` · ${x.referencia}` : ""}
                         </small>
                       </div>
-                      ${selloPago(x.estado)}
+                      <div class="envio-fila-acciones">
+                        ${selloPago(x.estado)}
+                        ${x.metodo === "clip" && x.estado === "por_verificar"
+                          ? html`<button class="boton boton--contorno boton--chico" data-revisar-clip="${x.id}" type="button">
+                              Revisar estado
+                            </button>`
+                          : ""}
+                      </div>
                     </div>
                   `,
                 )}
@@ -1167,10 +1175,42 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
   delegar(panel, "click", "[data-destacar-tienda]", () => {
     abrirPagoDestacado({
       purchaseType: "store_feature",
+      contenedor,
       titulo: "Destacar mi tienda",
       descripcion: "Tu tienda aparecerá en primeros lugares durante 7 días.",
       monto: config.storeFeaturePrice,
     });
+  });
+
+  // La consulta se hace con la sesion del propietario. La Edge Function
+  // valida nuevamente que el pago pertenezca a su negocio antes de llamar a Clip.
+  delegar(panel, "click", "[data-revisar-clip]", async (_ev, boton) => {
+    const texto = boton.textContent;
+    boton.disabled = true;
+    boton.textContent = "Consultando…";
+    try {
+      const resultado = await repo.estadoPagoClip(boton.dataset.revisarClip);
+      if (resultado.estado === "verificado") {
+        toast("Clip confirmo el pago y la compra ya fue aplicada.");
+      } else if (resultado.estado === "rechazado") {
+        toast(resultado.motivo_rechazo || "Clip informo que el pago no se completo.", "error");
+      } else if (resultado.applied?.amount_mismatch) {
+        toast("Clip reportó un monto distinto. La compra no se aplicó.", "error");
+      } else if (resultado.applied?.category_conflict) {
+        toast("Clip confirmó el pago, pero la categoría acaba de ocuparse. El operador revisará tu compra.", "error");
+      } else if (resultado.applied?.category_changed) {
+        toast("Clip confirmó el pago, pero la categoría cambió después de crear el enlace. El operador revisará tu compra.", "error");
+      } else if (resultado.verificationWarning) {
+        toast(resultado.verificationWarning, "error");
+      } else {
+        toast("Clip todavía muestra este pago como pendiente.");
+      }
+      await pintarPromocion({ panel, tienda, contenedor });
+    } catch (error) {
+      toast(error, "error");
+      boton.disabled = false;
+      boton.textContent = texto;
+    }
   });
 
 }
@@ -1260,8 +1300,8 @@ function datosDePago(config) {
   `;
 }
 
-function abrirPagoDestacado({ purchaseType, productId = null, titulo, descripcion, monto }) {
-  const { nodo } = abrirHoja({
+function abrirPagoDestacado({ purchaseType, productId = null, titulo, descripcion, monto, contenedor }) {
+  const { nodo, cerrar } = abrirHoja({
     titulo,
     cuerpo: html`
       <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-bottom:var(--e-3)">
@@ -1291,6 +1331,12 @@ function abrirPagoDestacado({ purchaseType, productId = null, titulo, descripcio
         productId,
         idempotencyKey,
       });
+      if (pago?.estado === "verificado") {
+        cerrar();
+        toast("Ese pago ya estaba confirmado. Actualizamos tu panel.");
+        await vistaPanel(contenedor);
+        return;
+      }
       if (!/^https:\/\//i.test(pago?.checkoutUrl || "")) throw new Error("Clip no devolvió un enlace válido.");
       location.assign(pago.checkoutUrl);
     } catch (error) {
@@ -1353,6 +1399,12 @@ function abrirPagoSuscripcion(plan, config, contenedor) {
         meses,
         idempotencyKey,
       });
+      if (pago?.estado === "verificado") {
+        cerrar();
+        toast("Ese pago ya estaba confirmado. Actualizamos tu panel.");
+        await vistaPanel(contenedor);
+        return;
+      }
       if (!/^https:\/\//i.test(pago?.checkoutUrl || "")) throw new Error("Clip no devolvió un enlace válido.");
       location.assign(pago.checkoutUrl);
     } catch (error) {

@@ -60,7 +60,7 @@ export const driverLocal = {
     if (!db.session) return null;
     const { role, id: quien } = db.session;
     if (role === "admin") {
-      return { role: "admin", id: quien, perfil: { name: "Operador" } };
+      return { role: "admin", id: quien, perfil: { name: "Operador" }, esOperador: true };
     }
     const perfil =
       role === "store"
@@ -80,7 +80,7 @@ export const driverLocal = {
     if (rol === "admin") {
       db.session = { role: "admin", id: "operador-demo" };
       guardar();
-      return { role: "admin", id: "operador-demo", perfil: { name: "Operador" } };
+      return { role: "admin", id: "operador-demo", perfil: { name: "Operador" }, esOperador: true };
     }
     const lista = rol === "store" ? db.stores : db.clients;
     const buscado = String(identificador || "").trim().toLowerCase();

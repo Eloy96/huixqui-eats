@@ -317,6 +317,30 @@
   color: var(--tinta-60);
 }
 
+.envio-fila-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+@media (max-width: 520px) {
+  .envio-fila {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .envio-fila-acciones {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .envio-fila-acciones .boton {
+    min-height: 44px;
+  }
+}
+
 /* ---------- Pedidos ---------- */
 
 .pedido {
@@ -967,6 +991,10 @@
   margin-bottom: var(--e-2);
 }
 
+.pago-fila--automatico {
+  border-left-color: var(--verde-500);
+}
+
 .pago-fila-info {
   flex: 1;
   min-width: 0;
@@ -1016,11 +1044,35 @@
   line-height: var(--alto-compacto);
 }
 
+.pago-fila-ayuda {
+  display: block;
+  margin-top: var(--e-2);
+  color: var(--tinta-60);
+  font-size: var(--t-xs);
+  line-height: var(--alto-compacto);
+}
+
 .pago-fila-acciones {
   display: flex;
   align-items: center;
   gap: var(--e-2);
   flex: none;
+}
+
+@media (max-width: 640px) {
+  .pago-fila {
+    padding: var(--e-3) var(--e-2);
+  }
+
+  .pago-fila-acciones {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .pago-fila-acciones .boton {
+    min-height: 44px;
+    flex: 1 1 132px;
+  }
 }
 .pago-resultado {
   max-width: 640px;

@@ -106,7 +106,7 @@ async function invocarFuncion(nombre, body) {
   } catch (_ignorado) {
     // Algunas fallas de red no traen una respuesta JSON.
   }
-  throw new Error(detalle || traducir(error));
+  throw new Error(detalle ? traducir({ message: detalle, status: error?.context?.status }) : traducir(error));
 }
 
 /** Los errores de Supabase vienen en inglés. El pueblo no lee inglés. */
@@ -197,12 +197,19 @@ function traducir(error) {
   if (/extra_sin_nombre/i.test(mensaje)) return "Un extra se quedó sin nombre. Escríbelo o quítalo.";
   if (/extra_precio_invalido/i.test(mensaje)) return "Revisa el precio de los extras: debe ser un número de 0 en adelante.";
   if (/extra_nombre_largo|quitable_invalido/i.test(mensaje)) return "Algún nombre de extra o ingrediente es demasiado largo.";
+  if (/categoria_con_pago_clip_pendiente/i.test(mensaje)) {
+    return "No puedes cambiar la categoría mientras tengas un pago Clip destacado pendiente. Abre Tus pagos y revisa su estado primero.";
+  }
   if (/categoria_ocupada/i.test(mensaje)) return "Ya hay un negocio destacado en esa categoría. Espera a que se libere o elige el plan Presencia.";
   if (/categoria_apartada/i.test(mensaje)) return "Otro negocio de tu categoría ya apartó el espacio destacado y está esperando verificación. Te avisamos si se libera.";
   if (/no_tienes_tienda/i.test(mensaje)) return "Necesitas una tienda registrada para reportar un pago.";
   if (/demasiados_reportes/i.test(mensaje)) return "Ya tienes 3 pagos esperando verificación. Espera a que los revisemos.";
   if (/solicitud_ya_resuelta/i.test(mensaje)) return "Ese pago ya se revisó.";
   if (/solicitud_no_existe/i.test(mensaje)) return "No encontramos ese reporte de pago.";
+  if (/clip_only_automatic_confirmation/i.test(mensaje)) {
+    return "Los pagos de Clip no se cambian manualmente. Usa “Consultar Clip” para conciliar su estado real.";
+  }
+  if (/clip_request_not_found/i.test(mensaje)) return "Clip no reconoce esa solicitud de pago.";
   if (/solo_operador/i.test(mensaje)) return "Solo el operador puede hacer esto.";
   if (/meses_invalido/i.test(mensaje)) return "El número de meses no es válido.";
   if (/demasiadas_recargas/i.test(mensaje)) return "Demasiadas recargas seguidas. Espera un momento.";
@@ -381,7 +388,20 @@ export const driverNube = {
       const tienda = revisar(
         await cliente.from("stores").select("*").eq("owner_id", usuario.id).maybeSingle(),
       );
-      if (!tienda) return { role: "client", id: usuario.id, perfil: perfilFila, sinTienda: true, esOperador };
+      if (!tienda) {
+        return {
+          role: "client",
+          id: usuario.id,
+          sinTienda: true,
+          esOperador,
+          perfil: {
+            id: usuario.id,
+            name: perfilFila.full_name || "",
+            phone: perfilFila.phone || "",
+            email: usuario.email || "",
+          },
+        };
+      }
       return { role: "store", id: tienda.id, perfil: aTienda(tienda), esOperador };
     }
 
@@ -442,17 +462,33 @@ export const driverNube = {
   },
 
   async registrarTienda(datos) {
-    revisar(
-      await cliente.auth.signUp({
-        email: datos.email,
-        password: datos.password,
-        options: {
-          data: { role: "store_owner", full_name: datos.owner, phone: normalizarWhatsApp(datos.phone) },
-        },
-      }),
-    );
-    const usuario = revisar(await cliente.auth.getUser())?.user;
-    if (!usuario) throw new Error("Confirma tu correo y vuelve a entrar para terminar el registro.");
+    let usuario = (await cliente.auth.getUser()).data?.user || null;
+    if (usuario) {
+      const perfil = revisar(
+        await cliente.from("profiles").select("role").eq("id", usuario.id).maybeSingle(),
+      );
+      if (!perfil || !["store_owner", "admin"].includes(perfil.role)) {
+        throw new Error("Esta sesión no corresponde a una cuenta de negocio.");
+      }
+      if (await this._tieneTienda(usuario.id)) {
+        throw new Error("Esta cuenta ya tiene un negocio registrado.");
+      }
+    } else {
+      const alta = revisar(
+        await cliente.auth.signUp({
+          email: datos.email,
+          password: datos.password,
+          options: {
+            data: { role: "store_owner", full_name: datos.owner, phone: normalizarWhatsApp(datos.phone) },
+          },
+        }),
+      );
+      if (!alta?.session) {
+        throw new Error("Te enviamos un correo de confirmación. Ábrelo, inicia sesión y la app te permitirá terminar de publicar tu negocio.");
+      }
+      usuario = alta.user;
+    }
+    if (!usuario) throw new Error("No se pudo iniciar la sesión del negocio.");
 
     let logoRuta = "";
     let portadaRuta = "";
@@ -565,16 +601,27 @@ export const driverNube = {
     return revisar(await cliente.rpc("mis_pagos_clip")) || [];
   },
   async colaPagos() {
-    return revisar(await cliente.rpc("cola_pagos")) || [];
+    // La versión 2 incluye los campos del checkout automático. Se conserva
+    // un fallback temporal para instalaciones que aún no corren la migración.
+    const nueva = await cliente.rpc("cola_pagos_operador_v2");
+    if (!nueva.error) return nueva.data || [];
+    if (/PGRST202|schema cache|could not find the function/i.test(String(nueva.error.message || ""))) {
+      return revisar(await cliente.rpc("cola_pagos")) || [];
+    }
+    return revisar(nueva) || [];
   },
   async verificarPago(id, aprobar, motivo) {
-    return revisar(
-      await cliente.rpc("verificar_pago", {
-        p_request_id: id,
-        p_aprobar: aprobar,
-        p_motivo: motivo || null,
-      }),
-    );
+    const parametros = {
+      p_request_id: id,
+      p_aprobar: aprobar,
+      p_motivo: motivo || null,
+    };
+    const nueva = await cliente.rpc("verificar_pago_manual_v2", parametros);
+    if (!nueva.error) return nueva.data;
+    if (/PGRST202|schema cache|could not find the function/i.test(String(nueva.error.message || ""))) {
+      return revisar(await cliente.rpc("verificar_pago", parametros));
+    }
+    return revisar(nueva);
   },
 
   // ---- Destacados ----
