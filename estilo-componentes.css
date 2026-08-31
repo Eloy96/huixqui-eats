@@ -422,6 +422,11 @@
   margin-right: var(--e-2);
 }
 
+.catalogo-preparacion {
+  color: var(--maiz-600);
+  font-weight: var(--peso-medio);
+}
+
 /* Tarjeta ancha para la lista vertical del home */
 .tienda-tarjeta--fila {
   width: 100%;
@@ -1386,6 +1391,15 @@
   text-decoration: underline;
   text-underline-offset: 2px;
   color: inherit;
+}
+
+.publicacion-estado {
+  display: grid;
+  gap: var(--e-1);
+}
+
+.publicacion-estado .banner-accion {
+  width: fit-content;
 }
 
 /* ---------- Acciones del tablero de suscripciones ---------- */

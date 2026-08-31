@@ -429,6 +429,106 @@
   padding: 0 var(--e-4);
 }
 
+/* En teléfono, cada suscripción se vuelve una tarjeta. Así las acciones
+   siempre quedan debajo del negocio correcto y no hay que desplazar una
+   tabla ancha de lado a lado. */
+@media (max-width: 700px) {
+  .tabla--suscripciones,
+  .tabla--suscripciones tbody,
+  .tabla--suscripciones tr,
+  .tabla--suscripciones td {
+    display: block;
+    width: 100%;
+  }
+
+  .tabla--suscripciones thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .tabla--suscripciones tr {
+    margin-bottom: var(--e-3);
+    padding: var(--e-2) var(--e-3);
+    border: 1px solid var(--linea);
+    border-radius: var(--r-lg);
+    background: var(--superficie);
+    box-shadow: var(--s-0);
+  }
+
+  .tabla--suscripciones td {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: var(--e-2);
+    align-items: start;
+    padding: var(--e-2) 0;
+  }
+
+  .tabla--suscripciones td::before {
+    content: attr(data-label);
+    color: var(--tinta-60);
+    font-size: var(--t-xs);
+    font-weight: var(--peso-medio);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .tabla--suscripciones td[data-label="Acciones"] {
+    display: block;
+    padding-top: var(--e-3);
+  }
+
+  .tabla--suscripciones td[data-label="Acciones"]::before {
+    display: block;
+    margin-bottom: var(--e-2);
+  }
+
+  .tabla--suscripciones .acciones-sub .boton {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+/* ---------- Encabezado del panel del operador ---------- */
+
+.operacion-cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+}
+
+.operacion-cabecera h1 {
+  margin-top: var(--e-2);
+}
+
+.operacion-cabecera p {
+  margin-top: var(--e-1);
+  color: var(--tinta-60);
+  font-size: var(--t-sm);
+}
+
+.operacion-accesos {
+  display: flex;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+
+.operacion-seccion {
+  margin-top: var(--e-6);
+  scroll-margin-top: calc(var(--h-header) + var(--e-4));
+}
+
+@media (max-width: 640px) {
+  .operacion-accesos,
+  .operacion-accesos .boton {
+    width: 100%;
+  }
+}
+
 /* ---------- Paquetes de créditos ---------- */
 
 .paquetes {

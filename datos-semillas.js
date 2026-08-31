@@ -279,6 +279,7 @@ export const MEDIDAS_IMAGEN = {
     idealAncho: 400,
     idealAlto: 400,
     proporcion: 1,
+    ajuste: "contain",
     texto: "Cuadrada, 400×400 px. PNG con fondo transparente se ve mejor.",
     avisoProporcion:
       "Tu logo no es cuadrado. No lo recortamos, pero se va a ver más chico de lo que podría.",
@@ -289,6 +290,7 @@ export const MEDIDAS_IMAGEN = {
     idealAncho: 1200,
     idealAlto: 675,
     proporcion: 16 / 9,
+    ajuste: "cover",
     texto: "Horizontal 16:9, 1200×675 px. Es la foto grande de tu tienda.",
     avisoProporcion:
       "Tu portada no es horizontal 16:9: se va a recortar arriba y abajo. Revisa la vista previa.",
@@ -299,6 +301,7 @@ export const MEDIDAS_IMAGEN = {
     idealAncho: 800,
     idealAlto: 800,
     proporcion: 1,
+    ajuste: "cover",
     texto: "Cuadrada, 800×800 px. Encuadra bien el producto, sin mucho fondo.",
     avisoProporcion:
       "La foto no es cuadrada: en la lista se recorta a cuadro. Revisa que no corte el producto.",

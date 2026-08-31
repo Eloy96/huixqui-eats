@@ -7,7 +7,7 @@ import * as repo from "./datos-repo.js";
 import { dinero, csv, descargar, fechaHora, fechaCorta } from "./lib-formato.js";
 
 export async function vistaAdmin(contenedor) {
-  pintarEn(contenedor, html`<h1>Operación</h1><div style="margin-top:var(--e-4)">${esqueletoLista(2)}</div>`);
+  pintarEn(contenedor, html`<h1>Panel del operador</h1><div style="margin-top:var(--e-4)">${esqueletoLista(2)}</div>`);
 
   let resumen;
   let tiendas = [];
@@ -35,10 +35,17 @@ export async function vistaAdmin(contenedor) {
   pintarEn(
     contenedor,
     html`
-      <h1>Operación</h1>
-      <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-top:var(--e-1)">
-        ${repo.modo() === "demo" ? "Datos del demo local" : "Datos en vivo"}
-      </p>
+      <div class="operacion-cabecera">
+        <div>
+          <span class="sello sello--abierto">${repo.modo() === "demo" ? "Demo local" : "Datos en vivo"}</span>
+          <h1>Panel del operador</h1>
+          <p>Primero atiende los pagos pendientes; después revisa vencimientos y negocios.</p>
+        </div>
+        <nav class="operacion-accesos" aria-label="Secciones del panel">
+          <button class="boton boton--contorno boton--chico" data-ir-operacion="pagos-operador" type="button">Pagos</button>
+          <button class="boton boton--contorno boton--chico" data-ir-operacion="suscripciones-operador" type="button">Suscripciones</button>
+        </nav>
+      </div>
 
       <div class="metricas" style="margin-top:var(--e-4)">
         <div class="metrica">
@@ -63,7 +70,7 @@ export async function vistaAdmin(contenedor) {
         </div>
       </div>
 
-      <section style="margin-top:var(--e-6)">
+      <section id="pagos-operador" class="operacion-seccion">
         <div class="seccion-cabeza">
           <div>
             <h2>Pagos por verificar</h2>
@@ -74,7 +81,7 @@ export async function vistaAdmin(contenedor) {
         <div data-cola></div>
       </section>
 
-      <section style="margin-top:var(--e-6)">
+      <section id="suscripciones-operador" class="operacion-seccion">
         <div class="seccion-cabeza">
           <div>
             <h2>Suscripciones</h2>
@@ -90,6 +97,10 @@ export async function vistaAdmin(contenedor) {
     `,
   );
 
+  delegar(contenedor, "click", "[data-ir-operacion]", (_ev, boton) => {
+    contenedor.querySelector(`#${boton.dataset.irOperacion}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
   const pintarTablero = async () => {
     const zona = contenedor.querySelector("[data-tablero]");
     try {
@@ -104,36 +115,36 @@ export async function vistaAdmin(contenedor) {
         zona,
         html`
           <div class="tabla-envoltura">
-            <table class="tabla">
+            <table class="tabla tabla--suscripciones">
               <thead><tr><th>Negocio</th><th>Plan</th><th>Estado</th><th>Vence</th><th>Acciones</th></tr></thead>
               <tbody>
                 ${filas.map(
                   (f) => html`
                     <tr>
-                      <td>
+                      <td data-label="Negocio">
                         <a href="#/tienda/${f.store_id}" style="color:var(--verde-500);font-weight:var(--peso-medio)">${f.nombre}</a>
                         <small style="display:block;color:var(--tinta-60)">${f.categoria}</small>
                       </td>
-                      <td>${f.plan === "destacado" ? "Destacado" : "Presencia"}</td>
-                      <td>${selloEstado(f.estado)}</td>
-                      <td>
+                      <td data-label="Plan">${f.plan === "destacado" ? "Destacado" : "Presencia"}</td>
+                      <td data-label="Estado">${selloEstado(f.estado)}</td>
+                      <td data-label="Vence">
                         ${f.vence ? fechaCorta(f.vence) : "—"}
                         ${["activa", "prueba"].includes(f.estado)
                           ? html`<small style="display:block;color:var(--tinta-60)">${f.dias_restantes} días</small>`
                           : ""}
                       </td>
-                      <td>
+                      <td data-label="Acciones">
                         <div class="acciones-sub">
                           <button class="boton boton--contorno boton--chico" data-activar="${f.store_id}" data-plan="presencia" type="button">
-                            ${dinero(precioPresencia)} Presencia
+                            Activar Presencia · ${dinero(precioPresencia)}
                           </button>
                           <button class="boton boton--contorno boton--chico" data-activar="${f.store_id}" data-plan="destacado" type="button">
-                            ${dinero(precioDestacado)} Destacado
+                            Activar Destacado · ${dinero(precioDestacado)}
                           </button>
                           <button class="boton boton--texto" data-cortesia="${f.store_id}" data-negocio="${f.nombre}" type="button">Regalar mes</button>
                           ${f.estado === "suspendida"
                             ? html`<button class="boton boton--texto" data-reactivar="${f.store_id}" type="button">Quitar suspensión</button>`
-                            : html`<button class="boton boton--texto" data-suspender="${f.store_id}" type="button">Suspender</button>`}
+                            : html`<button class="boton boton--peligro boton--chico" data-suspender="${f.store_id}" type="button">Suspender</button>`}
                         </div>
                       </td>
                     </tr>

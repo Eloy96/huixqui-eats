@@ -106,23 +106,153 @@ export function delegar(raiz, evento, selector, manejador) {
   DELEGADOS.set(raiz, registros);
 }
 
-/** Lee un input file y devuelve { dataUrl, file } para previa + subida. */
-export function leerImagen(file) {
+const TIPOS_IMAGEN = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGEN_ENTRADA = 12 * 1024 * 1024;
+const MAX_LADO_IMAGEN = 12000;
+const MAX_PIXELES_IMAGEN = 50_000_000;
+
+/**
+ * Ajusta una foto antes de subirla.
+ *
+ * - portada y producto: recorte centrado, sin deformar;
+ * - logo: se centra completo dentro del cuadro, sin cortar;
+ * - todas: tamaño final predecible y WEBP liviano para datos móviles.
+ *
+ * `medidas` viene de MEDIDAS_IMAGEN. Si se omite se conserva la lectura
+ * simple por compatibilidad con llamadas antiguas.
+ */
+export async function leerImagen(file, medidas = null) {
+  if (!file) return { dataUrl: "", file: null };
+  if (!TIPOS_IMAGEN.has(String(file.type || "").toLowerCase())) {
+    throw new Error("Usa una imagen JPG, PNG o WEBP.");
+  }
+  if (file.size > MAX_IMAGEN_ENTRADA) {
+    throw new Error("La imagen pesa más de 12 MB. Elige una más ligera.");
+  }
+
+  const recurso = await decodificarImagen(file);
+  const anchoOriginal = Number(recurso.width || recurso.naturalWidth || 0);
+  const altoOriginal = Number(recurso.height || recurso.naturalHeight || 0);
+  if (!anchoOriginal || !altoOriginal) {
+    recurso.close?.();
+    throw new Error("No pudimos leer las dimensiones de la imagen.");
+  }
+  if (
+    anchoOriginal > MAX_LADO_IMAGEN ||
+    altoOriginal > MAX_LADO_IMAGEN ||
+    anchoOriginal * altoOriginal > MAX_PIXELES_IMAGEN
+  ) {
+    recurso.close?.();
+    throw new Error("La imagen es demasiado grande. Usa una de menos de 12,000 px por lado.");
+  }
+
+  if (!medidas?.idealAncho || !medidas?.idealAlto) {
+    recurso.close?.();
+    return {
+      dataUrl: await archivoADataUrl(file),
+      file,
+      ancho: anchoOriginal,
+      alto: altoOriginal,
+      aviso: "",
+    };
+  }
+
+  const anchoFinal = Math.round(medidas.idealAncho);
+  const altoFinal = Math.round(medidas.idealAlto);
+  const lienzo = document.createElement("canvas");
+  lienzo.width = anchoFinal;
+  lienzo.height = altoFinal;
+  const contexto = lienzo.getContext("2d", { alpha: true });
+  if (!contexto) {
+    recurso.close?.();
+    throw new Error("Este navegador no pudo preparar la imagen.");
+  }
+
+  const ajuste = medidas.ajuste === "contain" ? "contain" : "cover";
+  const escala = ajuste === "contain"
+    ? Math.min(anchoFinal / anchoOriginal, altoFinal / altoOriginal)
+    : Math.max(anchoFinal / anchoOriginal, altoFinal / altoOriginal);
+  const anchoDibujo = anchoOriginal * escala;
+  const altoDibujo = altoOriginal * escala;
+  contexto.imageSmoothingEnabled = true;
+  contexto.imageSmoothingQuality = "high";
+  contexto.drawImage(
+    recurso,
+    (anchoFinal - anchoDibujo) / 2,
+    (altoFinal - altoDibujo) / 2,
+    anchoDibujo,
+    altoDibujo,
+  );
+  recurso.close?.();
+
+  const blob = await lienzoABlob(lienzo, "image/webp", 0.86);
+  const extension = blob.type === "image/png" ? "png" : blob.type === "image/jpeg" ? "jpg" : "webp";
+  const nombreBase = String(file.name || "imagen").replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "-") || "imagen";
+  const optimizada = new File([blob], `${nombreBase}.${extension}`, {
+    type: blob.type || "image/webp",
+    lastModified: Date.now(),
+  });
+  const proporcionOriginal = anchoOriginal / altoOriginal;
+  const proporcionFinal = anchoFinal / altoFinal;
+  const seAjusto = Math.abs(proporcionOriginal - proporcionFinal) / proporcionFinal > 0.04;
+  const pequena = anchoOriginal < Number(medidas.minAncho || 0) || altoOriginal < Number(medidas.minAlto || 0);
+  const avisos = [];
+  if (seAjusto) {
+    avisos.push(ajuste === "contain"
+      ? "La centramos completa sin recortarla."
+      : "La recortamos al centro para que encaje sin deformarse.");
+  }
+  if (pequena) avisos.push("La imagen original es pequeña y puede perder nitidez.");
+
+  return {
+    dataUrl: await archivoADataUrl(optimizada),
+    file: optimizada,
+    ancho: anchoFinal,
+    alto: altoFinal,
+    aviso: avisos.join(" "),
+  };
+}
+
+async function decodificarImagen(file) {
+  if (typeof createImageBitmap === "function") {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      try {
+        return await createImageBitmap(file);
+      } catch {
+        // Continúa con el decodificador compatible de <img>.
+      }
+    }
+  }
   return new Promise((resolver, rechazar) => {
-    if (!file) {
-      resolver({ dataUrl: "", file: null });
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      rechazar(new Error("El archivo debe ser una imagen."));
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      rechazar(new Error("La imagen pesa más de 5 MB. Usa una más ligera."));
-      return;
-    }
+    const imagen = new Image();
+    const url = URL.createObjectURL(file);
+    imagen.onload = () => {
+      URL.revokeObjectURL(url);
+      resolver(imagen);
+    };
+    imagen.onerror = () => {
+      URL.revokeObjectURL(url);
+      rechazar(new Error("No pudimos abrir la imagen. Usa JPG, PNG o WEBP."));
+    };
+    imagen.src = url;
+  });
+}
+
+function lienzoABlob(lienzo, tipo, calidad) {
+  return new Promise((resolver, rechazar) => {
+    lienzo.toBlob((blob) => {
+      if (blob) resolver(blob);
+      else rechazar(new Error("No pudimos optimizar la imagen."));
+    }, tipo, calidad);
+  });
+}
+
+function archivoADataUrl(file) {
+  return new Promise((resolver, rechazar) => {
     const lector = new FileReader();
-    lector.onload = () => resolver({ dataUrl: lector.result, file });
+    lector.onload = () => resolver(lector.result);
     lector.onerror = () => rechazar(new Error("No se pudo leer la imagen."));
     lector.readAsDataURL(file);
   });

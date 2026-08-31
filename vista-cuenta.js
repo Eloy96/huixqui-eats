@@ -74,7 +74,7 @@ function campoFoto({ clave, etiqueta, ayuda, forma }) {
     <div class="foto-subir">
       <span class="foto-etiqueta">${etiqueta}</span>
       <label class="foto-caja foto-caja--${forma}">
-        <input type="file" accept="image/*" data-foto="${clave}" aria-label="${etiqueta}" />
+        <input type="file" accept="image/jpeg,image/png,image/webp" data-foto="${clave}" aria-label="${etiqueta}" />
         <span class="foto-vista" data-vista="${clave}">${vistaFoto(clave, etiqueta, ayuda)}</span>
       </label>
       <div class="foto-pie" data-pie="${clave}">${pieFoto(clave)}</div>
@@ -134,7 +134,7 @@ function pieFoto(clave) {
   const foto = fotos()[clave];
   const meta = META_FOTOS[clave];
   if (!foto?.dataUrl) {
-    return html`<span>${meta.medidas.texto} Máx. 5 MB.</span>`;
+    return html`<span>${meta.medidas.texto} Máx. 12 MB; la ajustamos y comprimimos antes de subirla.</span>`;
   }
   return html`
     <span>

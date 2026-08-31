@@ -12,6 +12,7 @@ import {
   normalizarWhatsApp,
 } from "./lib-formato.js";
 import { estadoTienda, metaTienda, filaMenu, abrirProducto } from "./vista-piezas.js";
+import { imagenPorCategoria } from "./datos-semillas.js";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -48,7 +49,12 @@ export async function vistaTienda(contenedor, { slug }) {
     contenedor,
     html`
       <div class="tienda-hero">
-        <img src="${urlSegura(tienda.cover || tienda.image)}" alt="" decoding="async" />
+        <img
+          src="${urlSegura(tienda.cover) || urlSegura(imagenPorCategoria(tienda.category))}"
+          data-respaldo="${urlSegura(imagenPorCategoria(tienda.category))}"
+          alt=""
+          decoding="async"
+        />
         <a class="tienda-hero-atras" href="#/" aria-label="Volver">${icono.atras()}</a>
       </div>
 

@@ -58,14 +58,14 @@ export async function vistaPanel(contenedor) {
       </div>
 
       <div class="pestanas" role="tablist">
-        <button class="pestana" role="tab" data-tab="resumen" aria-selected="${pestana === "resumen"}">Resumen</button>
-        <button class="pestana" role="tab" data-tab="productos" aria-selected="${pestana === "productos"}">Mis productos</button>
-        <button class="pestana" role="tab" data-tab="contactos" aria-selected="${pestana === "contactos"}">Contactos</button>
-        <button class="pestana" role="tab" data-tab="promocion" aria-selected="${pestana === "promocion"}">Promoción</button>
-        <button class="pestana" role="tab" data-tab="perfil" aria-selected="${pestana === "perfil"}">Perfil</button>
+        ${tabPanel("resumen", "Resumen")}
+        ${tabPanel("productos", "Productos")}
+        ${tabPanel("contactos", "Contactos recibidos")}
+        ${tabPanel("promocion", "Plan y promoción")}
+        ${tabPanel("perfil", "Perfil")}
       </div>
 
-      <div data-panel>${esqueletoLista(2)}</div>
+      <div data-panel id="panel-negocio" role="tabpanel" aria-labelledby="tab-${pestana}">${esqueletoLista(2)}</div>
     `,
   );
 
@@ -87,6 +87,20 @@ export async function vistaPanel(contenedor) {
   else if (pestana === "contactos") pintarContactos(ctx);
   else if (pestana === "promocion") pintarPromocion(ctx);
   else pintarPerfil(ctx);
+}
+
+function tabPanel(clave, texto) {
+  const activa = pestana === clave;
+  return html`<button
+    class="pestana"
+    id="tab-${clave}"
+    role="tab"
+    data-tab="${clave}"
+    aria-controls="panel-negocio"
+    aria-selected="${activa}"
+    tabindex="${activa ? "0" : "-1"}"
+    type="button"
+  >${texto}</button>`;
 }
 
 // ---------- Resumen ----------
@@ -138,10 +152,11 @@ function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor })
     panel,
     html`
       ${avisoSuscripcion(tienda)}
+      ${avisoVisibilidad(tienda, productos)}
 
       <div class="metricas">
         <div class="metrica">
-          <span>Contactos</span>
+          <span>Saldo de contactos</span>
           <strong>${tienda.credits}</strong>
           <small>disponibles</small>
         </div>
@@ -201,7 +216,9 @@ function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor })
             `
           : vacio({
               titulo: "Aún no llegan pedidos",
-              texto: "Publica al menos tres productos con foto y comparte tu link. Es lo que más mueve la aguja.",
+              texto: productos.length
+                ? "Comparte el link de tu tienda para empezar a recibir pedidos."
+                : "Publica tu primer producto para aparecer en Inicio y empezar a recibir pedidos.",
               accion: html`<button class="boton boton--principal" data-tab="productos" type="button">Publicar un producto</button>`,
             })}
       </section>
@@ -227,6 +244,39 @@ function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor })
     );
     descargar(`pedidos-${tienda.slug || tienda.id}.csv`, csv(filas));
   });
+}
+
+function avisoVisibilidad(tienda, productos) {
+  if (["suspendida", "vencida"].includes(tienda.subStatus)) return "";
+  const activos = productos.filter((producto) => producto.active !== false);
+  const ofreceEntrega = tienda.serviceModes === "both" || tienda.serviceModes === "delivery";
+  const ofreceRecoger = tienda.serviceModes === "both" || tienda.serviceModes === "pickup";
+  const paraEntrega = activos.some((producto) => producto.availability === "both" || producto.availability === "delivery");
+  const paraRecoger = activos.some((producto) => producto.availability === "both" || producto.availability === "pickup");
+  const modosVisibles = [
+    ofreceEntrega && paraEntrega ? "Entrega" : "",
+    ofreceRecoger && paraRecoger ? "Recoger" : "",
+  ].filter(Boolean);
+
+  if (!activos.length) {
+    return html`<div class="banner banner--aviso publicacion-estado">
+      <strong>Tu tienda está creada y aparece en Buscar.</strong>
+      <span>Publica tu primer producto para que también aparezca en Inicio y los clientes puedan pedir.</span>
+      <button class="banner-accion" data-tab="productos" type="button">Publicar mi primer producto</button>
+    </div>`;
+  }
+  if (!modosVisibles.length) {
+    return html`<div class="banner banner--aviso publicacion-estado">
+      <strong>Tus productos no coinciden con tu forma de entrega.</strong>
+      <span>Revisa si están disponibles para Entrega, Recoger o ambas opciones.</span>
+      <button class="banner-accion" data-tab="productos" type="button">Revisar productos</button>
+    </div>`;
+  }
+  return html`<div class="banner banner--info publicacion-estado">
+    <strong>Tu tienda está publicada.</strong>
+    <span>Aparece en Inicio para ${modosVisibles.join(" y ")} y también puede encontrarse en Buscar.</span>
+    <a class="banner-accion" href="#/tienda/${tienda.slug || tienda.id}">Ver como cliente</a>
+  </div>`;
 }
 
 // ---------- Productos ----------
@@ -264,7 +314,7 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
                         ${estaPromocionado(producto)
                           ? html`<button class="boton boton--texto boton--chico" data-quitar-destacado="${producto.id}" type="button">Quitar destacado</button>`
                           : html`<button class="boton boton--contorno boton--chico" data-destacar="${producto.id}" data-nombre="${producto.title}" type="button">${icono.estrella()} ${tienda.plan === "destacado" ? "Destacar" : "Destacar · $20"}</button>`}
-                        <button class="boton boton--peligro boton--chico" data-borrar="${producto.id}" type="button">
+                        <button class="boton boton--peligro boton--chico" data-borrar="${producto.id}" type="button" aria-label="Eliminar ${producto.title}">
                           ${icono.basura()}
                         </button>
                       </div>
@@ -394,8 +444,8 @@ function hojaProducto(tienda, contenedor) {
             <small>los productos con foto venden más</small>
           </div>
           <label class="campo">
-            <input type="file" accept="image/*" data-imagen />
-            <small>${MEDIDAS_IMAGEN.producto.texto} Máx. 5 MB. Si no subes foto, usamos una genérica de la categoría.</small>
+            <input type="file" accept="image/jpeg,image/png,image/webp" data-imagen />
+            <small>${MEDIDAS_IMAGEN.producto.texto} Máx. 12 MB; la ajustamos y comprimimos automáticamente.</small>
           </label>
           <div data-previa></div>
           <div data-aviso-foto></div>
@@ -1008,11 +1058,13 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
   try {
     [config, pagos] = await Promise.all([repo.configCobro(), repo.misPagos()]);
   } catch (error) {
+    console.error("No se pudieron cargar planes y pagos", error);
     pintarEn(
       panel,
       vacio({
         titulo: "No pudimos cargar los planes",
-        texto: `${error.message} Si acabas de instalar, corre 09-cobros.sql en Supabase.`,
+        texto: "Revisa tu conexión e inténtalo nuevamente. Tus pagos y beneficios no cambian por este error.",
+        accion: html`<button class="boton boton--contorno" data-tab="promocion" type="button">Reintentar</button>`,
       }),
     );
     return;
@@ -1059,6 +1111,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
               <strong>Clip todavía no confirma este pago.</strong>
               ${descripcionPago(pendiente)} por ${dinero(pendiente.monto)}.
               Si cerraste o cancelaste el pago, no se activará ninguna compra.
+              <button class="banner-accion" data-revisar-clip="${pendiente.id}" type="button">Revisar estado ahora</button>
             </div>
           `
         : ""}
@@ -1067,7 +1120,8 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
         ? html`
             <div class="banner banner--error" style="margin-top:var(--e-3)">
               <strong>Tu último pago no se pudo confirmar.</strong>
-              ${rechazado.motivo_rechazo || "Revisa la referencia y vuelve a reportarlo."}
+              ${rechazado.motivo_rechazo || "Clip informó que el pago no se completó."}
+              Si el cargo aparece en tu cuenta, contáctanos antes de volver a pagar para evitar un cobro duplicado.
             </div>
           `
         : ""}
@@ -1498,7 +1552,7 @@ function etiquetaMetodo(m) {
 
 function selloPago(estado) {
   const mapa = {
-    por_verificar: ["sello--promo", "Pendiente de pago"],
+    por_verificar: ["sello--promo", "Confirmación pendiente"],
     verificado: ["sello--abierto", "Confirmado"],
     rechazado: ["sello--cerrado", "No confirmado"],
   };
@@ -1570,15 +1624,31 @@ function pintarPerfil({ panel, tienda, contenedor }) {
           <span>Descripción</span>
           <textarea name="description">${tienda.description || ""}</textarea>
         </label>
-        <div class="campos-2">
-          <label class="campo">
-            <span>Cambiar logo</span>
-            <input type="file" accept="image/*" data-logo />
-          </label>
-          <label class="campo">
-            <span>Cambiar portada</span>
-            <input type="file" accept="image/*" data-portada />
-          </label>
+        <div class="fotos-fila perfil-fotos">
+          <div class="foto-subir">
+            <span class="foto-etiqueta">Logo</span>
+            <label class="foto-caja foto-caja--logo">
+              <input type="file" accept="image/jpeg,image/png,image/webp" data-logo aria-label="Cambiar logo" />
+              <span class="foto-vista">
+                ${tienda.image
+                  ? html`<img src="${urlSegura(tienda.image)}" data-previa-logo alt="Vista previa del logo" />`
+                  : html`<span class="foto-vacia" data-previa-logo>${icono.mas()}<strong>Subir logo</strong></span>`}
+              </span>
+            </label>
+            <div class="foto-pie" data-info-logo>Cuadrado · se centra sin recortar.</div>
+          </div>
+          <div class="foto-subir">
+            <span class="foto-etiqueta">Portada</span>
+            <label class="foto-caja foto-caja--portada">
+              <input type="file" accept="image/jpeg,image/png,image/webp" data-portada aria-label="Cambiar portada" />
+              <span class="foto-vista">
+                ${tienda.cover
+                  ? html`<img src="${urlSegura(tienda.cover)}" data-previa-portada alt="Vista previa de la portada" />`
+                  : html`<span class="foto-vacia" data-previa-portada>${icono.mas()}<strong>Subir portada</strong></span>`}
+              </span>
+            </label>
+            <div class="foto-pie" data-info-portada>Horizontal 16:9 · se recorta al centro.</div>
+          </div>
         </div>
         <button class="boton boton--principal boton--ancho" type="submit">Guardar cambios</button>
       </form>
@@ -1621,15 +1691,29 @@ function pintarPerfil({ panel, tienda, contenedor }) {
 
   panel.querySelector("[data-logo]").addEventListener("change", async (ev) => {
     try {
-      nuevoLogo = await leerImagen(ev.target.files[0]);
+      nuevoLogo = await leerImagen(ev.target.files[0], MEDIDAS_IMAGEN.logo);
+      pintarEn(
+        panel.querySelector("[data-previa-logo]")?.parentElement,
+        html`<img src="${urlSegura(nuevoLogo.dataUrl)}" data-previa-logo alt="Vista previa del logo" />`,
+      );
+      panel.querySelector("[data-info-logo]").textContent =
+        `${nuevoLogo.ancho}×${nuevoLogo.alto} px${nuevoLogo.aviso ? ` · ${nuevoLogo.aviso}` : " · Lista para subir"}`;
     } catch (error) {
+      ev.target.value = "";
       toast(error.message, "error");
     }
   });
   panel.querySelector("[data-portada]").addEventListener("change", async (ev) => {
     try {
-      nuevaPortada = await leerImagen(ev.target.files[0]);
+      nuevaPortada = await leerImagen(ev.target.files[0], MEDIDAS_IMAGEN.portada);
+      pintarEn(
+        panel.querySelector("[data-previa-portada]")?.parentElement,
+        html`<img src="${urlSegura(nuevaPortada.dataUrl)}" data-previa-portada alt="Vista previa de la portada" />`,
+      );
+      panel.querySelector("[data-info-portada]").textContent =
+        `${nuevaPortada.ancho}×${nuevaPortada.alto} px${nuevaPortada.aviso ? ` · ${nuevaPortada.aviso}` : " · Lista para subir"}`;
     } catch (error) {
+      ev.target.value = "";
       toast(error.message, "error");
     }
   });

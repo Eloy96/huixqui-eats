@@ -72,7 +72,7 @@ export function tarjetaTienda(tienda, { fila = false, conteo = 0 } = {}) {
     >
       <div class="tienda-portada">
         <img
-          src="${urlSegura(tienda.cover || tienda.image)}"
+          src="${urlSegura(tienda.cover) || urlSegura(imagenPorCategoria(tienda.category))}"
           data-respaldo="${urlSegura(imagenPorCategoria(tienda.category))}"
           alt=""
           loading="lazy"
@@ -90,7 +90,11 @@ export function tarjetaTienda(tienda, { fila = false, conteo = 0 } = {}) {
           ${meta.map((m) => html`<span class="punto">${m}</span>`)}
         </div>
         <div class="tienda-meta">
-          ${detalle ? html`<span>${detalle}</span>` : html`<span>${conteo} producto${conteo === 1 ? "" : "s"}</span>`}
+          ${detalle
+            ? html`<span>${detalle}</span>`
+            : conteo > 0
+              ? html`<span>${conteo} producto${conteo === 1 ? "" : "s"}</span>`
+              : html`<span class="catalogo-preparacion">Catálogo en preparación</span>`}
         </div>
       </div>
     </a>
@@ -119,7 +123,7 @@ export function filaMenu(producto, { tienda } = {}) {
       </div>
       <img
         class="menu-fila-foto"
-        src="${urlSegura(producto.image)}"
+        src="${urlSegura(producto.image) || urlSegura(imagenPorCategoria(producto.productCategory))}"
         data-respaldo="${urlSegura(imagenPorCategoria(producto.productCategory))}"
         alt=""
         loading="lazy"

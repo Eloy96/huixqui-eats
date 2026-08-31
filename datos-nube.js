@@ -51,8 +51,8 @@ async function subir(bucket, ruta, file) {
   // olvide en ninguna de las tres subidas (logo, portada, producto).
   const rutaFinal = /\.[a-z0-9]{2,5}$/i.test(ruta) ? ruta : `${ruta}.${extensionDe(file)}`;
   const { error } = await cliente.storage.from(bucket).upload(rutaFinal, file, {
-    cacheControl: "3600",
-    upsert: true,
+    cacheControl: "31536000",
+    upsert: false,
     contentType: file?.type || "image/jpeg",
   });
   if (error) {
@@ -247,7 +247,7 @@ function aTienda(fila) {
     coords: fila.lat && fila.lng ? { lat: Number(fila.lat), lng: Number(fila.lng) } : null,
     serviceModes: deModos(fila.service_modes),
     image: urlPublica("logos", fila.logo_path),
-    cover: urlPublica("portadas", fila.cover_path) || urlPublica("logos", fila.logo_path),
+    cover: urlPublica("portadas", fila.cover_path),
     schedule: fila.schedule || null,
     prepMinutes: fila.prep_minutes || 15,
     credits: Number(fila.credits || 0),
