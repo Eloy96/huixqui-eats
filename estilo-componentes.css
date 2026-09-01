@@ -1178,6 +1178,10 @@
 }
 
 .toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e-3);
   padding: var(--e-3) var(--e-4);
   border-radius: var(--r-md);
   background: var(--tinta);
@@ -1185,10 +1189,31 @@
   font-size: var(--t-sm);
   box-shadow: var(--s-2);
   animation: subir 180ms both;
+  pointer-events: auto;
 }
 
 .toast--error {
   background: var(--error-500);
+}
+
+.toast-cerrar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: -4px -6px -4px 0;
+  border-radius: var(--r-full);
+  color: #fff;
+  font-size: var(--t-lg);
+  line-height: 1;
+}
+
+.toast-cerrar:hover,
+.toast-cerrar:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  outline: 2px solid #fff;
+  outline-offset: 1px;
 }
 
 /* ---------- Métricas del panel ---------- */

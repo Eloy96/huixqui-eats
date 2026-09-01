@@ -230,14 +230,15 @@
   border: 1px solid var(--linea-fuerte);
   border-radius: var(--r-full);
   overflow: hidden;
-  height: 36px;
+  min-height: var(--toque);
 }
 
 .cantidad button {
-  width: 36px;
-  height: 100%;
+  min-width: var(--toque);
+  min-height: var(--toque);
   font-weight: var(--peso-fuerte);
   color: var(--verde-500);
+  touch-action: manipulation;
 }
 
 .cantidad span {
@@ -293,6 +294,16 @@
 .envio-fila--enviado {
   border-color: var(--ok-500);
   background: var(--ok-100);
+}
+
+.envio-fila--abierto {
+  border-color: var(--verde-300);
+  background: var(--verde-100);
+}
+
+.envio-fila--abierto .envio-fila-num {
+  color: var(--verde-700);
+  background: var(--superficie);
 }
 
 .envio-fila--enviado .envio-fila-num {

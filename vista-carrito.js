@@ -19,13 +19,14 @@ import {
   piezas,
   itemsParaServidor,
   fijar,
+  disponibleEnModo,
 } from "./estado.js";
 import * as repo from "./datos-repo.js";
-import { dinero, normalizarWhatsApp, estaAbierta } from "./lib-formato.js";
+import { dinero, normalizarWhatsApp, estaAbierta, telefonoValido } from "./lib-formato.js";
 import { campoDireccion } from "./lib-campo-direccion.js";
 
 export async function vistaCarrito(contenedor) {
-  if (estado.envios.length) {
+  if (enviosDelCliente().length) {
     pintarEnvios(contenedor);
     return;
   }
@@ -53,6 +54,11 @@ export async function vistaCarrito(contenedor) {
   const sesion = repo.sesion();
   const cliente = sesion?.role === "client" ? sesion.perfil : null;
   const entrega = estado.modoPedido === "Entrega";
+  const incompatibles = estado.carrito.filter(
+    (linea) =>
+      (linea.disponibilidad && !disponibleEnModo(linea.disponibilidad)) ||
+      (linea.modosTienda && !disponibleEnModo(linea.modosTienda)),
+  );
 
   pintarEn(
     contenedor,
@@ -62,6 +68,16 @@ export async function vistaCarrito(contenedor) {
         ${piezas()} artículo${piezas() === 1 ? "" : "s"} · ${lista.length} negocio${lista.length === 1 ? "" : "s"} ·
         ${estado.modoPedido.toLowerCase()}
       </p>
+
+      ${incompatibles.length
+        ? html`<div class="banner banner--aviso carrito-modo-aviso" data-aviso-modo>
+            <strong>${incompatibles.length} producto${incompatibles.length === 1 ? " no está" : "s no están"} disponible${incompatibles.length === 1 ? "" : "s"} para ${estado.modoPedido.toLowerCase()}.</strong>
+            <span>Cambia el tipo de pedido o quita esos productos antes de confirmar.</span>
+            <button class="banner-accion" data-cambiar-modo-carrito type="button">
+              Cambiar a ${estado.modoPedido === "Entrega" ? "recoger" : "entrega"}
+            </button>
+          </div>`
+        : ""}
 
       <div style="margin-top:var(--e-4)">
         ${lista.map(
@@ -83,6 +99,9 @@ export async function vistaCarrito(contenedor) {
                       <strong>${linea.titulo}</strong>
                       <small>${dinero(linea.precio)} c/u</small>
                       ${detalleLinea(linea)}
+                      ${incompatibles.includes(linea)
+                        ? html`<span class="sello sello--cerrado">No disponible para ${estado.modoPedido.toLowerCase()}</span>`
+                        : ""}
                       ${linea.nota ? html`<div class="carrito-nota">${linea.nota}</div>` : ""}
                     </div>
                     <div style="display:grid;gap:var(--e-2);justify-items:end">
@@ -111,31 +130,34 @@ export async function vistaCarrito(contenedor) {
           </section>`
         : ""}
 
-      <section class="tarjeta" style="margin-top:var(--e-4)">
+      <form class="tarjeta" id="form-carrito" data-form-carrito novalidate style="margin-top:var(--e-4)">
         <h2 style="font-size:var(--t-lg);margin-bottom:var(--e-3)">
           ${entrega ? "¿A dónde lo llevamos?" : "¿Quién recoge?"}
         </h2>
-        <label class="campo">
+        <label class="campo" data-campo-nombre>
           <span>Tu nombre</span>
-          <input data-nombre value="${cliente?.name || ""}" placeholder="Como te conocen en el pueblo" />
+          <input name="name" data-nombre value="${cliente?.name || ""}" placeholder="Como te conocen en el pueblo" autocomplete="name" aria-describedby="carrito-error-nombre" required />
+          <small class="campo-error" id="carrito-error-nombre" data-error-nombre role="alert" hidden></small>
         </label>
-        <label class="campo">
+        <label class="campo" data-campo-telefono>
           <span>Tu WhatsApp</span>
-          <input data-telefono type="tel" inputmode="numeric" value="${cliente?.phone || ""}" placeholder="10 dígitos" />
+          <input name="phone" data-telefono type="tel" inputmode="tel" value="${cliente?.phone || ""}" placeholder="10 dígitos" autocomplete="tel" aria-describedby="carrito-error-telefono" required />
+          <small class="campo-error" id="carrito-error-telefono" data-error-telefono role="alert" hidden></small>
         </label>
         ${entrega
           ? html`
-              <label class="campo">
+              <label class="campo" data-campo-direccion>
                 <span>Dirección</span>
                 <div data-direccion-carrito></div>
+                <small class="campo-error" id="carrito-error-direccion" data-error-direccion role="alert" hidden></small>
               </label>
               <label class="campo">
                 <span>Referencia</span>
-                <input data-referencia value="${cliente?.reference || ""}" placeholder="Portón verde, junto a la tienda" />
+                <input data-referencia value="${cliente?.reference || ""}" placeholder="Portón verde, junto a la tienda" autocomplete="off" />
               </label>
             `
           : ""}
-      </section>
+      </form>
 
       <div style="margin-top:var(--e-4)">
         <div class="total-fila"><span>Productos</span><span>${dinero(totalCarrito())}</span></div>
@@ -151,7 +173,7 @@ export async function vistaCarrito(contenedor) {
       </div>
 
       <div style="display:grid;gap:var(--e-2);margin-top:var(--e-4)">
-        <button class="boton boton--principal boton--ancho" data-confirmar type="button">
+        <button class="boton boton--principal boton--ancho" data-confirmar type="submit" form="form-carrito">
           Confirmar y preparar ${lista.length} WhatsApp${lista.length === 1 ? "" : "s"}
         </button>
         <button class="boton boton--texto" data-vaciar type="button">Vaciar carrito</button>
@@ -166,9 +188,11 @@ export async function vistaCarrito(contenedor) {
         requerido: true,
         alElegir(direccion, coords) {
           fijar({ etiquetaUbicacion: direccion, ubicacion: coords });
+          limpiarErrorCarrito(contenedor, "direccion", direccionCarrito?.elemento());
         },
         alEditar(direccion) {
           fijar({ etiquetaUbicacion: direccion, ubicacion: null });
+          limpiarErrorCarrito(contenedor, "direccion", direccionCarrito?.elemento());
         },
       })
     : null;
@@ -185,21 +209,44 @@ export async function vistaCarrito(contenedor) {
     quitarLinea(b.dataset.quitar);
     vistaCarrito(contenedor);
   });
+  contenedor.querySelector("[data-cambiar-modo-carrito]")?.addEventListener("click", () => {
+    fijar({ modoPedido: estado.modoPedido === "Entrega" ? "Recoger" : "Entrega" });
+    vistaCarrito(contenedor);
+  });
   contenedor.querySelector("[data-vaciar]").addEventListener("click", () => {
     vaciarCarrito();
     vistaCarrito(contenedor);
   });
 
-  contenedor.querySelector("[data-confirmar]").addEventListener("click", async (ev) => {
-    const boton = ev.currentTarget;
-    const nombre = contenedor.querySelector("[data-nombre]").value.trim();
-    const telefono = contenedor.querySelector("[data-telefono]").value.trim();
+  const formCarrito = contenedor.querySelector("[data-form-carrito]");
+  const campoNombre = contenedor.querySelector("[data-nombre]");
+  const campoTelefono = contenedor.querySelector("[data-telefono]");
+  campoNombre.addEventListener("input", () => limpiarErrorCarrito(contenedor, "nombre", campoNombre));
+  campoTelefono.addEventListener("input", () => limpiarErrorCarrito(contenedor, "telefono", campoTelefono));
+
+  formCarrito.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const boton = contenedor.querySelector("[data-confirmar]");
+    const nombre = campoNombre.value.trim();
+    const telefono = campoTelefono.value.trim();
     const direccion = entrega ? direccionCarrito.direccion() : "";
     const coordsEntrega = entrega ? direccionCarrito.coords() || estado.ubicacion : null;
     const referencia = entrega ? contenedor.querySelector("[data-referencia]").value.trim() : "";
 
-    if (!nombre || telefono.replace(/\D/g, "").length < 10) {
-      toast("Escribe tu nombre y un WhatsApp de 10 dígitos.", "error");
+    limpiarErrorCarrito(contenedor, "nombre", campoNombre);
+    limpiarErrorCarrito(contenedor, "telefono", campoTelefono);
+    if (entrega) limpiarErrorCarrito(contenedor, "direccion", direccionCarrito.elemento());
+    if (!nombre) {
+      mostrarErrorCarrito(contenedor, "nombre", campoNombre, "Escribe tu nombre.");
+      return;
+    }
+    if (!telefonoValido(telefono)) {
+      mostrarErrorCarrito(contenedor, "telefono", campoTelefono, "Escribe un WhatsApp con al menos 10 dígitos.");
+      return;
+    }
+    if (incompatibles.length) {
+      contenedor.querySelector("[data-aviso-modo]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast("Revisa los productos que no están disponibles para este tipo de pedido.", "error");
       return;
     }
 
@@ -216,7 +263,9 @@ export async function vistaCarrito(contenedor) {
       return;
     }
     if (entrega && !direccion) {
-      toast("Falta la dirección de entrega.", "error");
+      const inputDireccion = direccionCarrito.elemento();
+      mostrarErrorCarrito(contenedor, "direccion", inputDireccion, "Escribe la dirección de entrega.");
+      direccionCarrito.enfocar();
       return;
     }
     if (!repo.esCliente()) {
@@ -225,8 +274,10 @@ export async function vistaCarrito(contenedor) {
       return;
     }
 
+    const textoBoton = boton.textContent;
     boton.disabled = true;
     boton.textContent = "Preparando...";
+    formCarrito.setAttribute("aria-busy", "true");
 
     try {
       await repo.actualizarPerfil({
@@ -253,12 +304,15 @@ export async function vistaCarrito(contenedor) {
         const lineasConfirmadas = lineasDesdeServidor(fila.pedido.items, grupo.lineas);
         const totalConfirmado = Number(fila.pedido.total ?? grupo.total);
         return {
+          pedidoId: fila.pedido.id,
+          clienteId: sesion.id,
           storeId: grupo.storeId,
           tienda: grupo.tienda?.name || "Negocio",
           telefono: grupo.tienda?.phone || "",
           total: totalConfirmado,
-          enviado: false,
-          cobrable: fila.cobrable,
+          abiertoEn: null,
+          confirmadoEn: null,
+          creadoEn: Date.now(),
           texto: mensaje({
             tienda: grupo.tienda,
             lineas: lineasConfirmadas,
@@ -273,13 +327,15 @@ export async function vistaCarrito(contenedor) {
         };
       });
 
-      vaciarCarrito();
-      fijar({ envios });
+      // Una sola escritura: nunca queda guardado un carrito vacío sin la
+      // lista que permite continuar con los WhatsApp.
+      fijar({ carrito: [], envios });
       pintarEnvios(contenedor);
     } catch (error) {
       toast(error.message, "error");
       boton.disabled = false;
-      boton.textContent = "Confirmar y preparar WhatsApp";
+      boton.textContent = textoBoton;
+      formCarrito.removeAttribute("aria-busy");
     }
   });
 }
@@ -359,72 +415,146 @@ function mensaje({ tienda, lineas, total, nombre, telefono, direccion, referenci
 }
 
 function pintarEnvios(contenedor) {
-  const pendientes = estado.envios.filter((e) => !e.enviado).length;
+  const envios = enviosDelCliente();
+  const pendientes = envios.filter((envio) => !envio.confirmadoEn && !envio.confirmado && !envio.enviado).length;
 
   pintarEn(
     contenedor,
     html`
       <h1>Envía tu pedido</h1>
       <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-top:var(--e-1)">
-        Un WhatsApp por negocio, con tu pedido ya escrito. Toca cada botón; si el navegador bloquea la
-        ventana, vuelve aquí y toca otra vez.
+        Abre un WhatsApp por negocio. Cuando realmente lo hayas enviado, vuelve aquí y marca “Ya lo envié”.
+        Esta lista se conserva si cierras o recargas la página.
       </p>
 
       <div style="margin-top:var(--e-4)">
-        ${estado.envios.map(
-          (envio, indice) => html`
-            <div class="envio-fila ${envio.enviado ? "envio-fila--enviado" : ""}">
-              <span class="envio-fila-num">${envio.enviado ? "✓" : indice + 1}</span>
+        ${envios.map(
+          (envio, indice) => {
+            const confirmado = Boolean(envio.confirmadoEn || envio.confirmado || envio.enviado);
+            const abierto = Boolean(envio.abiertoEn || envio.abierto);
+            const clave = envio.pedidoId || `${envio.storeId}-${indice}`;
+            return html`
+            <div class="envio-fila ${confirmado ? "envio-fila--enviado" : abierto ? "envio-fila--abierto" : ""}">
+              <span class="envio-fila-num">${confirmado ? "✓" : abierto ? "↗" : indice + 1}</span>
               <div class="envio-fila-info">
                 <strong>${envio.tienda}</strong>
-                <small>${dinero(envio.total)} ${envio.cobrable ? "" : "· la tienda se quedó sin contactos"}</small>
+                <small>
+                  ${dinero(envio.total)}
+                  ${confirmado ? "· marcado como enviado" : abierto ? "· WhatsApp abierto; falta confirmar" : "· listo para abrir"}
+                </small>
               </div>
-              <a
-                class="boton boton--wa boton--chico"
-                href="https://wa.me/${normalizarWhatsApp(envio.telefono)}?text=${encodeURIComponent(envio.texto)}"
-                target="_blank"
-                rel="noopener"
-                data-enviar="${indice}"
-              >
-                ${icono.wa()} ${envio.enviado ? "Reenviar" : "Enviar"}
-              </a>
+              <div class="envio-fila-acciones">
+                <a
+                  class="boton boton--wa boton--chico"
+                  href="https://wa.me/${normalizarWhatsApp(envio.telefono)}?text=${encodeURIComponent(envio.texto)}"
+                  target="_blank"
+                  rel="noopener"
+                  data-abrir-whatsapp="${clave}"
+                >
+                  ${icono.wa()} ${abierto || confirmado ? "Abrir otra vez" : "Abrir WhatsApp"}
+                </a>
+                ${abierto && !confirmado
+                  ? html`<button class="boton boton--principal boton--chico" data-confirmar-envio="${clave}" type="button">Ya lo envié</button>`
+                  : ""}
+              </div>
             </div>
-          `,
+          `;
+          },
         )}
       </div>
 
       ${pendientes === 0
         ? html`
             <div class="tarjeta" style="margin-top:var(--e-4);text-align:center">
-              <strong>Listo, ya salieron todos</strong>
+              <strong>Marcaste todos como enviados</strong>
               <p style="color:var(--tinta-60);font-size:var(--t-sm);margin-top:var(--e-1)">
                 El negocio te contesta por WhatsApp para confirmar tiempo y pago.
               </p>
               <div style="display:grid;gap:var(--e-2);margin-top:var(--e-3)">
-                <a class="boton boton--principal" href="#/pedidos">Ver mis pedidos</a>
-                <a class="boton boton--contorno" href="#/">Seguir pidiendo</a>
+                <a class="boton boton--principal" data-finalizar-envios href="#/pedidos">Ver mis pedidos</a>
+                <a class="boton boton--contorno" data-finalizar-envios href="#/">Seguir pidiendo</a>
               </div>
             </div>
           `
         : html`
-            <button class="boton boton--texto" data-cancelar type="button" style="margin-top:var(--e-4)">
-              Cancelar y volver al inicio
+            <button class="boton boton--texto" data-continuar-despues type="button" style="margin-top:var(--e-4)">
+              Continuar después
             </button>
           `}
     `,
   );
 
-  delegar(contenedor, "click", "[data-enviar]", (_ev, enlace) => {
-    const indice = Number(enlace.dataset.enviar);
-    estado.envios[indice].enviado = true;
-    setTimeout(() => pintarEnvios(contenedor), 400);
+  contenedor.querySelectorAll("[data-abrir-whatsapp]").forEach((enlace) => {
+    enlace.addEventListener("click", () => {
+      const clave = enlace.dataset.abrirWhatsapp;
+      fijar({
+        envios: estado.envios.map((envio, indice) =>
+          claveEnvio(envio, indice) === clave ? { ...envio, abiertoEn: new Date().toISOString() } : envio,
+        ),
+      });
+      setTimeout(() => pintarEnvios(contenedor), 400);
+    });
   });
 
-  const cancelar = contenedor.querySelector("[data-cancelar]");
-  if (cancelar) {
-    cancelar.addEventListener("click", () => {
-      fijar({ envios: [] });
-      location.hash = "#/";
+  contenedor.querySelectorAll("[data-confirmar-envio]").forEach((boton) => {
+    boton.addEventListener("click", () => {
+      const clave = boton.dataset.confirmarEnvio;
+      fijar({
+        envios: estado.envios.map((envio, indice) =>
+          claveEnvio(envio, indice) === clave ? { ...envio, confirmadoEn: new Date().toISOString() } : envio,
+        ),
+      });
+      pintarEnvios(contenedor);
     });
+  });
+
+  contenedor.querySelectorAll("[data-finalizar-envios]").forEach((enlace) => {
+    enlace.addEventListener("click", limpiarEnviosDelCliente);
+  });
+  contenedor.querySelector("[data-continuar-despues]")?.addEventListener("click", () => {
+    toast("Guardamos esta lista. Vuelve al carrito para continuar.");
+    location.hash = "#/";
+  });
+}
+
+function enviosDelCliente() {
+  const clienteId = repo.sesion()?.role === "client" ? repo.sesion().id : "";
+  if (!clienteId) return [];
+  return estado.envios.filter((envio) => !envio.clienteId || envio.clienteId === clienteId);
+}
+
+function claveEnvio(envio, indice) {
+  return String(envio.pedidoId || `${envio.storeId}-${indice}`);
+}
+
+function limpiarEnviosDelCliente() {
+  const clienteId = repo.sesion()?.id;
+  fijar({
+    envios: estado.envios.filter((envio) => envio.clienteId && envio.clienteId !== clienteId),
+  });
+}
+
+function limpiarErrorCarrito(contenedor, clave, campo = null) {
+  const caja = contenedor.querySelector(`[data-campo-${clave}]`);
+  const error = contenedor.querySelector(`[data-error-${clave}]`);
+  caja?.classList.remove("campo--error");
+  campo?.removeAttribute("aria-invalid");
+  if (error) {
+    error.hidden = true;
+    error.textContent = "";
   }
+}
+
+function mostrarErrorCarrito(contenedor, clave, campo, mensaje) {
+  const caja = contenedor.querySelector(`[data-campo-${clave}]`);
+  const error = contenedor.querySelector(`[data-error-${clave}]`);
+  caja?.classList.add("campo--error");
+  campo?.setAttribute("aria-invalid", "true");
+  if (error) {
+    error.textContent = mensaje;
+    error.hidden = false;
+  }
+  campo?.focus({ preventScroll: true });
+  caja?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  toast(mensaje, "error");
 }

@@ -3,6 +3,7 @@
 // en este momento.
 
 const LLAVE = "pueblopedidos-ui-v1";
+const VIGENCIA_COLA_WHATSAPP = 48 * 60 * 60 * 1000;
 
 const oyentes = new Set();
 
@@ -23,8 +24,15 @@ function cargar() {
   try {
     const guardado = JSON.parse(localStorage.getItem(LLAVE) || "null");
     if (!guardado) return {};
-    // La cola de envíos es de un solo uso: no sobrevive a un refresh.
-    return { ...guardado, envios: [] };
+    // La cola sobrevive cierres y recargas, pero solo por 48 horas para no
+    // conservar indefinidamente mensajes que incluyen dirección y teléfono.
+    const ahora = Date.now();
+    const envios = Array.isArray(guardado.envios)
+      ? guardado.envios
+          .filter((envio) => ahora - Number(envio.creadoEn || ahora) < VIGENCIA_COLA_WHATSAPP)
+          .slice(0, 12)
+      : [];
+    return { ...guardado, envios };
   } catch {
     return {};
   }
@@ -40,6 +48,7 @@ function guardar() {
         ubicacion: estado.ubicacion,
         etiquetaUbicacion: estado.etiquetaUbicacion,
         ordenCercania: estado.ordenCercania,
+        envios: Array.isArray(estado.envios) ? estado.envios.slice(0, 12) : [],
       }),
     );
   } catch (error) {
@@ -58,10 +67,33 @@ export function fijar(parche) {
   oyentes.forEach((fn) => fn(estado));
 }
 
+export function codigoModoPedido(modoPedido = estado.modoPedido) {
+  return modoPedido === "Recoger" ? "pickup" : "delivery";
+}
+
+export function disponibleEnModo(valor, modoPedido = estado.modoPedido) {
+  const modo = codigoModoPedido(modoPedido);
+  return valor === "both" || valor === modo;
+}
+
+export function productoCompatibleConModo(
+  producto,
+  tienda = producto?.tienda,
+  modoPedido = estado.modoPedido,
+) {
+  return Boolean(
+    producto &&
+      tienda &&
+      disponibleEnModo(producto.availability, modoPedido) &&
+      disponibleEnModo(tienda.serviceModes, modoPedido),
+  );
+}
+
 // ---------- Carrito ----------
 
 export function agregarAlCarrito({
   producto,
+  tienda = producto?.tienda,
   cantidad = 1,
   nota = "",
   precio,
@@ -69,6 +101,7 @@ export function agregarAlCarrito({
   extras = [],
   selectedOptions = [],
 }) {
+  if (!productoCompatibleConModo(producto, tienda)) return false;
   // Mismo producto + misma nota + misma configuración = suma cantidad.
   // Cualquier diferencia es línea nueva, porque "sin cebolla" y "con
   // todo" son dos platos distintos en la cocina.
@@ -92,6 +125,8 @@ export function agregarAlCarrito({
       storeId: producto.storeId,
       titulo: producto.title,
       imagen: producto.image,
+      disponibilidad: producto.availability,
+      modosTienda: tienda?.serviceModes || producto.tienda?.serviceModes || "both",
       precio,
       qty: cantidad,
       nota: nota.trim(),
@@ -102,6 +137,7 @@ export function agregarAlCarrito({
     });
   }
   fijar({ carrito: estado.carrito });
+  return true;
 }
 
 export function cambiarCantidad(lineaId, delta) {

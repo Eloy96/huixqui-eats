@@ -17,7 +17,7 @@ import {
   normalizarWhatsApp,
 } from "./lib-formato.js";
 import { imagenPorCategoria } from "./datos-semillas.js";
-import { estado, agregarAlCarrito } from "./estado.js";
+import { estado, agregarAlCarrito, productoCompatibleConModo } from "./estado.js";
 
 export function precioHtml(producto) {
   const final = precioFinal(producto);
@@ -270,6 +270,10 @@ function bloqueGrupos(producto) {
 
 /** Hoja de producto: cantidad + nota antes de agregar. */
 export function abrirProducto(producto, tienda) {
+  if (!productoCompatibleConModo(producto, tienda)) {
+    toast(`Este producto no está disponible para ${estado.modoPedido.toLowerCase()}.`, "error");
+    return;
+  }
   let cantidad = 1;
   const final = precioFinal(producto);
   const { abierta } = estadoTienda(tienda);
@@ -280,7 +284,7 @@ export function abrirProducto(producto, tienda) {
     titulo: producto.title,
     cuerpo: html`
       <img
-        src="${urlSegura(producto.image)}"
+        src="${urlSegura(producto.image) || urlSegura(imagenPorCategoria(producto.productCategory))}"
         data-respaldo="${urlSegura(imagenPorCategoria(producto.productCategory))}"
         alt="${producto.title}"
         class="previa previa--hoja"
@@ -432,13 +436,18 @@ export function abrirProducto(producto, tienda) {
   refrescarTotal();
 
   nodo.querySelector("[data-agregar]").addEventListener("click", () => {
+    if (!productoCompatibleConModo(producto, tienda)) {
+      toast(`Este producto no está disponible para ${estado.modoPedido.toLowerCase()}.`, "error");
+      return;
+    }
     if (!validarGrupos()) {
       nodo.querySelector(".opciones-cliente--error")?.scrollIntoView({ behavior: "smooth", block: "center" });
       toast("Completa las opciones obligatorias.", "error");
       return;
     }
-    agregarAlCarrito({
+    const agregado = agregarAlCarrito({
       producto,
+      tienda,
       cantidad,
       nota: nodo.querySelector("[data-nota]").value,
       precio: precioConExtras(),
@@ -446,6 +455,10 @@ export function abrirProducto(producto, tienda) {
       extras: leerExtras(),
       selectedOptions: leerOpcionesGrupo(),
     });
+    if (!agregado) {
+      toast(`No se pudo agregar para ${estado.modoPedido.toLowerCase()}.`, "error");
+      return;
+    }
     cerrar();
     toast(`${producto.title} agregado al carrito.`);
   });

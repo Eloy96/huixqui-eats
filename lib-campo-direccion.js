@@ -81,6 +81,13 @@ export function campoDireccion(zona, opciones = {}) {
     direccion: () => input.value.trim(),
     coords: () => elegidas,
     metadata: () => metadatos,
+    elemento: () => input,
+    enfocar() {
+      const controlGoogle = zonaGoogle.querySelector("input, [tabindex]");
+      const objetivo = input.hidden ? controlGoogle || zonaGoogle : input;
+      if (!objetivo.hasAttribute("tabindex") && objetivo === zonaGoogle) objetivo.tabIndex = -1;
+      objetivo.focus({ preventScroll: true });
+    },
     establecer(direccion, nuevasCoords = null) {
       input.value = String(direccion || "");
       elegidas = nuevasCoords;

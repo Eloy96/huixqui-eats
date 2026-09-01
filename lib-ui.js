@@ -46,7 +46,7 @@ function textoDeError(valor) {
   if (typeof valor === "string" && valor.trim() && valor !== "{}") return valor;
   if (valor instanceof Error && valor.message) return textoDeError(valor.message);
   if (valor && typeof valor === "object" && valor.message) return textoDeError(valor.message);
-  return "Algo falló y no llegó el motivo. Abre la consola del navegador para ver el detalle.";
+  return "No pudimos completar la acción. Intenta nuevamente.";
 }
 
 export function toast(mensaje, tipo = "ok") {
@@ -56,15 +56,28 @@ export function toast(mensaje, tipo = "ok") {
   if (!zonaToast) {
     zonaToast = document.createElement("div");
     zonaToast.className = "toast-zona";
-    zonaToast.setAttribute("role", "status");
-    zonaToast.setAttribute("aria-live", "polite");
     document.body.appendChild(zonaToast);
   }
+  while (zonaToast.children.length >= 3) zonaToast.firstElementChild?.remove();
   const nodo = document.createElement("div");
   nodo.className = `toast${tipo === "error" ? " toast--error" : ""}`;
-  nodo.textContent = texto;
+  nodo.setAttribute("role", tipo === "error" ? "alert" : "status");
+  nodo.setAttribute("aria-live", tipo === "error" ? "assertive" : "polite");
+  nodo.setAttribute("aria-atomic", "true");
+  const contenido = document.createElement("span");
+  contenido.textContent = texto;
+  nodo.appendChild(contenido);
+  if (tipo === "error") {
+    const cerrar = document.createElement("button");
+    cerrar.className = "toast-cerrar";
+    cerrar.type = "button";
+    cerrar.setAttribute("aria-label", "Cerrar mensaje");
+    cerrar.textContent = "×";
+    cerrar.addEventListener("click", () => nodo.remove());
+    nodo.appendChild(cerrar);
+  }
   zonaToast.appendChild(nodo);
-  setTimeout(() => nodo.remove(), 4000);
+  setTimeout(() => nodo.remove(), tipo === "error" ? 10000 : 4000);
 }
 
 // ---------- Hoja inferior ----------
