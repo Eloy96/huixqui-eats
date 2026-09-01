@@ -57,32 +57,39 @@ export async function vistaInicio(contenedor) {
     location.hash = "#/buscar";
   });
 
-  delegar(contenedor, "click", "[data-modo]", (_ev, boton) => {
-    fijar({ modoPedido: boton.dataset.modo });
-    vistaInicio(contenedor);
-  });
+  // El contenedor principal se reutiliza al cambiar de modo. Registramos
+  // estos eventos una sola vez para que los clics no se dupliquen después
+  // de alternar varias veces entre Entrega y Recoger.
+  if (contenedor.dataset.eventosInicio !== "listos") {
+    contenedor.dataset.eventosInicio = "listos";
 
-  delegar(contenedor, "click", "[data-categoria]", (_ev, boton) => {
-    fijar({ categoria: boton.dataset.categoria });
-    pintarTiendas(contenedor);
-    pintarCategorias(contenedor);
-  });
+    delegar(contenedor, "click", "[data-modo]", (_ev, boton) => {
+      fijar({ modoPedido: boton.dataset.modo });
+      vistaInicio(contenedor);
+    });
 
-  delegar(contenedor, "click", "[data-orden]", (_ev, boton) => {
-    const quiereCercania = boton.dataset.orden === "cerca";
-    // Pedir "más cercanos" sin ubicación no puede fallar en silencio:
-    // abrimos el selector y al volver se aplica solo.
-    if (quiereCercania && !estado.ubicacion) {
-      abrirSelectorUbicacion(() => {
-        if (estado.ubicacion) fijar({ ordenCercania: true });
-        vistaInicio(contenedor);
-      });
-      return;
-    }
-    fijar({ ordenCercania: quiereCercania });
-    pintarOrden(contenedor);
-    pintarTiendas(contenedor);
-  });
+    delegar(contenedor, "click", "[data-categoria]", (_ev, boton) => {
+      fijar({ categoria: boton.dataset.categoria });
+      pintarTiendas(contenedor);
+      pintarCategorias(contenedor);
+    });
+
+    delegar(contenedor, "click", "[data-orden]", (_ev, boton) => {
+      const quiereCercania = boton.dataset.orden === "cerca";
+      // Pedir "más cercanos" sin ubicación no puede fallar en silencio:
+      // abrimos el selector y al volver se aplica solo.
+      if (quiereCercania && !estado.ubicacion) {
+        abrirSelectorUbicacion(() => {
+          if (estado.ubicacion) fijar({ ordenCercania: true });
+          vistaInicio(contenedor);
+        });
+        return;
+      }
+      fijar({ ordenCercania: quiereCercania });
+      pintarOrden(contenedor);
+      pintarTiendas(contenedor);
+    });
+  }
 
   await cargar(contenedor);
 }
@@ -118,6 +125,24 @@ function disponible(producto) {
 function tiendaDisponible(tienda) {
   const modo = estado.modoPedido === "Entrega" ? "delivery" : "pickup";
   return tienda.serviceModes === "both" || tienda.serviceModes === modo;
+}
+
+/**
+ * Usa la misma regla que Buscar: una tienda sin productos todavía se muestra
+ * como "Catálogo en preparación". Si ya tiene productos, aparece únicamente
+ * cuando al menos uno corresponde al modo Entrega/Recoger seleccionado.
+ */
+function tiendasDisponibles() {
+  const conCualquierProducto = new Set(datos.productos.map((producto) => producto.storeId));
+  const conProductoCompatible = new Set(
+    datos.productos.filter((producto) => disponible(producto)).map((producto) => producto.storeId),
+  );
+
+  return datos.tiendas.filter(
+    (tienda) =>
+      tiendaDisponible(tienda) &&
+      (!conCualquierProducto.has(tienda.id) || conProductoCompatible.has(tienda.id)),
+  );
 }
 
 /**
@@ -217,16 +242,12 @@ function pintarPromos(contenedor) {
 }
 
 function pintarCategorias(contenedor) {
-  const activas = CATEGORIAS.filter((c) =>
-    datos.productos.some((p) => p.tienda && p.tienda.category === c && disponible(p) && tiendaDisponible(p.tienda)),
+  const disponibles = tiendasDisponibles();
+  const activas = CATEGORIAS.filter((categoria) =>
+    disponibles.some((tienda) => tienda.category === categoria),
   );
   const conteo = (categoria) =>
-    new Set(
-      datos.productos
-        .filter((p) => p.tienda && disponible(p) && tiendaDisponible(p.tienda))
-        .filter((p) => categoria === "Todos" || p.tienda?.category === categoria)
-        .map((p) => p.storeId),
-    ).size;
+    disponibles.filter((tienda) => categoria === "Todos" || tienda.category === categoria).length;
 
   pintarEn(
     contenedor.querySelector('[data-zona="categorias"]'),
@@ -267,23 +288,21 @@ function pintarTiendas(contenedor) {
     ]),
   );
 
-  // El directorio es para comprar, no para auditar altas. Una tienda sin
-  // catálogo todavía no ofrece una acción útil y empuja hacia abajo a las
-  // que sí pueden recibir pedidos. Se publica automáticamente aquí en
-  // cuanto tenga al menos un producto compatible con el modo elegido.
-  const lista = datos.tiendas
-    .filter((t) => tiendaDisponible(t))
-    .filter((t) => (conteos.get(t.id) || 0) > 0)
+  // Inicio y Buscar deben enseñar el mismo directorio. Las tiendas nuevas
+  // también aparecen aunque aún no hayan cargado productos; la tarjeta ya
+  // explica ese estado con "Catálogo en preparación".
+  const disponibles = tiendasDisponibles();
+  const lista = disponibles
     .filter((t) => estado.categoria === "Todos" || t.category === estado.categoria)
     .sort(ordenar);
 
   // Cuántas quedaron fuera solo por el modo: sirve para explicárselo al
   // cliente en vez de dejarlo con una pantalla vacía sin motivo.
+  const idsDisponibles = new Set(disponibles.map((tienda) => tienda.id));
   const ocultasPorModo = datos.tiendas.filter(
-    (t) =>
-      (estado.categoria === "Todos" || t.category === estado.categoria) &&
-      !lista.includes(t) &&
-      datos.productos.some((p) => p.storeId === t.id && disponible(p)),
+    (tienda) =>
+      (estado.categoria === "Todos" || tienda.category === estado.categoria) &&
+      !idsDisponibles.has(tienda.id),
   ).length;
 
   if (!lista.length) {
