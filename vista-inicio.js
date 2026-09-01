@@ -7,7 +7,13 @@ import { icono, esqueletoCarrusel, vacio } from "./lib-ui.js";
 import { estado, fijar } from "./estado.js";
 import * as repo from "./datos-repo.js";
 import { CATEGORIAS } from "./datos-semillas.js";
-import { estaAbierta, distanciaKm, etiquetaDistancia, estaPromocionado } from "./lib-formato.js";
+import {
+  estaAbierta,
+  distanciaKm,
+  etiquetaDistancia,
+  estaPromocionado,
+  estaTiendaDestacada,
+} from "./lib-formato.js";
 import { abrirSelectorUbicacion } from "./vista-ubicacion.js";
 import { tarjetaTienda, filaMenu, abrirProducto } from "./vista-piezas.js";
 
@@ -44,6 +50,7 @@ export async function vistaInicio(contenedor) {
 
       <div class="orden-barra" data-zona="orden"></div>
 
+      <section class="seccion" data-zona="destacadas"></section>
       <section class="seccion" data-zona="promos"></section>
       <section class="seccion" data-zona="categorias"></section>
       <section class="seccion" data-zona="tiendas">
@@ -112,6 +119,7 @@ async function cargar(contenedor) {
     return;
   }
   pintarOrden(contenedor);
+  pintarDestacadas(contenedor);
   pintarPromos(contenedor);
   pintarCategorias(contenedor);
   pintarTiendas(contenedor);
@@ -158,10 +166,10 @@ function ordenar(a, b) {
   const abiertaB = estaAbierta(b) ? 0 : 1;
   if (abiertaA !== abiertaB) return abiertaA - abiertaB;
 
-  // Ya dentro de las abiertas, el destacado (plan $200) va primero: es
-  // exactamente lo que paga.
-  const destA = a.plan === "destacado" ? 0 : 1;
-  const destB = b.plan === "destacado" ? 0 : 1;
+  // Ya dentro de las abiertas, un destacado vigente va primero: puede venir
+  // del plan mensual o de una promoción temporal de tienda.
+  const destA = estaTiendaDestacada(a) ? 0 : 1;
+  const destB = estaTiendaDestacada(b) ? 0 : 1;
   if (destA !== destB) return destA - destB;
 
   if (estado.ordenCercania && estado.ubicacion) {
@@ -235,10 +243,49 @@ function pintarPromos(contenedor) {
       </div>
     `,
   );
-  delegar(zona, "click", "[data-producto]", (_ev, boton) => {
-    const producto = datos.productos.find((p) => p.id === boton.dataset.producto);
-    if (producto) abrirProducto(producto, producto.tienda);
+  zona.querySelectorAll("[data-producto]").forEach((boton) => {
+    boton.addEventListener("click", () => {
+      const producto = datos.productos.find((p) => p.id === boton.dataset.producto);
+      if (producto) abrirProducto(producto, producto.tienda);
+    });
   });
+}
+
+function pintarDestacadas(contenedor) {
+  const zona = contenedor.querySelector('[data-zona="destacadas"]');
+  if (!zona) return;
+
+  const conteos = new Map(
+    datos.tiendas.map((tienda) => [
+      tienda.id,
+      datos.productos.filter(
+        (producto) => producto.storeId === tienda.id && disponible(producto),
+      ).length,
+    ]),
+  );
+  const destacadas = tiendasDisponibles().filter(estaTiendaDestacada).sort(ordenar);
+
+  if (!destacadas.length) {
+    pintarEn(zona, "");
+    return;
+  }
+
+  pintarEn(
+    zona,
+    html`
+      <div class="seccion-cabeza">
+        <div>
+          <h2>Negocios destacados</h2>
+          <p>Espacios pagados por los negocios</p>
+        </div>
+      </div>
+      <div class="carrusel" aria-label="Negocios destacados">
+        ${destacadas.map((tienda) =>
+          tarjetaTienda(tienda, { conteo: conteos.get(tienda.id) || 0 }),
+        )}
+      </div>
+    `,
+  );
 }
 
 function pintarCategorias(contenedor) {

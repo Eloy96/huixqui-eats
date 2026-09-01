@@ -107,6 +107,26 @@ export function estaPromocionado(producto) {
   return new Date(producto.featuredUntil).getTime() > Date.now();
 }
 
+/**
+ * Una tienda puede estar destacada por su plan mensual o por una promoción
+ * temporal de tienda. Las vigencias vencidas nunca deben conservar la
+ * insignia ni ocupar la sección pagada del inicio.
+ */
+export function estaTiendaDestacada(tienda) {
+  if (!tienda || tienda.status === "inactive") return false;
+  if (tienda.subStatus === "suspendida" || tienda.subStatus === "vencida") return false;
+
+  const destacadaTemporal =
+    Boolean(tienda.featuredUntil) && new Date(tienda.featuredUntil).getTime() > Date.now();
+  if (destacadaTemporal) return true;
+  if (tienda.plan !== "destacado") return false;
+
+  const vencePlan = tienda.subscribedUntil
+    ? new Date(tienda.subscribedUntil).getTime()
+    : Number.NaN;
+  return !Number.isFinite(vencePlan) || vencePlan > Date.now();
+}
+
 // ---------- Horario: "abierto ahora" calculado, no inventado ----------
 // horario = { 1: [["09:00","15:00"],["18:00","22:00"]], ... }  0 = domingo
 

@@ -7,6 +7,7 @@ import {
   precioFinal,
   tieneDescuento,
   estaPromocionado,
+  estaTiendaDestacada,
   etiquetaModo,
   etiquetaTipo,
   estaAbierta,
@@ -79,7 +80,7 @@ export function tarjetaTienda(tienda, { fila = false, conteo = 0 } = {}) {
           decoding="async"
         />
         ${sello}
-        ${tienda.plan === "destacado"
+        ${estaTiendaDestacada(tienda)
           ? html`<span class="sello sello--destacado">${icono.estrella()} Destacado</span>`
           : ""}
       </div>
