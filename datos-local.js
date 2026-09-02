@@ -5,11 +5,10 @@
 // Supabase: ese era el problema #1 del código anterior (dos fuentes de
 // verdad mezcladas en las mismas funciones).
 //
-// IMPORTANTE: aquí los créditos SÍ se descuentan en el navegador, porque
-// es una demo y no hay servidor. Por eso el modo demo se anuncia con una
-// cinta amarilla arriba y NO debe usarse para cobrar de verdad.
+// El modo demo replica el modelo vigente: la suscripción incluye contactos
+// sin límite. La cinta amarilla recuerda que ningún pago aquí es real.
 
-import { TIENDAS_DEMO, PRODUCTOS_DEMO, PRECIO_CONTACTO, PAQUETES, PLANES_PROMO } from "./datos-semillas.js";
+import { TIENDAS_DEMO, PRODUCTOS_DEMO, PLANES_PROMO } from "./datos-semillas.js";
 
 const LLAVE = "pueblopedidos-v10";
 
@@ -21,7 +20,6 @@ function inicial() {
     orders: [],
     leads: [],
     session: null,
-    leadPrice: PRECIO_CONTACTO,
   };
 }
 
@@ -410,7 +408,7 @@ export const driverLocal = {
   /** Mismo contrato que la nube: aquí el catálogo son las semillas. */
   async catalogoPrecios() {
     return {
-      paquetes: PAQUETES.map((p) => ({ ...p, id: `p${p.contactos}` })),
+      paquetes: [],
       planes: PLANES_PROMO.map((p) => ({ ...p, id: `d${p.dias}` })),
     };
   },
@@ -431,19 +429,12 @@ export const driverLocal = {
     return producto;
   },
 
-  async comprarCreditos(tiendaId, paqueteId) {
-    const tienda = db.stores.find((t) => t.id === tiendaId);
-    if (!tienda) throw new Error("No encontramos la tienda.");
-    const paquete = PAQUETES.find((p) => `p${p.contactos}` === paqueteId);
-    if (!paquete) throw new Error("Ese paquete no existe.");
-    tienda.credits = Number(tienda.credits || 0) + paquete.contactos;
-    tienda.creditSpend = Number(tienda.creditSpend || 0) + paquete.precio;
-    guardar();
-    return tienda;
+  async comprarCreditos() {
+    throw new Error("Los contactos ya están incluidos sin límite en la suscripción.");
   },
 
   /**
-   * Crea un pedido por tienda y descuenta un contacto.
+   * Crea un pedido por tienda. Los contactos están incluidos en el plan.
    * En nube esto es una sola llamada atómica al servidor; aquí es una
    * simulación honesta y así se etiqueta.
    */
@@ -451,10 +442,6 @@ export const driverLocal = {
     const creadoEn = new Date().toISOString();
     const loteId = id("lote");
     const resultado = grupos.map((grupo, indice) => {
-      const tienda = db.stores.find((t) => t.id === grupo.storeId);
-      const cobrable = Number(tienda?.credits || 0) > 0;
-      if (cobrable) tienda.credits -= 1;
-
       const pedido = {
         id: `${loteId}-${indice + 1}`,
         batchId: loteId,
@@ -476,11 +463,11 @@ export const driverLocal = {
         orderId: pedido.id,
         batchId: loteId,
         total: grupo.total,
-        billable: cobrable,
-        creditAfter: Number(tienda?.credits || 0),
+        billable: false,
+        creditAfter: null,
         createdAt: creadoEn,
       });
-      return { pedido, cobrable, creditosRestantes: Number(tienda?.credits || 0) };
+      return { pedido, cobrable: false, creditosRestantes: null };
     });
     guardar();
     return resultado;
@@ -505,16 +492,21 @@ export const driverLocal = {
   },
 
   async resumenPlataforma() {
-    const contactosCobrados = db.leads.filter((l) => l.billable).length;
+    const pagosConfirmados = (db.pagos || []).filter((p) => p.estado === "verificado");
+    const ingresoSuscripciones = pagosConfirmados
+      .filter((p) => !p.purchase_type || p.purchase_type === "subscription")
+      .reduce((s, p) => s + Number(p.monto || 0), 0);
+    const ingresoPromos = pagosConfirmados
+      .filter((p) => ["product_feature", "store_feature"].includes(p.purchase_type))
+      .reduce((s, p) => s + Number(p.monto || 0), 0);
     return {
-      contactosCobrados,
-      ingresoContactos: contactosCobrados * Number(db.leadPrice || PRECIO_CONTACTO),
-      ingresoRecargas: db.stores.reduce((s, t) => s + Number(t.creditSpend || 0), 0),
-      ingresoPromos: db.stores.reduce((s, t) => s + Number(t.marketingSpend || 0), 0),
+      contactos: db.leads.length,
+      ingresoSuscripciones,
+      ingresoPromos,
+      ingresoTotal: ingresoSuscripciones + ingresoPromos,
       ventasTotales: db.orders.reduce((s, o) => s + Number(o.total || 0), 0),
       tiendas: db.stores.length,
       pedidos: db.orders.length,
-      tiendasSinCredito: db.stores.filter((t) => Number(t.credits || 0) <= 5).length,
     };
   },
 

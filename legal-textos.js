@@ -4,7 +4,7 @@
 // fondo en estos textos, sube la versión: así sabes quién aceptó qué.
 // Cambios de redacción menores no necesitan versión nueva.
 
-export const VERSION_LEGAL = "2026-08-05";
+export const VERSION_LEGAL = "2026-09-01";
 
 // ⚠️ Llena estos datos antes de abrir al público. Lo que quede sin llenar
 // aparece marcado dentro de la app, a propósito: es más fácil notarlo ahí
@@ -147,7 +147,7 @@ export const TERMINOS = [
       "Los negocios cuentan con un periodo de prueba gratuito de 30 días desde su registro.",
       "Al terminar la prueba, para seguir apareciendo el negocio contrata una suscripción mensual, en el plan que elija: Presencia o Destacado. Los precios vigentes se muestran en su panel.",
       "El plan Destacado otorga posición preferente dentro de su categoría, sujeto a disponibilidad, ya que se ofrece a un solo negocio destacado por categoría.",
-      "PuebloPedidos no cobra comisión sobre las ventas del negocio. El cobro es únicamente la suscripción.",
+      "PuebloPedidos no cobra comisión sobre las ventas ni cobra por cada contacto recibido. Los únicos cobros de la plataforma son la suscripción y las promociones opcionales que el negocio decida contratar.",
       "El pago de la suscripción se realiza por los medios indicados en el panel del negocio y se activa una vez verificado.",
       "Si la suscripción vence y no se renueva, el negocio deja de aparecer en la plataforma, pero su información no se elimina y puede reactivarse al pagar.",
       "Las suscripciones y promociones contratadas no son reembolsables, salvo que la ley disponga lo contrario.",

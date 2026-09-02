@@ -2,10 +2,9 @@
 //
 // Dos reglas que no se rompen aquí:
 // 1. Las contraseñas nunca tocan nuestro código: son de Supabase Auth.
-// 2. Los créditos NUNCA se descuentan en el navegador. `crearPedidos`
-//    llama a la función `crear_pedidos` del servidor (sql/01-...sql),
-//    que descuenta y registra el lead en una sola transacción. Si el
-//    cliente edita algo, el servidor lo ignora.
+// 2. Los pedidos y contactos se registran en una sola operación del servidor.
+//    Los contactos están incluidos en la suscripción; el navegador no decide
+//    estados comerciales ni puede modificar datos de otras cuentas.
 
 import { normalizarWhatsApp } from "./lib-formato.js";
 
@@ -214,6 +213,9 @@ function traducir(error) {
   if (/meses_invalido/i.test(mensaje)) return "El número de meses no es válido.";
   if (/demasiadas_recargas/i.test(mensaje)) return "Demasiadas recargas seguidas. Espera un momento.";
   if (/limite_productos/i.test(mensaje)) return "Llegaste al máximo de 300 productos publicados.";
+  if (/store_subscription_expired/i.test(mensaje)) {
+    return "Este negocio ya no tiene una suscripción vigente y por ahora no puede recibir pedidos.";
+  }
   if (/required_product_options_missing/i.test(mensaje)) return "Falta elegir una opción obligatoria del producto.";
   if (/invalid_option_group|invalid_group_option|invalid_option_groups/i.test(mensaje)) return "Revisa los grupos y opciones del producto.";
   if (/invalid_extra|invalid_removable_item|invalid_selected_options/i.test(mensaje)) return "Una opción del producto cambió. Vuelve a abrirlo y elígela otra vez.";
@@ -354,7 +356,8 @@ export const driverNube = {
   },
 
   async sesion() {
-    const { data } = await cliente.auth.getUser();
+    const { data, error } = await cliente.auth.getUser();
+    if (error) throw new Error(traducir(error));
     const usuario = data?.user;
     if (!usuario) return null;
 
@@ -723,9 +726,16 @@ export const driverNube = {
   async recuperarPassword(correo) {
     revisar(
       await cliente.auth.resetPasswordForEmail(correo, {
-        redirectTo: `${location.origin}${location.pathname}#/cuenta`,
+        // Supabase necesita usar el fragmento de la URL para devolver la
+        // sesión de recuperación. El router también usa #, por eso dejamos
+        // una marca en la consulta y app.js crea la ruta después.
+        redirectTo: `${location.origin}${location.pathname}?recuperar=1`,
       }),
     );
+  },
+
+  async actualizarPassword(password) {
+    revisar(await cliente.auth.updateUser({ password }));
   },
 
   async tiendas() {
@@ -1078,7 +1088,30 @@ export const driverNube = {
   },
 
   async resumenPlataforma() {
-    return revisar(await cliente.rpc("resumen_plataforma"));
+    const [resumenResultado, pagosResultado, contactosResultado] = await Promise.all([
+      cliente.rpc("resumen_plataforma"),
+      cliente
+        .from("payment_requests")
+        .select("monto,purchase_type,estado")
+        .eq("estado", "verificado"),
+      cliente.from("leads").select("id", { count: "exact", head: true }),
+    ]);
+    const resumen = revisar(resumenResultado) || {};
+    const pagos = revisar(pagosResultado) || [];
+    if (contactosResultado.error) throw new Error(traducir(contactosResultado.error));
+    const ingresoSuscripciones = pagos
+      .filter((p) => (p.purchase_type || "subscription") === "subscription")
+      .reduce((suma, p) => suma + Number(p.monto || 0), 0);
+    const ingresoPromos = pagos
+      .filter((p) => ["product_feature", "store_feature"].includes(p.purchase_type))
+      .reduce((suma, p) => suma + Number(p.monto || 0), 0);
+    return {
+      ...resumen,
+      contactos: contactosResultado.count || 0,
+      ingresoSuscripciones,
+      ingresoPromos,
+      ingresoTotal: ingresoSuscripciones + ingresoPromos,
+    };
   },
 
   async todo() {

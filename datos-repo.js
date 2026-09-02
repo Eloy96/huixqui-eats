@@ -237,6 +237,13 @@ export async function recuperarPassword(correo) {
   return driver.recuperarPassword(correo);
 }
 
+export async function actualizarPassword(password) {
+  if (!cache.sesion || !driver.actualizarPassword) {
+    throw new Error("El enlace de recuperación venció o ya fue utilizado.");
+  }
+  return driver.actualizarPassword(password);
+}
+
 // ---------- Catálogo ----------
 
 export async function tiendas() {

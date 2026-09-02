@@ -140,8 +140,9 @@ export async function vistaCarrito(contenedor) {
           <small class="campo-error" id="carrito-error-nombre" data-error-nombre role="alert" hidden></small>
         </label>
         <label class="campo" data-campo-telefono>
-          <span>Tu WhatsApp</span>
-          <input name="phone" data-telefono type="tel" inputmode="tel" value="${cliente?.phone || ""}" placeholder="10 dígitos" autocomplete="tel" aria-describedby="carrito-error-telefono" required />
+          <span>Tu WhatsApp activo</span>
+          <input name="phone" data-telefono type="tel" inputmode="tel" value="${cliente?.phone || ""}" placeholder="10 dígitos" autocomplete="tel" aria-describedby="carrito-ayuda-telefono carrito-error-telefono" required />
+          <small id="carrito-ayuda-telefono">El negocio usará este número para responderte y confirmar el pedido.</small>
           <small class="campo-error" id="carrito-error-telefono" data-error-telefono role="alert" hidden></small>
         </label>
         ${entrega

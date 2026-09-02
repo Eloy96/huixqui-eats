@@ -18,6 +18,7 @@ import { vistaPanel } from "./vista-panel.js";
 import { vistaAdmin } from "./vista-admin.js";
 import { vistaPago } from "./vista-pago.js";
 import { vistaPrivacidad, vistaTerminos } from "./vista-legal.js";
+import { vistaUniversidad } from "./vista-universidad.js";
 import { abrirSelectorUbicacion } from "./vista-ubicacion.js";
 
 const contenido = $("#contenido");
@@ -30,11 +31,15 @@ router.definir("/tienda/:slug", vistaTienda);
 router.definir("/carrito", vistaCarrito);
 router.definir("/pedidos", vistaPedidos);
 router.definir("/cuenta", vistaCuenta);
+router.definir("/cuenta/:pestana", vistaCuenta);
 router.definir("/panel", vistaPanel);
 router.definir("/operador", vistaAdmin);
 router.definir("/pago/:requestId/:regreso", vistaPago);
 router.definir("/privacidad", vistaPrivacidad);
 router.definir("/terminos", vistaTerminos);
+router.definir("/universidad", vistaUniversidad);
+router.definir("/universidad/:seccion", vistaUniversidad);
+router.definir("/ayuda", vistaUniversidad);
 
 router.alNavegar(async ({ ruta, params, manejador }) => {
   cerrarHoja();
@@ -191,6 +196,7 @@ function pintarPie() {
     html`
       <footer class="pie">
         <span>PuebloPedidos · los negocios de tu pueblo</span>
+        <a href="#/universidad">Cómo funciona</a>
         <a href="#/terminos">Términos y Condiciones</a>
         <a href="#/privacidad">Aviso de Privacidad</a>
       </footer>
@@ -260,12 +266,52 @@ repo.alCambiar((que) => {
 
 // ---------- Encendido ----------
 
+const ERROR_RECUPERACION = "pueblopedidos-error-recuperacion";
+const RECUPERACION_ACTIVA = "pueblopedidos-recuperacion-activa";
+
+function detectarRecuperacion() {
+  const consulta = new URLSearchParams(location.search);
+  const fragmento = location.hash.startsWith("#/")
+    ? new URLSearchParams()
+    : new URLSearchParams(location.hash.replace(/^#/, ""));
+  const error = consulta.get("error_description") || fragmento.get("error_description") || "";
+  const callbackImplicito = fragmento.get("type") === "recovery" && fragmento.has("access_token");
+  const callbackPkce = consulta.get("recuperar") === "1" && consulta.has("code");
+  return {
+    activa: consulta.get("recuperar") === "1" || fragmento.get("type") === "recovery",
+    valida: !error && (callbackImplicito || callbackPkce),
+    error,
+  };
+}
+
+function abrirCambioPassword(intento) {
+  if (!intento.activa) return;
+  try {
+    if (intento.error) sessionStorage.setItem(ERROR_RECUPERACION, intento.error);
+    else sessionStorage.removeItem(ERROR_RECUPERACION);
+    if (intento.valida) sessionStorage.setItem(RECUPERACION_ACTIVA, "1");
+    else sessionStorage.removeItem(RECUPERACION_ACTIVA);
+  } catch (_error) {
+    // El modo privado puede bloquear sessionStorage; la pantalla conserva
+    // de todos modos el mensaje seguro de enlace inválido.
+  }
+
+  const url = new URL(location.href);
+  ["recuperar", "code", "error", "error_code", "error_description"].forEach((clave) =>
+    url.searchParams.delete(clave),
+  );
+  const consulta = url.searchParams.toString();
+  history.replaceState(null, "", `${url.pathname}${consulta ? `?${consulta}` : ""}#/cuenta/recuperar`);
+}
+
 async function arrancar() {
+  const recuperacion = detectarRecuperacion();
   try {
     await repo.iniciar({ config: CONFIG_SUPABASE, fabrica: window.supabase });
   } catch (error) {
     toast(`Arrancamos en modo demo: ${error.message}`, "error");
   }
+  abrirCambioPassword(recuperacion);
   activarRespaldoDeImagenes();
   pintarCabecera();
   pintarCintaDemo();

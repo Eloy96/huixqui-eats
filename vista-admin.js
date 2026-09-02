@@ -27,10 +27,16 @@ export async function vistaAdmin(contenedor) {
     return;
   }
 
-  const ingresoTotal =
-    Number(resumen.ingresoContactos || 0) +
-    Number(resumen.ingresoRecargas || 0) +
-    Number(resumen.ingresoPromos || 0);
+  const ingresoTotal = Number(
+    resumen.ingresoTotal ??
+      Number(resumen.ingresoSuscripciones || 0) + Number(resumen.ingresoPromos || 0),
+  );
+  const ahora = Date.now();
+  const suscripcionesVigentes = tiendas.filter(
+    (tienda) =>
+      ["prueba", "activa"].includes(tienda.subStatus) &&
+      Date.parse(tienda.subscribedUntil || "") > ahora,
+  ).length;
 
   pintarEn(
     contenedor,
@@ -51,17 +57,17 @@ export async function vistaAdmin(contenedor) {
         <div class="metrica">
           <span>Ingreso</span>
           <strong>${dinero(ingresoTotal)}</strong>
-          <small>contactos + recargas + promos</small>
+          <small>suscripciones + promociones</small>
         </div>
         <div class="metrica">
           <span>Contactos</span>
-          <strong>${resumen.contactosCobrados || 0}</strong>
-          <small>${dinero(resumen.ingresoContactos || 0)}</small>
+          <strong>${resumen.contactos ?? resumen.contactosCobrados ?? 0}</strong>
+          <small>incluidos sin límite</small>
         </div>
         <div class="metrica">
           <span>Negocios</span>
           <strong>${resumen.tiendas ?? tiendas.length}</strong>
-          <small>${resumen.tiendasSinCredito || 0} con saldo bajo</small>
+          <small>${suscripcionesVigentes} con plan vigente</small>
         </div>
         <div class="metrica">
           <span>Pedidos</span>

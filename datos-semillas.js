@@ -246,15 +246,6 @@ export function imagenPorCategoria(categoria) {
   return IMAGEN_POR_CATEGORIA[categoria] || "./hamburguesas.png";
 }
 
-/** Paquetes de contactos. El precio del paquete es la única tabla de precios. */
-export const PAQUETES = [
-  { contactos: 20, precio: 10 },
-  { contactos: 50, precio: 25, mejor: true },
-  { contactos: 120, precio: 55 },
-];
-
-export const PRECIO_CONTACTO = 0.5;
-
 export const PLANES_PROMO = [
   { dias: 3, precio: 89 },
   { dias: 7, precio: 169 },

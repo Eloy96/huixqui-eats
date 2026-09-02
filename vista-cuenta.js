@@ -23,6 +23,8 @@ let portada = { dataUrl: "", file: null };
 // entra. Cinturón y tirantes junto con el `boton.disabled`, porque el 429 de
 // Supabase es caro y no queremos ni una petición de más.
 let enVuelo = false;
+const ERROR_RECUPERACION = "pueblopedidos-error-recuperacion";
+const RECUPERACION_ACTIVA = "pueblopedidos-recuperacion-activa";
 
 async function unaVez(boton, textoOcupado, tarea) {
   if (enVuelo) return;
@@ -145,7 +147,14 @@ function pieFoto(clave) {
   `;
 }
 
-export async function vistaCuenta(contenedor) {
+export async function vistaCuenta(contenedor, params = {}) {
+  if (params.pestana === "recuperar") {
+    pintarNuevaPassword(contenedor);
+    return;
+  }
+  if (["entrar", "cliente", "negocio"].includes(params.pestana)) {
+    pestana = params.pestana;
+  }
   const sesion = repo.sesion();
   if (sesion?.role === "admin") {
     pintarCuentaOperador(contenedor, sesion);
@@ -160,6 +169,101 @@ export async function vistaCuenta(contenedor) {
     return;
   }
   pintarAuth(contenedor);
+}
+
+function pintarNuevaPassword(contenedor) {
+  let enlaceConError = false;
+  let recuperacionActiva = false;
+  try {
+    enlaceConError = Boolean(sessionStorage.getItem(ERROR_RECUPERACION));
+    recuperacionActiva = sessionStorage.getItem(RECUPERACION_ACTIVA) === "1";
+  } catch (_error) {
+    enlaceConError = false;
+    recuperacionActiva = false;
+  }
+
+  if (repo.modo() !== "nube" || !repo.sesion() || !recuperacionActiva || enlaceConError) {
+    pintarEn(
+      contenedor,
+      html`
+        <div class="auth-cabeza">
+          <h1>El enlace ya no funciona</h1>
+          <p>Puede haber vencido o haberse utilizado antes. Solicita uno nuevo desde Iniciar sesión.</p>
+        </div>
+        <div class="tarjeta" style="text-align:center">
+          <a class="boton boton--principal" href="#/cuenta/entrar">Solicitar otro enlace</a>
+        </div>
+      `,
+    );
+    return;
+  }
+
+  pintarEn(
+    contenedor,
+    html`
+      <div class="auth-cabeza">
+        <h1>Crea una contraseña nueva</h1>
+        <p>Usa al menos 8 caracteres. Al terminar iniciarás sesión nuevamente.</p>
+      </div>
+      <form class="tarjeta" data-form-password novalidate>
+        <label class="campo">
+          <span>Nueva contraseña</span>
+          <input name="password" type="password" autocomplete="new-password" minlength="8" required />
+        </label>
+        <label class="campo">
+          <span>Confirmar contraseña</span>
+          <input name="confirmar" type="password" autocomplete="new-password" minlength="8" required />
+        </label>
+        <p class="campo-error" data-error-password role="alert" hidden></p>
+        <button class="boton boton--principal boton--ancho" type="submit">Guardar contraseña</button>
+      </form>
+    `,
+  );
+
+  contenedor.querySelector("[data-form-password]").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const form = ev.currentTarget;
+    const password = String(new FormData(form).get("password") || "");
+    const confirmar = String(new FormData(form).get("confirmar") || "");
+    const error = form.querySelector("[data-error-password]");
+    if (password.length < 8 || password !== confirmar) {
+      error.textContent = password.length < 8
+        ? "La contraseña necesita al menos 8 caracteres."
+        : "Las contraseñas no coinciden.";
+      error.hidden = false;
+      form.querySelector('[name="password"]').focus();
+      return;
+    }
+    error.hidden = true;
+    const boton = form.querySelector('[type="submit"]');
+    unaVez(boton, "Guardando...", async () => {
+      try {
+        await repo.actualizarPassword(password);
+        try {
+          sessionStorage.removeItem(ERROR_RECUPERACION);
+          sessionStorage.removeItem(RECUPERACION_ACTIVA);
+        } catch (_error) {
+          // No impide completar el cambio.
+        }
+        let sesionCerrada = true;
+        try {
+          await repo.salir();
+        } catch (errorSalida) {
+          sesionCerrada = false;
+          console.warn("La contraseña cambió, pero la sesión no pudo cerrarse.", errorSalida);
+        }
+        toast(
+          sesionCerrada
+            ? "Contraseña actualizada. Ya puedes iniciar sesión."
+            : "Contraseña actualizada. Tu sesión actual continúa abierta.",
+        );
+        location.hash = sesionCerrada ? "#/cuenta/entrar" : "#/cuenta";
+      } catch (errorActualizacion) {
+        error.textContent = errorActualizacion.message || "No pudimos cambiar la contraseña.";
+        error.hidden = false;
+      }
+    });
+  });
 }
 
 function pintarCuentaOperador(contenedor, sesion) {
@@ -220,13 +324,14 @@ function pintarAuth(contenedor) {
     html`
       <div class="auth-cabeza">
         <h1>Tu cuenta</h1>
-        <p>Entra para pedir, o registra tu negocio y empieza a recibir pedidos.</p>
+        <p>Elige qué quieres hacer. Cada registro explica los datos necesarios y el siguiente paso.</p>
+        <a class="boton boton--texto" href="#/universidad">¿Primera vez? Mira cómo funciona</a>
       </div>
 
       <div class="pestanas" role="tablist">
-        <button class="pestana" role="tab" data-pestana="entrar">Entrar</button>
-        <button class="pestana" role="tab" data-pestana="cliente">Soy cliente</button>
-        <button class="pestana" role="tab" data-pestana="negocio">Tengo un negocio</button>
+        <button class="pestana" role="tab" data-pestana="entrar">Iniciar sesión</button>
+        <button class="pestana" role="tab" data-pestana="cliente">Registro cliente</button>
+        <button class="pestana" role="tab" data-pestana="negocio">Registro negocio</button>
       </div>
 
       <div data-panel></div>
@@ -258,6 +363,10 @@ function formularioEntrar(panel, contenedor) {
     panel,
     html`
       <form class="tarjeta" data-form novalidate>
+        <div class="auth-formulario-cabeza">
+          <h2>Iniciar sesión</h2>
+          <p>Usa el mismo correo con el que registraste tu cuenta de cliente o negocio.</p>
+        </div>
         <label class="campo">
           <span>Correo</span>
           <input name="correo" type="email" autocomplete="username" placeholder="tucorreo@ejemplo.com" required />
@@ -270,6 +379,9 @@ function formularioEntrar(panel, contenedor) {
         <div class="auth-pie">
           <button class="boton boton--texto" data-olvide type="button">Olvidé mi contraseña</button>
         </div>
+        <p class="auth-ayuda-password">
+          Escribe tu correo arriba. Recibirás un enlace para crear una contraseña nueva; revisa también spam.
+        </p>
       </form>
       ${repo.modo() === "demo"
         ? html`
@@ -311,18 +423,20 @@ function formularioEntrar(panel, contenedor) {
     });
   });
 
-  panel.querySelector("[data-olvide]").addEventListener("click", async () => {
+  panel.querySelector("[data-olvide]").addEventListener("click", (ev) => {
     const correo = panel.querySelector('[name="correo"]').value.trim();
     if (!correoValido(correo)) {
       toast("Escribe primero tu correo y vuelve a tocar.", "error");
       return;
     }
-    try {
-      await repo.recuperarPassword(correo);
-      toast("Te mandamos un correo para crear una contraseña nueva.");
-    } catch (error) {
-      toast(error, "error");
-    }
+    unaVez(ev.currentTarget, "Enviando...", async () => {
+      try {
+        await repo.recuperarPassword(correo);
+        toast("Si existe una cuenta con ese correo, recibirás un enlace para crear una contraseña nueva.");
+      } catch (error) {
+        toast(error, "error");
+      }
+    });
   });
 }
 
@@ -331,14 +445,23 @@ function formularioCliente(panel, contenedor) {
     panel,
     html`
       <form class="tarjeta" data-form novalidate>
+        <div class="registro-intro">
+          <strong>Registro de cliente</strong>
+          <p>
+            Crea una cuenta gratuita para guardar tu dirección, enviar pedidos por WhatsApp y consultar tus pedidos.
+            Necesitas un número activo de WhatsApp para completar y enviar el pedido.
+          </p>
+          <a class="boton boton--texto" href="#/universidad/clientes">Ver cómo se hace un pedido</a>
+        </div>
         <div class="campos-2">
           <label class="campo">
             <span>Tu nombre</span>
             <input name="name" placeholder="Como te conocen" required />
           </label>
           <label class="campo">
-            <span>WhatsApp</span>
+            <span>WhatsApp activo</span>
             <input name="phone" type="tel" inputmode="numeric" placeholder="10 dígitos" required />
+            <small>Usarás este número para enviar y confirmar tus pedidos.</small>
           </label>
         </div>
         <label class="campo">
@@ -414,10 +537,18 @@ function formularioCliente(panel, contenedor) {
     const boton = ev.currentTarget.querySelector('[type="submit"]');
     unaVez(boton, "Creando cuenta...", async () => {
       try {
-        await repo.registrarCliente({ ...datos, coords: coordsElegidas || estado.ubicacion });
-        await repo.registrarAceptacion(VERSION_LEGAL);
-        toast("Cuenta creada. Ya puedes pedir.");
-        location.hash = "#/";
+        const nuevaSesion = await repo.registrarCliente({
+          ...datos,
+          coords: coordsElegidas || estado.ubicacion,
+        });
+        if (nuevaSesion) {
+          await repo.registrarAceptacion(VERSION_LEGAL);
+          toast("Cuenta creada. Ya puedes pedir.");
+          location.hash = "#/";
+        } else {
+          toast("Revisa tu correo y confirma la cuenta antes de iniciar sesión.");
+          location.hash = "#/cuenta/entrar";
+        }
       } catch (error) {
         toast(error, "error");
       }
@@ -433,8 +564,13 @@ function formularioNegocio(panel, contenedor) {
     html`
       <form class="tarjeta registro-negocio" data-form novalidate>
         <div class="registro-intro">
-          <strong>Publica tu negocio sin comisión por venta</strong>
-          <p>Incluye 30 días de prueba. Después podrás elegir el plan que mejor te convenga desde tu panel.</p>
+          <strong>Registro de negocio · publica sin comisión por venta</strong>
+          <p>
+            Completa estos 5 pasos. Al terminar entrarás a Mi panel, donde podrás publicar productos y recibir
+            pedidos por WhatsApp. Tienes 30 días sin costo y sin renovación automática; después eliges un plan
+            desde $99 MXN al mes. Requiere un número activo de WhatsApp.
+          </p>
+          <a class="boton boton--texto" href="#/universidad/negocios">Ver la guía para negocios</a>
         </div>
 
         <div class="registro-progreso" aria-label="Progreso del registro">
@@ -488,8 +624,13 @@ function formularioNegocio(panel, contenedor) {
             <label class="campo">
               <span>WhatsApp del negocio</span>
               <input name="phone" type="tel" inputmode="numeric" placeholder="10 dígitos" required />
+              <small>Aquí recibirás los pedidos de tus clientes.</small>
             </label>
           </div>
+          <label class="acepto whatsapp-confirma" data-whatsapp-caja>
+            <input name="whatsappActivo" type="checkbox" required />
+            <span>Confirmo que este número tiene WhatsApp activo y que puedo recibir pedidos en él.</span>
+          </label>
           <div class="campos-2">
             <label class="campo">
               <span>Correo</span>
@@ -562,7 +703,7 @@ function formularioNegocio(panel, contenedor) {
           ${casillaAcepto()}
           <div class="registro-acciones">
             <button class="boton boton--contorno" data-paso-anterior type="button">Atrás</button>
-            <button class="boton boton--principal" type="submit">Registrar mi negocio</button>
+            <button class="boton boton--conversion" type="submit">Registrar mi negocio gratis</button>
           </div>
         </section>
       </form>
@@ -626,7 +767,8 @@ function formularioNegocio(panel, contenedor) {
       const phone = form.querySelector('[name="phone"]').value;
       const email = form.querySelector('[name="email"]').value;
       const password = form.querySelector('[name="password"]').value;
-      if (!telefonoValido(phone) || !correoValido(email) || password.length < 8) {
+      const whatsappActivo = form.querySelector('[name="whatsappActivo"]').checked;
+      if (!telefonoValido(phone) || !correoValido(email) || password.length < 8 || !whatsappActivo) {
         toast("Revisa WhatsApp, correo y contraseña antes de continuar.", "error");
         return false;
       }
@@ -650,7 +792,7 @@ function formularioNegocio(panel, contenedor) {
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const datos = Object.fromEntries(new FormData(ev.currentTarget));
-    if (!datos.name?.trim() || !datos.owner?.trim() || !telefonoValido(datos.phone)) {
+    if (!datos.name?.trim() || !datos.owner?.trim() || !telefonoValido(datos.phone) || !datos.whatsappActivo) {
       toast("Faltan nombre del negocio, tu nombre o el WhatsApp.", "error");
       return;
     }
@@ -979,8 +1121,9 @@ function pintarPerfil(contenedor, sesion) {
                   <input name="name" value="${p.name || ""}" />
                 </label>
                 <label class="campo">
-                  <span>WhatsApp</span>
+                  <span>WhatsApp activo</span>
                   <input name="phone" type="tel" inputmode="numeric" value="${p.phone || ""}" />
+                  <small>El negocio usará este número para confirmar tu pedido.</small>
                 </label>
               </div>
               <label class="campo">
@@ -1053,6 +1196,11 @@ function pintarPerfil(contenedor, sesion) {
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const datos = Object.fromEntries(new FormData(ev.currentTarget));
+      if (!telefonoValido(datos.phone)) {
+        toast("Escribe un número de WhatsApp válido de 10 dígitos.", "error");
+        ev.currentTarget.querySelector('[name="phone"]')?.focus();
+        return;
+      }
       try {
         await repo.actualizarPerfil({ ...datos, coords: coordsElegidas || estado.ubicacion });
         toast("Datos guardados.");

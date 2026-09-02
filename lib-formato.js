@@ -51,7 +51,12 @@ export function normalizarWhatsApp(telefono) {
 }
 
 export function telefonoValido(telefono) {
-  return String(telefono || "").replace(/\D/g, "").length >= 10;
+  const digitos = String(telefono || "").replace(/\D/g, "");
+  return (
+    /^\d{10}$/.test(digitos) ||
+    /^52\d{10}$/.test(digitos) ||
+    /^521\d{10}$/.test(digitos)
+  );
 }
 
 export function correoValido(correo) {

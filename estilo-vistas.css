@@ -92,6 +92,188 @@
   margin-bottom: var(--e-4);
 }
 
+.home-negocio-banner {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: var(--e-5);
+  margin-bottom: var(--e-5);
+  padding: var(--e-6);
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background: linear-gradient(135deg, var(--verde-900), var(--verde-700));
+  color: var(--superficie);
+  box-shadow: var(--s-2);
+}
+
+.home-negocio-banner::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 260px;
+  height: 260px;
+  right: -100px;
+  bottom: -150px;
+  border-radius: var(--r-full);
+  background: var(--verde-300);
+  opacity: 0.18;
+}
+
+.home-negocio-contenido {
+  min-width: 0;
+}
+
+.home-negocio-etiqueta {
+  display: inline-flex;
+  padding: var(--e-1) var(--e-2);
+  border: 1px solid var(--verde-300);
+  border-radius: var(--r-full);
+  color: var(--verde-100);
+  font-size: var(--t-2xs);
+  font-weight: var(--peso-fuerte);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-negocio-banner h2 {
+  max-width: 18ch;
+  margin-top: var(--e-3);
+  font-size: clamp(var(--t-2xl), 5vw, 2.75rem);
+  line-height: var(--alto-apretado);
+  color: var(--superficie);
+}
+
+.home-negocio-contenido > p {
+  max-width: 62ch;
+  margin-top: var(--e-2);
+  color: var(--verde-100);
+  line-height: var(--alto-normal);
+}
+
+.home-negocio-beneficios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-4);
+  margin-top: var(--e-4);
+  font-size: var(--t-sm);
+  font-weight: var(--peso-medio);
+}
+
+.home-negocio-beneficios li::before {
+  content: "✓";
+  margin-right: var(--e-1);
+  color: var(--maiz-500);
+  font-weight: var(--peso-negro);
+}
+
+.home-negocio-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin-top: var(--e-4);
+}
+
+.home-negocio-banner .boton--claro {
+  color: var(--superficie);
+  border-color: var(--verde-300);
+  background: transparent;
+}
+
+.home-negocio-banner .boton--claro:hover {
+  background: var(--verde-700);
+  border-color: var(--superficie);
+}
+
+.home-negocio-contenido > small {
+  display: block;
+  margin-top: var(--e-3);
+  color: var(--verde-100);
+  font-size: var(--t-xs);
+}
+
+.home-negocio-comprar {
+  display: inline-flex;
+  margin-top: var(--e-3);
+  color: var(--superficie);
+  font-size: var(--t-sm);
+  font-weight: var(--peso-medio);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.home-negocio-precio {
+  align-self: center;
+  justify-self: stretch;
+  display: grid;
+  place-items: center;
+  padding: var(--e-4);
+  border-radius: var(--r-lg);
+  background: var(--maiz-500);
+  color: var(--verde-900);
+  text-align: center;
+  box-shadow: var(--s-2);
+}
+
+.home-negocio-precio span,
+.home-negocio-precio small {
+  font-size: var(--t-xs);
+  font-weight: var(--peso-medio);
+}
+
+.home-negocio-precio strong {
+  font-family: var(--fuente-num);
+  font-size: 3.5rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-negocio-precio sup {
+  font-size: var(--t-xl);
+  vertical-align: top;
+}
+
+@media (min-width: 760px) {
+  .home-negocio-banner {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 0.3fr);
+    align-items: center;
+    padding: var(--e-8);
+  }
+}
+
+@media (max-width: 520px) {
+  .home-negocio-banner {
+    padding: var(--e-4);
+  }
+
+  .home-negocio-acciones .boton {
+    width: 100%;
+  }
+
+  .home-negocio-precio {
+    grid-template-areas:
+      "etiqueta precio"
+      "detalle precio";
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-items: start;
+    padding: var(--e-3) var(--e-4);
+    text-align: left;
+  }
+
+  .home-negocio-precio span {
+    grid-area: etiqueta;
+  }
+
+  .home-negocio-precio strong {
+    grid-area: precio;
+    align-self: center;
+    font-size: 2.75rem;
+  }
+
+  .home-negocio-precio small {
+    grid-area: detalle;
+  }
+}
+
 .categorias {
   display: flex;
   gap: var(--e-2);
@@ -711,6 +893,228 @@
   margin-top: var(--e-1);
   font-size: var(--t-sm);
   color: var(--tinta-60);
+}
+
+.auth-formulario-cabeza {
+  margin-bottom: var(--e-4);
+}
+
+.auth-formulario-cabeza h2 {
+  font-size: var(--t-xl);
+}
+
+.auth-formulario-cabeza p,
+.auth-ayuda-password {
+  max-width: var(--ancho-lectura);
+  margin-top: var(--e-1);
+  color: var(--tinta-60);
+  font-size: var(--t-sm);
+  line-height: var(--alto-normal);
+}
+
+.auth-ayuda-password {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.panel-cabeza-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+@media (max-width: 420px) {
+  .auth-cabeza + .pestanas {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+    padding-inline: var(--e-2);
+  }
+
+  .auth-cabeza + .pestanas .pestana {
+    min-width: 0;
+    padding-inline: var(--e-1);
+    font-size: var(--t-xs);
+    line-height: var(--alto-compacto);
+    white-space: normal;
+  }
+}
+
+/* ---------- Universidad PuebloPedidos ---------- */
+
+.universidad {
+  display: grid;
+  gap: var(--e-5);
+  max-width: 960px;
+  margin: 0 auto;
+  padding-bottom: var(--e-8);
+}
+
+.universidad-portada,
+.universidad-bloque {
+  padding: var(--e-6);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-xl);
+  background: var(--superficie);
+  box-shadow: var(--s-1);
+}
+
+.universidad-portada {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, var(--verde-100), var(--superficie));
+}
+
+.universidad-portada::after {
+  content: "";
+  position: absolute;
+  right: -72px;
+  top: -88px;
+  width: 190px;
+  height: 190px;
+  border-radius: var(--r-full);
+  background: var(--maiz-500);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.universidad-etiqueta,
+.universidad-bloque-cabeza > span {
+  color: var(--verde-700);
+  font-size: var(--t-xs);
+  font-weight: var(--peso-negro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.universidad-portada h1 {
+  max-width: 17ch;
+  margin-top: var(--e-2);
+  font-size: clamp(var(--t-2xl), 6vw, var(--t-3xl));
+}
+
+.universidad-portada > p,
+.universidad-bloque-cabeza p {
+  max-width: var(--ancho-lectura);
+  margin-top: var(--e-2);
+  color: var(--tinta-60);
+  line-height: var(--alto-normal);
+}
+
+.universidad-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin-top: var(--e-5);
+}
+
+.universidad-bloque-cabeza h2 {
+  margin-top: var(--e-1);
+  font-size: var(--t-xl);
+}
+
+.universidad-pasos {
+  display: grid;
+  gap: var(--e-3);
+  margin: var(--e-5) 0;
+  list-style: none;
+}
+
+.universidad-pasos li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--e-3);
+  padding: var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-lg);
+  background: var(--superficie-2);
+}
+
+.universidad-numero {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-full);
+  background: var(--verde-500);
+  color: var(--superficie);
+  font-family: var(--fuente-num);
+  font-weight: var(--peso-negro);
+}
+
+.universidad-pasos strong {
+  display: block;
+  font-family: var(--fuente-display);
+}
+
+.universidad-pasos p {
+  margin-top: 2px;
+  color: var(--tinta-60);
+  font-size: var(--t-sm);
+  line-height: var(--alto-normal);
+}
+
+.universidad-modulos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-2);
+  margin-bottom: var(--e-4);
+}
+
+.universidad-modulos div {
+  display: grid;
+  gap: 2px;
+  padding: var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-md);
+}
+
+.universidad-modulos span {
+  color: var(--tinta-60);
+  font-size: var(--t-sm);
+  line-height: var(--alto-compacto);
+}
+
+.universidad-nota,
+.universidad-aviso {
+  margin: var(--e-3) 0;
+  padding: var(--e-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-sm);
+  line-height: var(--alto-normal);
+}
+
+.universidad-nota {
+  border-left: 4px solid var(--maiz-500);
+  background: var(--maiz-100);
+  color: var(--maiz-600);
+}
+
+.universidad-aviso {
+  border-left: 4px solid var(--verde-500);
+  background: var(--verde-100);
+  color: var(--verde-900);
+}
+
+@media (max-width: 560px) {
+  .universidad {
+    gap: var(--e-3);
+  }
+
+  .universidad-portada,
+  .universidad-bloque {
+    padding: var(--e-4);
+  }
+
+  .universidad-selector .boton {
+    width: 100%;
+  }
+
+  .universidad-modulos {
+    grid-template-columns: 1fr;
+  }
 }
 
 .auth-pie {

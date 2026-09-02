@@ -1,9 +1,7 @@
 // Panel del negocio.
 //
 // Antes esto era la mitad de app.js con ~40 getElementById. Ahora es una
-// vista con pestañas que solo habla con `repo`. El saldo de contactos que
-// se ve aquí es el que dice el servidor: si alguien lo edita en DevTools,
-// el número cambia en su pantalla y en ningún otro lado.
+// vista con pestañas que solo habla con `repo`.
 
 import { html, pintarEn, delegar, leerImagen, urlSegura, copiar } from "./lib-dom.js";
 import { icono, toast, vacio, abrirHoja, esqueletoLista } from "./lib-ui.js";
@@ -20,6 +18,7 @@ import {
   etiquetaTipo,
   csv,
   descargar,
+  telefonoValido,
 } from "./lib-formato.js";
 import { campoDireccion } from "./lib-campo-direccion.js";
 import { ubicacionActual, direccionDesdeCoords, linkMapa } from "./lib-ubicacion.js";
@@ -54,7 +53,10 @@ export async function vistaPanel(contenedor) {
             ${tienda.category} · ${etiquetaModo(tienda.serviceModes)}
           </p>
         </div>
-        <a class="boton boton--contorno boton--chico" href="#/tienda/${tienda.slug || tienda.id}">Ver mi tienda</a>
+        <div class="panel-cabeza-acciones">
+          <a class="boton boton--texto boton--chico" href="#/universidad/negocios">Guía rápida</a>
+          <a class="boton boton--contorno boton--chico" href="#/tienda/${tienda.slug || tienda.id}">Ver mi tienda</a>
+        </div>
       </div>
 
       <div class="pestanas" role="tablist">
@@ -126,25 +128,28 @@ function avisoSuscripcion(tienda) {
     return html`<div class="banner banner--error">
       <strong>Tu tienda no está visible.</strong> Tu plan venció. En cuanto registres tu pago
       vuelve a aparecer tal como estaba.
+      <button class="boton boton--conversion boton--chico" data-tab="promocion" type="button">Renovar ahora</button>
     </div>`;
   }
   if (tienda.subStatus === "prueba") {
     return html`<div class="banner banner--info">
       Estás en tu <strong>prueba gratis</strong>: te ${dias === 1 ? "queda" : "quedan"} ${dias}
       día${dias === 1 ? "" : "s"}. Después son $99 al mes para seguir apareciendo.
+      <button class="boton boton--conversion boton--chico" data-tab="promocion" type="button">Ver planes</button>
     </div>`;
   }
   if (dias !== null && dias <= 5) {
     return html`<div class="banner banner--aviso">
       Tu plan vence en ${dias} día${dias === 1 ? "" : "s"}. Renueva para no dejar de aparecer.
+      <button class="boton boton--conversion boton--chico" data-tab="promocion" type="button">Renovar ahora</button>
     </div>`;
   }
   return "";
 }
 
 function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor }) {
-  const cobrados = leads.filter((l) => l.billable).length;
-  const conversion = cobrados ? Math.round((pedidos.length / cobrados) * 100) : 0;
+  const contactos = leads.length;
+  const conversion = contactos ? Math.round((pedidos.length / contactos) * 100) : 0;
   const ventas = pedidos.reduce((s, p) => s + Number(p.total || 0), 0);
   const enlace = `${location.origin}${location.pathname}#/tienda/${tienda.slug || tienda.id}`;
 
@@ -156,9 +161,9 @@ function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor })
 
       <div class="metricas">
         <div class="metrica">
-          <span>Saldo de contactos</span>
-          <strong>${tienda.credits}</strong>
-          <small>disponibles</small>
+          <span>Contactos</span>
+          <strong>Sin límite</strong>
+          <small>${contactos} recibidos</small>
         </div>
         <div class="metrica">
           <span>Pedidos</span>
@@ -173,7 +178,7 @@ function pintarResumen({ panel, tienda, productos, pedidos, leads, contenedor })
         <div class="metrica">
           <span>Conversión</span>
           <strong>${conversion}%</strong>
-          <small>${pedidos.length} de ${cobrados} contactos</small>
+          <small>${pedidos.length} de ${contactos} contactos</small>
         </div>
       </div>
 
@@ -313,7 +318,7 @@ function pintarProductos({ panel, tienda, productos, contenedor }) {
                         <button class="boton boton--contorno boton--chico" data-editar="${producto.id}" type="button">Editar</button>
                         ${estaPromocionado(producto)
                           ? html`<button class="boton boton--texto boton--chico" data-quitar-destacado="${producto.id}" type="button">Quitar destacado</button>`
-                          : html`<button class="boton boton--contorno boton--chico" data-destacar="${producto.id}" data-nombre="${producto.title}" type="button">${icono.estrella()} ${tienda.plan === "destacado" ? "Destacar" : "Destacar · $20"}</button>`}
+                          : html`<button class="boton boton--conversion boton--chico" data-destacar="${producto.id}" data-nombre="${producto.title}" type="button">${icono.estrella()} ${tienda.plan === "destacado" ? "Destacar" : "Destacar · $20"}</button>`}
                         <button class="boton boton--peligro boton--chico" data-borrar="${producto.id}" type="button" aria-label="Eliminar ${producto.title}">
                           ${icono.basura()}
                         </button>
@@ -1006,7 +1011,7 @@ function pintarContactos({ panel, tienda, leads, contenedor }) {
       <div class="seccion-cabeza">
         <div>
           <h2>Contactos recibidos</h2>
-          <p>Cada WhatsApp que te generamos descuenta uno</p>
+          <p>Están incluidos sin límite mientras tu suscripción esté vigente</p>
         </div>
         ${leads.length ? html`<button class="boton boton--texto" data-csv type="button">Descargar CSV</button>` : ""}
       </div>
@@ -1016,7 +1021,7 @@ function pintarContactos({ panel, tienda, leads, contenedor }) {
             <div class="tabla-envoltura">
               <table class="tabla">
                 <thead>
-                  <tr><th>Cuándo</th><th>Total del pedido</th><th>Cobrado</th><th>Contactos restantes</th></tr>
+                  <tr><th>Cuándo</th><th>Total del pedido</th><th>Estado</th></tr>
                 </thead>
                 <tbody>
                   ${leads.map(
@@ -1024,8 +1029,7 @@ function pintarContactos({ panel, tienda, leads, contenedor }) {
                       <tr>
                         <td>${fechaHora(lead.createdAt)}</td>
                         <td>${dinero(lead.total)}</td>
-                        <td>${lead.billable ? "Sí" : "No (sin saldo)"}</td>
-                        <td>${lead.creditAfter ?? "—"}</td>
+                        <td>Recibido</td>
                       </tr>
                     `,
                   )}
@@ -1042,15 +1046,13 @@ function pintarContactos({ panel, tienda, leads, contenedor }) {
   );
 
   panel.querySelector("[data-csv]")?.addEventListener("click", () => {
-    const filas = [["fecha", "total_pedido", "cobrado", "contactos_restantes"]];
-    leads.forEach((l) =>
-      filas.push([fechaHora(l.createdAt), l.total, l.billable ? "si" : "no", l.creditAfter ?? ""]),
-    );
+    const filas = [["fecha", "total_pedido", "estado"]];
+    leads.forEach((l) => filas.push([fechaHora(l.createdAt), l.total, "recibido"]));
     descargar(`contactos-${tienda.slug || tienda.id}.csv`, csv(filas));
   });
 }
 
-// ---------- Promoción y recargas ----------
+// ---------- Plan y promoción ----------
 
 async function pintarPromocion({ panel, tienda, contenedor }) {
   let config = {};
@@ -1142,7 +1144,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
             actual: tienda.plan === "presencia" && tienda.subStatus === "activa",
             puntos: [
               "Contactos ilimitados",
-              "Productos ilimitados",
+              "Hasta 300 productos",
               "Apareces por cercanía",
               "Tu link para compartir",
             ],
@@ -1173,7 +1175,7 @@ async function pintarPromocion({ panel, tienda, contenedor }) {
               </p>
               ${estaPromocionadoTienda(tienda)
                 ? html`<span class="sello sello--destacado">${icono.estrella()} Tu tienda está destacada</span>`
-                : html`<button class="boton boton--principal boton--chico" data-destacar-tienda type="button">
+                : html`<button class="boton boton--conversion boton--chico" data-destacar-tienda type="button">
                     ${icono.estrella()} Destacar mi tienda · ${dinero(config.storeFeaturePrice || 50)}
                   </button>`}
             </section>
@@ -1290,7 +1292,7 @@ function planTarjeta({ id, titulo, precio, puntos, destacado = false, actual = f
         ${puntos.map((p) => html`<li>${icono.check()} ${p}</li>`)}
       </ul>
       <button
-        class="boton ${destacado ? "boton--principal" : "boton--contorno"} boton--ancho"
+        class="boton boton--conversion boton--ancho"
         data-pagar="${id}"
         type="button"
       >
@@ -1369,7 +1371,7 @@ function abrirPagoDestacado({ purchaseType, productId = null, titulo, descripcio
         Solo se activará cuando Clip confirme el pago. Si cierras o cancelas, no cambia nada.
       </div>
     `,
-    pie: html`<button class="boton boton--principal boton--ancho" data-iniciar-destacado type="button">
+    pie: html`<button class="boton boton--conversion boton--ancho" data-iniciar-destacado type="button">
       Continuar a Clip
     </button>`,
   });
@@ -1426,7 +1428,7 @@ function abrirPagoSuscripcion(plan, config, contenedor) {
     `,
     pie: html`
       <div style="display:grid;gap:var(--e-2);width:100%">
-        <button class="boton boton--principal boton--ancho" data-iniciar-clip type="button">
+        <button class="boton boton--conversion boton--ancho" data-iniciar-clip type="button">
           Continuar a Clip
         </button>
         ${hayManual
@@ -1588,8 +1590,9 @@ function pintarPerfil({ panel, tienda, contenedor }) {
             <input name="owner" value="${tienda.owner || ""}" />
           </label>
           <label class="campo">
-            <span>WhatsApp</span>
+            <span>WhatsApp donde recibes pedidos</span>
             <input name="phone" type="tel" inputmode="numeric" value="${tienda.phone || ""}" required />
+            <small>Debe ser un número activo que atiendas durante tu horario.</small>
           </label>
         </div>
         <label class="campo">
@@ -1721,6 +1724,11 @@ function pintarPerfil({ panel, tienda, contenedor }) {
   panel.querySelector("[data-form]").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const datos = Object.fromEntries(new FormData(ev.currentTarget));
+    if (!telefonoValido(datos.phone)) {
+      toast("Escribe un número de WhatsApp válido de 10 dígitos.", "error");
+      ev.currentTarget.querySelector('[name="phone"]')?.focus();
+      return;
+    }
     try {
       await repo.actualizarPerfil({
         ...datos,

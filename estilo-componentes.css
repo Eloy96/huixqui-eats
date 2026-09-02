@@ -62,6 +62,26 @@
   box-shadow: var(--s-0);
 }
 
+/* Acción comercial: se reserva para registrar, contratar o destacar.
+   El maíz contrasta con el verde de navegación y evita que un cobro se
+   pierda entre botones operativos. */
+.boton--conversion {
+  background: var(--maiz-500);
+  color: var(--verde-900);
+  border-color: var(--maiz-500);
+  box-shadow: var(--s-2);
+}
+
+.boton--conversion:hover {
+  filter: brightness(0.95);
+  box-shadow: var(--s-3);
+}
+
+.boton--conversion:active {
+  transform: translateY(1px);
+  box-shadow: var(--s-0);
+}
+
 .boton--wa {
   background: var(--wa-500);
   color: var(--verde-900);
@@ -1416,6 +1436,12 @@
   text-decoration: underline;
   text-underline-offset: 2px;
   color: inherit;
+}
+
+.banner > .boton--conversion {
+  display: flex;
+  width: fit-content;
+  margin-top: var(--e-2);
 }
 
 .publicacion-estado {

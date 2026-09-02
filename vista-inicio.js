@@ -38,6 +38,34 @@ export async function vistaInicio(contenedor) {
         </div>
       </div>
 
+      <section class="home-negocio-banner" aria-labelledby="titulo-negocio-banner">
+        <div class="home-negocio-contenido">
+          <span class="home-negocio-etiqueta">Para negocios del pueblo</span>
+          <h2 id="titulo-negocio-banner">Tu primera mensualidad es sin costo</h2>
+          <p>
+            Después, desde <strong>$99 MXN al mes</strong>. Publica tu catálogo y recibe contactos sin límite,
+            con <strong>0% de comisión por venta</strong>. PuebloPedidos conecta clientes y negocios; cada pedido
+            se confirma directamente por WhatsApp.
+          </p>
+          <ul class="home-negocio-beneficios" aria-label="Beneficios">
+            <li>Hasta 300 productos</li>
+            <li>Contactos incluidos sin límite</li>
+            <li>0% de comisión por venta</li>
+          </ul>
+          <div class="home-negocio-acciones">
+            <a class="boton boton--conversion" href="#/cuenta/negocio">Registrar mi negocio gratis</a>
+            <a class="boton boton--claro" href="#/universidad/negocios">Ver cómo funciona</a>
+          </div>
+          <small>Requisito: contar con un número activo de WhatsApp para recibir pedidos.</small>
+          <a class="home-negocio-comprar" href="#negocios-inicio">Solo quiero pedir: ver negocios disponibles ↓</a>
+        </div>
+        <div class="home-negocio-precio" aria-label="Precio desde 99 pesos al mes">
+          <span>Después del mes gratis</span>
+          <strong><sup>$</sup>99</strong>
+          <small>MXN al mes · desde</small>
+        </div>
+      </section>
+
       <div class="buscador">
         ${icono.buscar()}
         <input
@@ -53,7 +81,7 @@ export async function vistaInicio(contenedor) {
       <section class="seccion" data-zona="destacadas"></section>
       <section class="seccion" data-zona="promos"></section>
       <section class="seccion" data-zona="categorias"></section>
-      <section class="seccion" data-zona="tiendas">
+      <section class="seccion" id="negocios-inicio" data-zona="tiendas">
         <div class="seccion-cabeza"><h2>Negocios del pueblo</h2></div>
         ${esqueletoCarrusel(3)}
       </section>
