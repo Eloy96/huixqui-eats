@@ -41,23 +41,23 @@ export async function vistaInicio(contenedor) {
       <section class="home-negocio-banner" aria-labelledby="titulo-negocio-banner">
         <div class="home-negocio-contenido">
           <span class="home-negocio-etiqueta">Para negocios del pueblo</span>
-          <h2 id="titulo-negocio-banner">Tu primera mensualidad es sin costo</h2>
+          <h2 id="titulo-negocio-banner">30 días sin costo para tu negocio</h2>
           <p>
-            Después, desde <strong>$99 MXN al mes</strong>. Publica tu catálogo y recibe contactos sin límite,
-            con <strong>0% de comisión por venta</strong>. PuebloPedidos conecta clientes y negocios; cada pedido
-            se confirma directamente por WhatsApp.
+            Después, desde <strong>$99 MXN al mes</strong>, sin comisión. Publica hasta 300 productos y recibe
+            contactos ilimitados en tu WhatsApp activo.
           </p>
           <ul class="home-negocio-beneficios" aria-label="Beneficios">
             <li>Hasta 300 productos</li>
-            <li>Contactos incluidos sin límite</li>
-            <li>0% de comisión por venta</li>
+            <li>Contactos ilimitados</li>
+            <li>0% comisión</li>
           </ul>
           <div class="home-negocio-acciones">
             <a class="boton boton--conversion" href="#/cuenta/negocio">Registrar mi negocio gratis</a>
-            <a class="boton boton--claro" href="#/universidad/negocios">Ver cómo funciona</a>
+            <a class="boton boton--claro" href="#/universidad/negocios">Cómo funciona</a>
+            <button class="home-negocio-comprar" type="button" data-ir-negocios>
+              Ver negocios ↓
+            </button>
           </div>
-          <small>Requisito: contar con un número activo de WhatsApp para recibir pedidos.</small>
-          <a class="home-negocio-comprar" href="#negocios-inicio">Solo quiero pedir: ver negocios disponibles ↓</a>
         </div>
         <div class="home-negocio-precio" aria-label="Precio desde 99 pesos al mes">
           <span>Después del mes gratis</span>
@@ -81,7 +81,7 @@ export async function vistaInicio(contenedor) {
       <section class="seccion" data-zona="destacadas"></section>
       <section class="seccion" data-zona="promos"></section>
       <section class="seccion" data-zona="categorias"></section>
-      <section class="seccion" id="negocios-inicio" data-zona="tiendas">
+      <section class="seccion" id="negocios-inicio" data-zona="tiendas" tabindex="-1">
         <div class="seccion-cabeza"><h2>Negocios del pueblo</h2></div>
         ${esqueletoCarrusel(3)}
       </section>
@@ -92,39 +92,45 @@ export async function vistaInicio(contenedor) {
     location.hash = "#/buscar";
   });
 
-  // El contenedor principal se reutiliza al cambiar de modo. Registramos
-  // estos eventos una sola vez para que los clics no se dupliquen después
-  // de alternar varias veces entre Entrega y Recoger.
-  if (contenedor.dataset.eventosInicio !== "listos") {
-    contenedor.dataset.eventosInicio = "listos";
+  // El hash pertenece al enrutador de la SPA. Por eso este control hace
+  // scroll con JavaScript en vez de navegar a "#negocios-inicio".
+  contenedor.querySelector("[data-ir-negocios]")?.addEventListener("click", () => {
+    const negocios = contenedor.querySelector("#negocios-inicio");
+    if (!negocios) return;
+    const reducirMovimiento = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    negocios.scrollIntoView({ behavior: reducirMovimiento ? "auto" : "smooth", block: "start" });
+    negocios.focus({ preventScroll: true });
+  });
 
-    delegar(contenedor, "click", "[data-modo]", (_ev, boton) => {
-      fijar({ modoPedido: boton.dataset.modo });
-      vistaInicio(contenedor);
-    });
+  // pintarEn elimina los listeners delegados de la vista anterior; se
+  // registran otra vez en cada render para que los controles no se queden
+  // inactivos después de cambiar entre Entrega y Recoger.
+  delegar(contenedor, "click", "[data-modo]", (_ev, boton) => {
+    fijar({ modoPedido: boton.dataset.modo });
+    vistaInicio(contenedor);
+  });
 
-    delegar(contenedor, "click", "[data-categoria]", (_ev, boton) => {
-      fijar({ categoria: boton.dataset.categoria });
-      pintarTiendas(contenedor);
-      pintarCategorias(contenedor);
-    });
+  delegar(contenedor, "click", "[data-categoria]", (_ev, boton) => {
+    fijar({ categoria: boton.dataset.categoria });
+    pintarTiendas(contenedor);
+    pintarCategorias(contenedor);
+  });
 
-    delegar(contenedor, "click", "[data-orden]", (_ev, boton) => {
-      const quiereCercania = boton.dataset.orden === "cerca";
-      // Pedir "más cercanos" sin ubicación no puede fallar en silencio:
-      // abrimos el selector y al volver se aplica solo.
-      if (quiereCercania && !estado.ubicacion) {
-        abrirSelectorUbicacion(() => {
-          if (estado.ubicacion) fijar({ ordenCercania: true });
-          vistaInicio(contenedor);
-        });
-        return;
-      }
-      fijar({ ordenCercania: quiereCercania });
-      pintarOrden(contenedor);
-      pintarTiendas(contenedor);
-    });
-  }
+  delegar(contenedor, "click", "[data-orden]", (_ev, boton) => {
+    const quiereCercania = boton.dataset.orden === "cerca";
+    // Pedir "más cercanos" sin ubicación no puede fallar en silencio:
+    // abrimos el selector y al volver se aplica solo.
+    if (quiereCercania && !estado.ubicacion) {
+      abrirSelectorUbicacion(() => {
+        if (estado.ubicacion) fijar({ ordenCercania: true });
+        vistaInicio(contenedor);
+      });
+      return;
+    }
+    fijar({ ordenCercania: quiereCercania });
+    pintarOrden(contenedor);
+    pintarTiendas(contenedor);
+  });
 
   await cargar(contenedor);
 }
